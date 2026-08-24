@@ -3,46 +3,76 @@
 const ENTROPY_KEY = '_cb_sec_entropy_v1';
 const SALT_STRING = 'codebook-ai-keystore-v1';
 
+let cachedCryptoKeyPromise: Promise<CryptoKey | null> | null = null;
+
+function bufferToHex(bytes: Uint8Array): string {
+    let hex = '';
+    for (let i = 0; i < bytes.length; i++) {
+        hex += bytes[i].toString(16).padStart(2, '0');
+    }
+    return hex;
+}
+
+function hexToBytes(hex: string): Uint8Array | null {
+    if (hex.length % 2 !== 0) return null;
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < hex.length; i += 2) {
+        const byte = parseInt(hex.slice(i, i + 2), 16);
+        if (Number.isNaN(byte)) return null;
+        bytes[i / 2] = byte;
+    }
+    return bytes;
+}
+
 async function getOrCreateCryptoKey(): Promise<CryptoKey | null> {
     if (typeof window === 'undefined' || !window.crypto || !window.crypto.subtle) {
         return null;
     }
 
-    try {
-        let rawEntropy = localStorage.getItem(ENTROPY_KEY);
-        if (!rawEntropy) {
-            const randomBytes = new Uint8Array(32);
-            window.crypto.getRandomValues(randomBytes);
-            rawEntropy = Array.from(randomBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-            localStorage.setItem(ENTROPY_KEY, rawEntropy);
-        }
-
-        const encoder = new TextEncoder();
-        const keyMaterial = await window.crypto.subtle.importKey(
-            'raw',
-            encoder.encode(rawEntropy),
-            { name: 'PBKDF2' },
-            false,
-            ['deriveKey']
-        );
-
-        const salt = encoder.encode(SALT_STRING);
-        return await window.crypto.subtle.deriveKey(
-            {
-                name: 'PBKDF2',
-                salt,
-                iterations: 100000,
-                hash: 'SHA-256',
-            },
-            keyMaterial,
-            { name: 'AES-GCM', length: 256 },
-            false,
-            ['encrypt', 'decrypt']
-        );
-    } catch (err) {
-        console.warn('[crypto] Could not derive Web Crypto key:', err);
-        return null;
+    if (cachedCryptoKeyPromise) {
+        return cachedCryptoKeyPromise;
     }
+
+    cachedCryptoKeyPromise = (async () => {
+        try {
+            let rawEntropy = localStorage.getItem(ENTROPY_KEY);
+            if (!rawEntropy) {
+                const randomBytes = new Uint8Array(32);
+                window.crypto.getRandomValues(randomBytes);
+                rawEntropy = bufferToHex(randomBytes);
+                localStorage.setItem(ENTROPY_KEY, rawEntropy);
+            }
+
+            const encoder = new TextEncoder();
+            const keyMaterial = await window.crypto.subtle.importKey(
+                'raw',
+                encoder.encode(rawEntropy),
+                { name: 'PBKDF2' },
+                false,
+                ['deriveKey']
+            );
+
+            const salt = encoder.encode(SALT_STRING);
+            return await window.crypto.subtle.deriveKey(
+                {
+                    name: 'PBKDF2',
+                    salt,
+                    iterations: 100000,
+                    hash: 'SHA-256',
+                },
+                keyMaterial,
+                { name: 'AES-GCM', length: 256 },
+                false,
+                ['encrypt', 'decrypt']
+            );
+        } catch (err) {
+            console.warn('[crypto] Could not derive Web Crypto key:', err);
+            cachedCryptoKeyPromise = null;
+            return null;
+        }
+    })();
+
+    return cachedCryptoKeyPromise;
 }
 
 export async function encryptSecret(plaintext: string): Promise<string> {
@@ -59,8 +89,8 @@ export async function encryptSecret(plaintext: string): Promise<string> {
             encoder.encode(plaintext)
         );
 
-        const ivHex = Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join('');
-        const ctHex = Array.from(new Uint8Array(ciphertextBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+        const ivHex = bufferToHex(iv);
+        const ctHex = bufferToHex(new Uint8Array(ciphertextBuffer));
         return `enc:v1:${ivHex}:${ctHex}`;
     } catch (e) {
         console.warn('[crypto] Failed to encrypt secret, falling back:', e);
@@ -81,20 +111,17 @@ export async function decryptSecret(encryptedPayload: string): Promise<string> {
         const ivHex = parts[2];
         const ctHex = parts[3];
 
-        const ivMatches = ivHex.match(/.{1,2}/g);
-        const ctMatches = ctHex.match(/.{1,2}/g);
-        if (!ivMatches || !ctMatches) return '';
-
-        const iv = new Uint8Array(ivMatches.map(byte => parseInt(byte, 16)));
-        const ct = new Uint8Array(ctMatches.map(byte => parseInt(byte, 16)));
+        const iv = hexToBytes(ivHex);
+        const ct = hexToBytes(ctHex);
+        if (!iv || !ct) return '';
 
         const key = await getOrCreateCryptoKey();
         if (!key) return '';
 
         const decryptedBuffer = await window.crypto.subtle.decrypt(
-            { name: 'AES-GCM', iv },
+            { name: 'AES-GCM', iv: iv as BufferSource },
             key,
-            ct
+            ct as BufferSource
         );
 
         const decoder = new TextDecoder();
