@@ -1,7 +1,7 @@
 // src/core/sync/gistClient.ts
 import { SITE_TITLE, SITE_SLUG } from '../siteConfig';
 
-export const GIST_DEFAULT_DESCRIPTION = `${SITE_TITLE} Progress & Settings Backup`;
+const GIST_DEFAULT_DESCRIPTION = `${SITE_TITLE} Progress & Settings Backup`;
 
 export interface TokenValidationResult {
   valid: boolean;
@@ -10,7 +10,7 @@ export interface TokenValidationResult {
   error?: string;
 }
 
-export interface GistFileEntry {
+interface GistFileEntry {
   filename: string;
   content?: string;
   truncated?: boolean;

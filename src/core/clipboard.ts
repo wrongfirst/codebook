@@ -8,7 +8,7 @@
  * Strips dangerous bidirectional override characters (Trojan Source attacks),
  * invisible zero-width characters, ANSI terminal escapes, and non-printable control characters.
  */
-export function sanitizeForClipboard(text: string): string {
+function sanitizeForClipboard(text: string): string {
     if (!text) return '';
 
     return text

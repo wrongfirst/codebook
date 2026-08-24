@@ -6,7 +6,7 @@ import { exportLessons, sanitizeLessons, mergeLessons, lessonsModule } from './m
 import { exportConversations, sanitizeConversations, mergeConversations, conversationsModule } from './modules/conversationsModule';
 import { exportSettings, sanitizeSettings, mergeSettings, settingsModule } from './modules/settingsModule';
 
-export const BACKUP_VERSION = 1;
+const BACKUP_VERSION = 1;
 
 export const BACKUP_FILENAMES = {
   METADATA: `_${SITE_SLUG}.json`,
@@ -15,7 +15,7 @@ export const BACKUP_FILENAMES = {
   SETTINGS: settingsModule.filename,
 } as const;
 
-export function createMetadata(): MetadataPayload {
+function createMetadata(): MetadataPayload {
   return {
     version: BACKUP_VERSION,
     siteTitle: SITE_TITLE,

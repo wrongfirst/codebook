@@ -9,7 +9,7 @@ import { themeCompartment, getTheme } from '../ui/theme';
 import { showPopup } from '../ui/popup';
 import { store } from './store';
 
-export interface EditorDiagnostic {
+interface EditorDiagnostic {
     message: string;
     severity: 'error' | 'warning' | 'info' | 'hint';
     from: number;
@@ -31,10 +31,10 @@ let activeLanguageId: string | null = null;
 //JN: since Codemirror's editor state and config are immutable by design, we use compartments to update
 //the language syntax and theme. Compartments are dynamic slots for extensions (like syntax highlighting 
 //or theme) used to swap the configs dynamically.
-export const languageCompartment = new Compartment();
-export const vimCompartment = new Compartment();
+const languageCompartment = new Compartment();
+const vimCompartment = new Compartment();
 
-export function updateEditorLanguage(languageExtension?: Extension) {
+function updateEditorLanguage(languageExtension?: Extension) {
     if (view) {
         view.dispatch({
             effects: languageCompartment.reconfigure(languageExtension || [])
@@ -89,7 +89,7 @@ export function getCode(): string {
 /**
  * Returns all active diagnostics currently registered on the active CodeMirror editor state.
  */
-export function getEditorDiagnostics(): EditorDiagnostic[] {
+function getEditorDiagnostics(): EditorDiagnostic[] {
     const editorView = view;
     if (!editorView) return [];
     const diagnostics: EditorDiagnostic[] = [];

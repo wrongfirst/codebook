@@ -36,7 +36,7 @@ export function escapeHtml(str: string): string {
         .replace(/'/g, '&#039;');
 }
 
-export function isSafeUrl(url: string): boolean {
+function isSafeUrl(url: string): boolean {
     if (!url) return false;
     const trimmed = url.trim().toLowerCase();
     // Allow safe absolute web and email protocols
@@ -112,7 +112,7 @@ export const parseMarkdown = (text: string): string => {
  * Strips model reasoning and thought blocks (<thought>...</thought>, <think>...</think>),
  * including open in-progress streaming thought blocks.
  */
-export function stripThoughtBlocks(text: string): string {
+function stripThoughtBlocks(text: string): string {
     if (!text) return '';
     return text
         // Remove closed thought / think tags and content

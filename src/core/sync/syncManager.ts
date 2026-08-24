@@ -29,7 +29,7 @@ let lastPushedPayloadString: string | null = null;
 /**
  * Validates that remote Gist files belong to the current site instance and not a different template site.
  */
-export function validateGistSiteMatch(files: Record<string, any>): { valid: boolean; error?: string } {
+function validateGistSiteMatch(files: Record<string, any>): { valid: boolean; error?: string } {
   const expectedMeta = `_${SITE_SLUG}.json`;
   const foreignMeta = Object.keys(files).find(
     (fn) => fn.startsWith('_') && fn.endsWith('.json') && fn !== expectedMeta

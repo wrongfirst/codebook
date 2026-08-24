@@ -5,7 +5,7 @@ import { scheduleAutoPush } from '../../sync/syncManager';
 /**
  * Pure helper function to synchronize chat settings and active endpoint fields.
  */
-export function syncChatSettings(
+function syncChatSettings(
   current: ChatSettings,
   newSettings: Partial<ChatSettings>
 ): ChatSettings {

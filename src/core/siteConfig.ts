@@ -24,6 +24,6 @@ export const SITE_SLUG: string =
     SITE_TITLE.toLowerCase()
         .replace(/[^a-z0-9_-]+/g, '-')
         .replace(/^-+|-+$/g, '') || 'codebook';
-export const SITE_SUBTITLE: string = siteConfig.subtitle || '';
+const SITE_SUBTITLE: string = siteConfig.subtitle || '';
 
 export default siteConfig;

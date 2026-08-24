@@ -17,14 +17,4 @@ export const elements = {
     ...shortcutElements,
     ...resetProgressElements,
 };
-
-export {
-    layoutElements,
-    controlElements,
-    brandingElements,
-    settingsElements,
-    chatElements,
-    speedrunElements,
-    shortcutElements,
-    resetProgressElements,
-};
+export default elements;
