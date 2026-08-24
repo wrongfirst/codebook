@@ -4,15 +4,24 @@ import { decryptSecret } from '../../crypto';
 import { AppState } from '../../types';
 
 let decryptionPromise: Promise<void> | null = null;
+let defaultStoreApi: StoreApi<AppState> | { getState: () => AppState } | null = null;
+
+export function registerDecryptionStore(storeApi: StoreApi<AppState> | { getState: () => AppState }): void {
+  defaultStoreApi = storeApi;
+}
 
 export function ensureSettingsDecrypted(storeApi?: StoreApi<AppState> | { getState: () => AppState }): Promise<void> {
-  if (!decryptionPromise) {
-    if (storeApi) {
-      decryptionPromise = decryptStoredSettings(storeApi);
-    } else {
-      return Promise.resolve();
-    }
+  if (decryptionPromise) {
+    return decryptionPromise;
   }
+  const target = storeApi || defaultStoreApi;
+  if (target) {
+    return decryptStoredSettings(target);
+  }
+  decryptionPromise = (async () => {
+    const { store } = await import('../../store');
+    await decryptStoredSettings(store);
+  })();
   return decryptionPromise;
 }
 
