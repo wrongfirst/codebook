@@ -130,11 +130,31 @@ export const parseChatMarkdown = (text: string): string => {
 };
 
 
+let activeStaticViews: EditorView[] = [];
+
+/**
+ * Destroys all currently active static CodeMirror editor views to prevent memory leaks.
+ */
+export function destroyStaticBlocks(): void {
+    for (const view of activeStaticViews) {
+        try {
+            view.destroy();
+        } catch {
+            // Non-fatal if view is already unmounted
+        }
+    }
+    activeStaticViews = [];
+}
+
 //JN: Right now, codemirror essentially "injects" a read only editor in the markdown codeblocks using this
 //function. So all codeblocks in the problem description are effectively read-only editors. Does this add
 //an overhead as the number of code blocks across all exercises scales?
-export function highlightStaticBlocks() {
-    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+export function highlightStaticBlocks(): void {
+    destroyStaticBlocks();
+
+    if (typeof document === 'undefined') return;
+
+    const isDark = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
     const blocks = document.querySelectorAll('.cm-static-code');
     blocks.forEach(block => {
         const text = block.textContent || "";
@@ -144,7 +164,7 @@ export function highlightStaticBlocks() {
 
         block.textContent = "";
 
-        new EditorView({
+        const view = new EditorView({
             state: EditorState.create({
                 doc: text,
                 extensions: [
@@ -161,5 +181,8 @@ export function highlightStaticBlocks() {
             }),
             parent: block as HTMLElement
         });
+
+        activeStaticViews.push(view);
     });
 }
+
