@@ -1,18 +1,17 @@
-// src/core/backup/backupManager.ts
 import { SITE_TITLE, SITE_SLUG } from '../siteConfig';
 import { AppState } from '../types';
 import { ExportOptions, MetadataPayload, ModularBackupPayload } from './types';
-import { exportLessons, sanitizeLessons, mergeLessons, lessonsModule } from './modules/lessonsModule';
-import { exportConversations, sanitizeConversations, mergeConversations, conversationsModule } from './modules/conversationsModule';
-import { exportSettings, sanitizeSettings, mergeSettings, settingsModule } from './modules/settingsModule';
+import { exportLessons, sanitizeLessons, mergeLessons } from './modules/lessonsModule';
+import { exportConversations, sanitizeConversations, mergeConversations } from './modules/conversationsModule';
+import { exportSettings, sanitizeSettings, mergeSettings } from './modules/settingsModule';
 
 const BACKUP_VERSION = 1;
 
 export const BACKUP_FILENAMES = {
   METADATA: `_${SITE_SLUG}.json`,
-  LESSONS: lessonsModule.filename,
-  CONVERSATIONS: conversationsModule.filename,
-  SETTINGS: settingsModule.filename,
+  LESSONS: 'lessons.json',
+  CONVERSATIONS: 'conversations.json',
+  SETTINGS: 'settings.json',
 } as const;
 
 function createMetadata(): MetadataPayload {

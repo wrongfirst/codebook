@@ -1,5 +1,5 @@
 import { AppState } from '../../types';
-import { BackupModule, LessonProgressItem, LessonsPayload } from '../types';
+import { LessonProgressItem, LessonsPayload } from '../types';
 import { isValidExerciseId, exercises } from '../../../exercises/exercise-registry';
 
 export function exportLessons(state: AppState): LessonsPayload {
@@ -197,10 +197,3 @@ export function mergeLessons(local: AppState, remote: LessonsPayload | any): Par
   };
 }
 
-export const lessonsModule: BackupModule<LessonsPayload> = {
-  id: 'lessons',
-  filename: 'lessons.json',
-  exportData: (state) => exportLessons(state),
-  sanitizeData: (raw, current) => sanitizeLessons(raw, current),
-  mergeData: (local, remote) => mergeLessons(local, remote),
-};

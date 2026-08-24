@@ -1,7 +1,6 @@
-// src/core/backup/modules/settingsModule.ts
 import { AppState, ChatSettings, GistSyncSettings, defaultChatSettings, defaultGistSyncSettings } from '../../types';
 import { decryptSecret } from '../../crypto';
-import { BackupModule, ExportOptions, SettingsPayload } from '../types';
+import { ExportOptions, SettingsPayload } from '../types';
 
 export async function exportSettings(
   state: AppState,
@@ -162,10 +161,3 @@ export function mergeSettings(local: AppState, remote: SettingsPayload | any): P
   };
 }
 
-export const settingsModule: BackupModule<SettingsPayload> = {
-  id: 'settings',
-  filename: 'settings.json',
-  exportData: (state, options) => exportSettings(state, options),
-  sanitizeData: (raw, current) => sanitizeSettings(raw, current),
-  mergeData: (local, remote) => mergeSettings(local, remote),
-};

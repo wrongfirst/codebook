@@ -1,5 +1,5 @@
 import { AppState, ChatConversation, ChatMessage } from '../../types';
-import { BackupModule, ConversationsPayload, SavedConversation } from '../types';
+import { ConversationsPayload, SavedConversation } from '../types';
 import { isValidExerciseId } from '../../../exercises/exercise-registry';
 
 export function exportConversations(state: AppState): ConversationsPayload {
@@ -116,7 +116,7 @@ export function sanitizeConversations(raw: unknown, current: AppState): Partial<
       updatedAt: typeof item.updatedAt === 'number' ? item.updatedAt : Date.now(),
       messages: Array.isArray(item.messages)
         ? item.messages
-            .map((m: any) => ({
+            .map((m: any): ChatMessage => ({
               id: String(m.id || `msg-${Date.now()}`),
               role: m.role === 'assistant' || m.role === 'system' ? m.role : 'user',
               content: String(m.content || ''),
@@ -125,7 +125,7 @@ export function sanitizeConversations(raw: unknown, current: AppState): Partial<
               ...(m.failedPrompt ? { failedPrompt: String(m.failedPrompt) } : {}),
               ...(m.userMsgId ? { userMsgId: String(m.userMsgId) } : {}),
             }))
-            .sort((a, b) => a.timestamp - b.timestamp)
+            .sort((a: ChatMessage, b: ChatMessage) => a.timestamp - b.timestamp)
         : [],
     };
 
@@ -175,7 +175,7 @@ export function mergeConversations(local: AppState, remote: ConversationsPayload
     if (!existing) {
       const rawMessages: ChatMessage[] = Array.isArray(rem.messages)
         ? rem.messages
-            .map((m: any) => ({
+            .map((m: any): ChatMessage => ({
               id: String(m.id || `msg-${Date.now()}`),
               role: m.role === 'assistant' || m.role === 'system' ? m.role : 'user',
               content: String(m.content || ''),
@@ -184,7 +184,7 @@ export function mergeConversations(local: AppState, remote: ConversationsPayload
               ...(m.failedPrompt ? { failedPrompt: String(m.failedPrompt) } : {}),
               ...(m.userMsgId ? { userMsgId: String(m.userMsgId) } : {}),
             }))
-            .sort((a, b) => a.timestamp - b.timestamp)
+            .sort((a: ChatMessage, b: ChatMessage) => a.timestamp - b.timestamp)
         : [];
 
       convMap.set(remId, {
@@ -202,7 +202,7 @@ export function mergeConversations(local: AppState, remote: ConversationsPayload
       const newMessages: ChatMessage[] = Array.isArray(rem.messages)
         ? rem.messages
             .filter((m: any) => m && m.id && !existingMsgIds.has(m.id))
-            .map((m: any) => ({
+            .map((m: any): ChatMessage => ({
               id: String(m.id),
               role: m.role === 'assistant' || m.role === 'system' ? m.role : 'user',
               content: String(m.content || ''),
@@ -214,7 +214,7 @@ export function mergeConversations(local: AppState, remote: ConversationsPayload
         : [];
 
       existing.messages = [...existing.messages, ...newMessages].sort(
-        (a, b) => a.timestamp - b.timestamp
+        (a: ChatMessage, b: ChatMessage) => a.timestamp - b.timestamp
       );
       existing.updatedAt = Math.max(existing.updatedAt, rem.updatedAt || 0);
       if (rem.title && !existing.title) existing.title = rem.title;
@@ -248,11 +248,4 @@ export function mergeConversations(local: AppState, remote: ConversationsPayload
   };
 }
 
-export const conversationsModule: BackupModule<ConversationsPayload> = {
-  id: 'conversations',
-  filename: 'conversations.json',
-  exportData: (state) => exportConversations(state),
-  sanitizeData: (raw, current) => sanitizeConversations(raw, current),
-  mergeData: (local, remote) => mergeConversations(local, remote),
-};
 

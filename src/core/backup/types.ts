@@ -49,10 +49,3 @@ export interface ExportOptions {
   includeKeys?: boolean;
 }
 
-export interface BackupModule<T> {
-  id: string;
-  filename: string;
-  exportData: (state: AppState, options?: ExportOptions) => Promise<T> | T;
-  sanitizeData: (raw: unknown, current: AppState) => Partial<AppState>;
-  mergeData: (local: AppState, remote: T) => Partial<AppState>;
-}
