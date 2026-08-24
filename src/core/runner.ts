@@ -92,7 +92,8 @@ class Orchestrator {
             elements.console.textContent = result.output;
 
             //output-based validation (Runtime tests)
-            if (result.output.includes("Test failed") || result.output.includes("Failure")) {
+            const isAssertionFailure = Boolean(result.output && result.output.includes("Test failed"));
+            if (isAssertionFailure) {
                 status.setFailed();
                 return;
             }
