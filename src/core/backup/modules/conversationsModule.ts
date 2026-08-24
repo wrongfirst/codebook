@@ -115,15 +115,17 @@ export function sanitizeConversations(raw: unknown, current: AppState): Partial<
       createdAt: typeof item.createdAt === 'number' ? item.createdAt : Date.now(),
       updatedAt: typeof item.updatedAt === 'number' ? item.updatedAt : Date.now(),
       messages: Array.isArray(item.messages)
-        ? item.messages.map((m: any) => ({
-            id: String(m.id || `msg-${Date.now()}`),
-            role: m.role === 'assistant' || m.role === 'system' ? m.role : 'user',
-            content: String(m.content || ''),
-            timestamp: typeof m.timestamp === 'number' ? m.timestamp : Date.now(),
-            ...(m.isError ? { isError: true } : {}),
-            ...(m.failedPrompt ? { failedPrompt: String(m.failedPrompt) } : {}),
-            ...(m.userMsgId ? { userMsgId: String(m.userMsgId) } : {}),
-          }))
+        ? item.messages
+            .map((m: any) => ({
+              id: String(m.id || `msg-${Date.now()}`),
+              role: m.role === 'assistant' || m.role === 'system' ? m.role : 'user',
+              content: String(m.content || ''),
+              timestamp: typeof m.timestamp === 'number' ? m.timestamp : Date.now(),
+              ...(m.isError ? { isError: true } : {}),
+              ...(m.failedPrompt ? { failedPrompt: String(m.failedPrompt) } : {}),
+              ...(m.userMsgId ? { userMsgId: String(m.userMsgId) } : {}),
+            }))
+            .sort((a, b) => a.timestamp - b.timestamp)
         : [],
     };
 
@@ -159,7 +161,7 @@ export function mergeConversations(local: AppState, remote: ConversationsPayload
 
   for (const loc of localList) {
     if (loc?.id && isValidExerciseId(loc.lessonSlug)) {
-      convMap.set(loc.id, { ...loc });
+      convMap.set(loc.id, { ...loc, messages: [...(loc.messages || [])] });
     }
   }
 
@@ -171,6 +173,20 @@ export function mergeConversations(local: AppState, remote: ConversationsPayload
 
     const existing = convMap.get(remId);
     if (!existing) {
+      const rawMessages: ChatMessage[] = Array.isArray(rem.messages)
+        ? rem.messages
+            .map((m: any) => ({
+              id: String(m.id || `msg-${Date.now()}`),
+              role: m.role === 'assistant' || m.role === 'system' ? m.role : 'user',
+              content: String(m.content || ''),
+              timestamp: typeof m.timestamp === 'number' ? m.timestamp : Date.now(),
+              ...(m.isError ? { isError: true } : {}),
+              ...(m.failedPrompt ? { failedPrompt: String(m.failedPrompt) } : {}),
+              ...(m.userMsgId ? { userMsgId: String(m.userMsgId) } : {}),
+            }))
+            .sort((a, b) => a.timestamp - b.timestamp)
+        : [];
+
       convMap.set(remId, {
         id: remId,
         lessonSlug,
@@ -178,16 +194,28 @@ export function mergeConversations(local: AppState, remote: ConversationsPayload
         title: String(rem.title || 'Chat'),
         createdAt: typeof rem.createdAt === 'number' ? rem.createdAt : Date.now(),
         updatedAt: typeof rem.updatedAt === 'number' ? rem.updatedAt : Date.now(),
-        messages: Array.isArray(rem.messages) ? rem.messages : [],
+        messages: rawMessages,
       });
     } else {
       // Merge messages without duplicating by ID
       const existingMsgIds = new Set(existing.messages.map((m) => m.id));
       const newMessages: ChatMessage[] = Array.isArray(rem.messages)
-        ? rem.messages.filter((m: any) => !existingMsgIds.has(m.id))
+        ? rem.messages
+            .filter((m: any) => m && m.id && !existingMsgIds.has(m.id))
+            .map((m: any) => ({
+              id: String(m.id),
+              role: m.role === 'assistant' || m.role === 'system' ? m.role : 'user',
+              content: String(m.content || ''),
+              timestamp: typeof m.timestamp === 'number' ? m.timestamp : Date.now(),
+              ...(m.isError ? { isError: true } : {}),
+              ...(m.failedPrompt ? { failedPrompt: String(m.failedPrompt) } : {}),
+              ...(m.userMsgId ? { userMsgId: String(m.userMsgId) } : {}),
+            }))
         : [];
 
-      existing.messages = [...existing.messages, ...newMessages];
+      existing.messages = [...existing.messages, ...newMessages].sort(
+        (a, b) => a.timestamp - b.timestamp
+      );
       existing.updatedAt = Math.max(existing.updatedAt, rem.updatedAt || 0);
       if (rem.title && !existing.title) existing.title = rem.title;
     }
