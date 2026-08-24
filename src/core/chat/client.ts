@@ -1,4 +1,4 @@
-// src/core/ai/client.ts
+// src/core/chat/client.ts
 import { store, ChatMessage } from '../store';
 import { buildSystemPrompt } from './context';
 import { decryptSecret } from '../crypto';
@@ -208,9 +208,6 @@ function resolveEndpoint(baseUrl: string): string {
   const clean = baseUrl.trim().replace(/\/+$/, '');
   if (clean.endsWith('/chat/completions')) {
     return clean;
-  }
-  if (clean.endsWith('/v1')) {
-    return `${clean}/chat/completions`;
   }
   return `${clean}/chat/completions`;
 }

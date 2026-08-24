@@ -1,4 +1,4 @@
-// src/core/ai/context.ts
+// src/core/chat/context.ts
 import { store } from '../store';
 import { exercises } from '../../exercises/exercise-registry';
 import { getExerciseVariant } from '../types';
