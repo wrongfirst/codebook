@@ -1,6 +1,7 @@
 // src/core/store/slices/chatSlice.ts
 import { StateCreator } from 'zustand/vanilla';
 import { AppState, ChatConversation, ChatMessage, ChatSlice } from '../../types';
+import { scheduleAutoPush } from '../../sync/syncManager';
 
 export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, get) => ({
   chatConversations: {},
@@ -28,6 +29,7 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, 
         [lessonSlug]: id,
       },
     });
+    scheduleAutoPush();
     return id;
   },
 
@@ -59,6 +61,7 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, 
         [lessonSlug]: updatedConvs,
       },
     });
+    scheduleAutoPush();
   },
 
   updateConversationTitle: (lessonSlug: string, conversationId: string, title: string) => {
@@ -72,6 +75,7 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, 
         [lessonSlug]: updatedConvs,
       },
     });
+    scheduleAutoPush();
   },
 
   deleteConversation: (lessonSlug: string, conversationId: string) => {
@@ -92,6 +96,7 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, 
         [lessonSlug]: nextActiveId,
       },
     });
+    scheduleAutoPush();
   },
 
   getActiveConversation: (lessonSlug: string) => {
@@ -151,6 +156,7 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, 
         [lessonSlug]: nextActiveId,
       },
     });
+    scheduleAutoPush();
   },
 
   removeChatMessages: (lessonSlug: string, messageIds: string[], conversationId?: string) => {
@@ -176,6 +182,7 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, 
         [lessonSlug]: convs,
       },
     });
+    scheduleAutoPush();
   },
 
   clearChatHistory: (lessonSlug: string, conversationId?: string) => {
@@ -196,5 +203,6 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, 
         [lessonSlug]: convs,
       },
     });
+    scheduleAutoPush();
   },
 });
