@@ -1,10 +1,13 @@
+import { byId } from './helpers';
+
 export const resetProgressElements = {
     resetProgress: {
-        modal: document.getElementById('reset-progress-modal') as HTMLElement,
-        title: document.getElementById('reset-progress-title') as HTMLElement,
-        desc: document.getElementById('reset-progress-desc') as HTMLElement,
-        closeBtn: document.getElementById('close-reset-progress-btn') as HTMLButtonElement,
-        cancelBtn: document.getElementById('cancel-reset-progress-btn') as HTMLButtonElement,
-        confirmBtn: document.getElementById('confirm-reset-progress-btn') as HTMLButtonElement,
+        get modal() { return byId('reset-progress-modal'); },
+        get title() { return byId('reset-progress-title'); },
+        get desc() { return byId('reset-progress-desc'); },
+        get closeBtn() { return byId<HTMLButtonElement>('close-reset-progress-btn'); },
+        get cancelBtn() { return byId<HTMLButtonElement>('cancel-reset-progress-btn'); },
+        get confirmBtn() { return byId<HTMLButtonElement>('confirm-reset-progress-btn'); },
     },
 };
+

@@ -1,14 +1,17 @@
+import { byId } from './helpers';
+
 export const chatElements = {
     chat: {
-        scrollContainer: document.getElementById('problem-and-chat-scroll') as HTMLElement,
-        section: document.getElementById('chat-section') as HTMLElement,
-        inputContainer: document.getElementById('chat-input-container') as HTMLElement,
-        clearBtn: document.getElementById('clear-chat-btn') as HTMLButtonElement,
-        newTabBtn: document.getElementById('new-chat-tab-btn') as HTMLButtonElement,
-        tabsContainer: document.getElementById('chat-tabs-container') as HTMLElement,
-        messages: document.getElementById('chat-messages') as HTMLElement,
-        quickChips: document.getElementById('chat-quick-chips') as HTMLElement,
-        input: document.getElementById('chat-input') as HTMLTextAreaElement,
-        sendBtn: document.getElementById('chat-send-btn') as HTMLButtonElement,
+        get scrollContainer() { return byId('problem-and-chat-scroll'); },
+        get section() { return byId('chat-section'); },
+        get inputContainer() { return byId('chat-input-container'); },
+        get clearBtn() { return byId<HTMLButtonElement>('clear-chat-btn'); },
+        get newTabBtn() { return byId<HTMLButtonElement>('new-chat-tab-btn'); },
+        get tabsContainer() { return byId('chat-tabs-container'); },
+        get messages() { return byId('chat-messages'); },
+        get quickChips() { return byId('chat-quick-chips'); },
+        get input() { return byId<HTMLTextAreaElement>('chat-input'); },
+        get sendBtn() { return byId<HTMLButtonElement>('chat-send-btn'); },
     },
 };
+

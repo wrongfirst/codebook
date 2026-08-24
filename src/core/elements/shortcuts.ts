@@ -1,7 +1,10 @@
+import { byId } from './helpers';
+
 export const shortcutElements = {
     shortcuts: {
-        modal: document.getElementById('shortcuts-modal') as HTMLElement,
-        closeBtn: document.getElementById('close-shortcuts-btn') as HTMLButtonElement,
-        list: document.getElementById('shortcuts-list') as HTMLElement,
+        get modal() { return byId('shortcuts-modal'); },
+        get closeBtn() { return byId<HTMLButtonElement>('close-shortcuts-btn'); },
+        get list() { return byId('shortcuts-list'); },
     },
 };
+
