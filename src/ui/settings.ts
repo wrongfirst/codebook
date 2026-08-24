@@ -11,6 +11,7 @@ import { pullFromGist, pushToGist, initiateOAuthLogin, subscribeSyncStatus, getS
 import { validateToken, extractGistId } from '../core/sync/gistClient';
 import { SITE_SLUG } from '../core/siteConfig';
 import { buildManualExportPayload, parseManualImport } from '../core/backup';
+import { getModelsUrl } from '../core/chat/client';
 
 let cachedModels: string[] = [];
 let isFetchingModels = false;
@@ -746,15 +747,8 @@ async function fetchAvailableModels(baseUrl: string, apiKey: string): Promise<{ 
     if (!baseUrl) return { success: false, models: [], error: 'Base URL is required' };
 
     const resolvedApiKey = (await decryptSecret(apiKey || '')).trim();
+    const endpoint = getModelsUrl(baseUrl);
     const cleanBaseUrl = baseUrl.replace(/\/+$/, '');
-    let endpoint: string;
-    if (cleanBaseUrl.endsWith('/chat/completions')) {
-        endpoint = cleanBaseUrl.replace(/\/chat\/completions$/, '/models');
-    } else if (cleanBaseUrl.endsWith('/v1')) {
-        endpoint = `${cleanBaseUrl}/models`;
-    } else {
-        endpoint = `${cleanBaseUrl}/models`;
-    }
 
     try {
         const headers: Record<string, string> = {

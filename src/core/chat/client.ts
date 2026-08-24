@@ -39,7 +39,7 @@ export async function streamCompletion(options: StreamOptions): Promise<string> 
     throw new Error('No model selected. Please select a model in Settings.');
   }
 
-  const endpoint = resolveEndpoint(settings.baseUrl);
+  const endpoint = getChatCompletionsUrl(settings.baseUrl);
   const { systemPrompt } = buildSystemPrompt();
 
   // Retrieve past messages for the active conversation of this exercise
@@ -204,10 +204,28 @@ export async function streamCompletion(options: StreamOptions): Promise<string> 
   return accumulated;
 }
 
-function resolveEndpoint(baseUrl: string): string {
+/**
+ * Normalizes a base URL and returns the standard chat completions endpoint URL.
+ */
+export function getChatCompletionsUrl(baseUrl: string): string {
   const clean = baseUrl.trim().replace(/\/+$/, '');
   if (clean.endsWith('/chat/completions')) {
     return clean;
   }
   return `${clean}/chat/completions`;
 }
+
+/**
+ * Normalizes a base URL and returns the standard models listing endpoint URL.
+ */
+export function getModelsUrl(baseUrl: string): string {
+  const clean = baseUrl.trim().replace(/\/+$/, '');
+  if (clean.endsWith('/chat/completions')) {
+    return clean.replace(/\/chat\/completions$/, '/models');
+  }
+  if (clean.endsWith('/models')) {
+    return clean;
+  }
+  return `${clean}/models`;
+}
+
