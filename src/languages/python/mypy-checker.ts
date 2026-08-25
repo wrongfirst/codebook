@@ -30,6 +30,7 @@ def _codebook_mypy_check(src: str) -> str:
             '--allow-untyped-calls',
             '--hide-error-context',
             '--allow-redefinition',
+            '--disable-error-code=var-annotated',
         ])
 
         diagnostics = []
