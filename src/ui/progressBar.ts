@@ -61,7 +61,7 @@ export function renderProgressBar(
 
     let html = '';
 
-    // Left ellipsis (Micro-Dot Circle Node)
+    // Left truncation (Chevron Node)
     if (showLeftEllipsis) {
         const prevEx = currentChapter.exercises[startIndex - 1];
         const isPrevCompleted = completedSlugs.includes(prevEx.id);
@@ -70,11 +70,9 @@ export function renderProgressBar(
         html += `
             <div class="progress-step relative flex items-center group cursor-pointer" data-exercise-id="${prevEx.id}" title="Previous: ${prevEx.title}">
                 <div class="w-4 h-4 rounded-full flex items-center justify-center border border-border-default bg-bg-surface group-hover:border-brand transition-all duration-300 z-10">
-                    <div class="flex gap-[1.5px] items-center justify-center">
-                        <div class="w-0.5 h-0.5 rounded-full bg-fg-muted group-hover:bg-brand transition-colors"></div>
-                        <div class="w-0.5 h-0.5 rounded-full bg-fg-muted group-hover:bg-brand transition-colors"></div>
-                        <div class="w-0.5 h-0.5 rounded-full bg-fg-muted group-hover:bg-brand transition-colors"></div>
-                    </div>
+                    <svg class="w-2.5 h-2.5 text-fg-muted group-hover:text-brand transition-colors pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
                 </div>
                 <div class="w-8 h-0.5 mx-0.5 rounded ${leftLineClass}"></div>
                 <!-- tooltip on hover -->
@@ -132,18 +130,16 @@ export function renderProgressBar(
         `;
     }
 
-    // Right ellipsis (Micro-Dot Circle Node)
+    // Right truncation (Chevron Node)
     if (showRightEllipsis) {
         const nextEx = currentChapter.exercises[endIndex + 1];
 
         html += `
             <div class="progress-step relative flex items-center group cursor-pointer" data-exercise-id="${nextEx.id}" title="Next: ${nextEx.title}">
                 <div class="w-4 h-4 rounded-full flex items-center justify-center border border-border-default bg-bg-surface group-hover:border-brand transition-all duration-300 z-10">
-                    <div class="flex gap-[1.5px] items-center justify-center">
-                        <div class="w-0.5 h-0.5 rounded-full bg-fg-muted group-hover:bg-brand transition-colors"></div>
-                        <div class="w-0.5 h-0.5 rounded-full bg-fg-muted group-hover:bg-brand transition-colors"></div>
-                        <div class="w-0.5 h-0.5 rounded-full bg-fg-muted group-hover:bg-brand transition-colors"></div>
-                    </div>
+                    <svg class="w-2.5 h-2.5 text-fg-muted group-hover:text-brand transition-colors pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
                 </div>
                 <!-- tooltip on hover -->
                 <div class="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-bg-surface border border-border-default px-2 py-1 rounded text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-20 pointer-events-none">
