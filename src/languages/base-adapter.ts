@@ -232,6 +232,10 @@ export abstract class BaseAdapter implements CodeRunner {
   }
 
   async run(userCode: string, testCode: string = ''): Promise<ExecutionResult> {
+    if (this.initError || this.status === 'error') {
+      this.initWorker();
+    }
+
     const isReadyNow = await this.waitUntilReady();
 
     if (this.initError) {

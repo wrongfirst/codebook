@@ -72,7 +72,7 @@ createWorkerHandler({
     // Phase 1: Static Type Checking with Mypy (Strict Mode)
     if (userCode.trim()) {
       try {
-        const typeDiagnostics = await checkWithMypy(instance, userCode);
+        const typeDiagnostics = await checkWithMypy(instance, userCode, harness);
         const typeErrors = typeDiagnostics.filter(d => d.severity === 'error');
 
         if (typeErrors.length > 0) {
@@ -163,7 +163,7 @@ createWorkerHandler({
     let mypyDiagnostics: DiagnosticItem[] = [];
     if (pyodideInstance && isMypyReady()) {
       try {
-        mypyDiagnostics = await checkWithMypy(pyodideInstance, code);
+        mypyDiagnostics = await checkWithMypy(pyodideInstance, code, harness);
       } catch (err) {
         console.warn('[Python Worker Mypy Lint Error]:', err);
       }

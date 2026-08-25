@@ -109,7 +109,11 @@ export function isMypyReady(): boolean {
 /**
  * Runs static type checking using Mypy inside Pyodide.
  */
-export async function checkWithMypy(pyodide: any, code: string): Promise<DiagnosticItem[]> {
+export async function checkWithMypy(
+  pyodide: any,
+  code: string,
+  harnessCode = ''
+): Promise<DiagnosticItem[]> {
   if (!code || !code.trim()) {
     return [];
   }
@@ -118,15 +122,43 @@ export async function checkWithMypy(pyodide: any, code: string): Promise<Diagnos
     await initMypy(pyodide);
   }
 
+  const harnessLines = harnessCode ? harnessCode.split('\n').length : 0;
+  const combinedCode = harnessCode
+    ? (harnessCode.endsWith('\n') ? `${harnessCode}${code}` : `${harnessCode}\n${code}`)
+    : code;
+
   try {
     const mypyCheckFn = pyodide.globals.get('_codebook_mypy_check');
     if (!mypyCheckFn) {
       pyodide.runPython(MYPY_BRIDGE_PYTHON);
     }
     const checkFn = pyodide.globals.get('_codebook_mypy_check');
-    const rawJson = checkFn(code);
-    const items: DiagnosticItem[] = JSON.parse(rawJson);
-    return items;
+    const rawJson = checkFn(combinedCode);
+    const rawItems: DiagnosticItem[] = JSON.parse(rawJson);
+
+    if (harnessLines === 0) {
+      return rawItems;
+    }
+
+    const remappedItems: DiagnosticItem[] = [];
+    for (const item of rawItems) {
+      if (item.line !== undefined) {
+        if (item.line <= harnessLines) {
+          // Ignore diagnostics originating strictly inside the harness template
+          continue;
+        }
+        const userLine = item.line - harnessLines;
+        remappedItems.push({
+          ...item,
+          line: userLine,
+          endLine: item.endLine !== undefined ? Math.max(1, item.endLine - harnessLines) : userLine
+        });
+      } else {
+        remappedItems.push(item);
+      }
+    }
+
+    return remappedItems;
   } catch (err) {
     console.warn('[Mypy Checker Error]:', err);
     return [];
