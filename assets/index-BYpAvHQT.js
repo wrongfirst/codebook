@@ -402,7 +402,13 @@ ALL TESTS PASSED!`;let n=t.includes(e);X.getState().markComplete(e),n?hg(`Passed
                       ${a?nD.CHECK:``}
                     </div>`}).join(``)).join(``))}function sD(e,t){!e||!t||(e.innerHTML=nD.MENU,e.addEventListener(`click`,()=>{t.classList.toggle(`hidden`),t.classList.toggle(`flex`),t.classList.toggle(`lg:hidden`),t.classList.toggle(`lg:flex`)}),document.addEventListener(`click`,n=>{let r=!t.classList.contains(`hidden`);if(window.innerWidth<1024&&r){let r=n.target,i=t.contains(r),a=e.contains(r);!i&&!a&&(t.classList.toggle(`hidden`),t.classList.toggle(`flex`),t.classList.toggle(`lg:hidden`),t.classList.toggle(`lg:flex`))}}))}var cD=!1,lD=5;function uD(e,t,n,r){if(!e)return;cD||(cD=!0,e.addEventListener(`click`,e=>{let t=e.target.closest(`.progress-step`);if(!t)return;let n=t.getAttribute(`data-exercise-id`);n&&(window.location.hash=`#`+n,X.getState().setCurrent(n))}));let i=t.find(e=>e.exercises.some(e=>e.id===n));if(!i||i.exercises.length<=1){e.innerHTML=``;return}let a=i.exercises.length,o=i.exercises.findIndex(e=>!r.includes(e.id)),s=i.exercises.findIndex(e=>e.id===n);s===-1&&(s=0);let c=0,l=a-1;if(a>lD){let e=Math.floor(lD/2);c=s-e,l=s+e,c<0&&(l=Math.min(a-1,l-c),c=0),l>=a&&(c=Math.max(0,c-(l-(a-1))),l=a-1)}let u=c>0,d=l<a-1,f=``;if(u){let e=i.exercises[c-1],t=r.includes(e.id)?`bg-brand`:`bg-border-default opacity-50`;f+=`
             <div class="progress-step relative flex items-center group cursor-pointer" data-exercise-id="${e.id}" title="Previous: ${e.title}">
-                <span class="h-4 flex items-center justify-center text-xs font-mono text-fg-muted group-hover:text-fg-primary tracking-widest px-0.5 transition-colors select-none">...</span>
+                <div class="w-4 h-4 rounded-full flex items-center justify-center border border-border-default bg-bg-surface group-hover:border-brand transition-all duration-300 z-10">
+                    <div class="flex gap-[1.5px] items-center justify-center">
+                        <div class="w-0.5 h-0.5 rounded-full bg-fg-muted group-hover:bg-brand transition-colors"></div>
+                        <div class="w-0.5 h-0.5 rounded-full bg-fg-muted group-hover:bg-brand transition-colors"></div>
+                        <div class="w-0.5 h-0.5 rounded-full bg-fg-muted group-hover:bg-brand transition-colors"></div>
+                    </div>
+                </div>
                 <div class="w-8 h-0.5 mx-0.5 rounded ${t}"></div>
                 <!-- tooltip on hover -->
                 <div class="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-bg-surface border border-border-default px-2 py-1 rounded text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-20 pointer-events-none">
@@ -422,7 +428,13 @@ ALL TESTS PASSED!`;let n=t.includes(e);X.getState().markComplete(e),n?hg(`Passed
             </div>
         `}if(d){let e=i.exercises[l+1];f+=`
             <div class="progress-step relative flex items-center group cursor-pointer" data-exercise-id="${e.id}" title="Next: ${e.title}">
-                <span class="h-4 flex items-center justify-center text-xs font-mono text-fg-muted group-hover:text-fg-primary tracking-widest px-0.5 transition-colors select-none">...</span>
+                <div class="w-4 h-4 rounded-full flex items-center justify-center border border-border-default bg-bg-surface group-hover:border-brand transition-all duration-300 z-10">
+                    <div class="flex gap-[1.5px] items-center justify-center">
+                        <div class="w-0.5 h-0.5 rounded-full bg-fg-muted group-hover:bg-brand transition-colors"></div>
+                        <div class="w-0.5 h-0.5 rounded-full bg-fg-muted group-hover:bg-brand transition-colors"></div>
+                        <div class="w-0.5 h-0.5 rounded-full bg-fg-muted group-hover:bg-brand transition-colors"></div>
+                    </div>
+                </div>
                 <!-- tooltip on hover -->
                 <div class="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-bg-surface border border-border-default px-2 py-1 rounded text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-20 pointer-events-none">
                     More (${a-1-l} remaining)
