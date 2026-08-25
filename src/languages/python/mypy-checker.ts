@@ -24,7 +24,10 @@ def _codebook_mypy_check(src: str) -> str:
             '--show-column-numbers',
             '--no-error-summary',
             '--no-color-output',
-            '--check-untyped-defs',
+            '--no-check-untyped-defs',
+            '--allow-untyped-defs',
+            '--allow-incomplete-defs',
+            '--allow-untyped-calls',
             '--hide-error-context',
             '--allow-redefinition',
         ])

@@ -69,7 +69,7 @@ createWorkerHandler({
   async execute(userCode: string, testCode: string = '') {
     const instance = await setupPyodide();
 
-    // Phase 1: Static Type Checking with Mypy (Strict Mode)
+    // Phase 1: Static Type Checking with Mypy
     if (userCode.trim()) {
       try {
         const typeDiagnostics = await checkWithMypy(instance, userCode, harness);
