@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional, Tuple, Set, Any
+from typing import Optional, Any
 import collections
 from collections import defaultdict, deque
 import heapq
@@ -22,7 +22,7 @@ class TreeNode:
         return f"TreeNode({self.val})"
 
 class Node:
-    def __init__(self, val: int = 0, neighbors: Optional[List['Node']] = None):
+    def __init__(self, val: int = 0, neighbors: Optional[list['Node']] = None):
         self.val = val
         self.neighbors = neighbors if neighbors is not None else []
 
@@ -38,7 +38,7 @@ class Interval:
         return f"Interval({self.start}, {self.end})"
 
 
-def list_to_linked_list(arr: List[int]) -> Optional[ListNode]:
+def list_to_linked_list(arr: list[int]) -> Optional[ListNode]:
     if not arr:
         return None
     head = ListNode(arr[0])
@@ -48,7 +48,7 @@ def list_to_linked_list(arr: List[int]) -> Optional[ListNode]:
         curr = curr.next
     return head
 
-def linked_list_to_list(head: Optional[ListNode]) -> List[int]:
+def linked_list_to_list(head: Optional[ListNode]) -> list[int]:
     res = []
     curr = head
     seen = set()
@@ -60,7 +60,7 @@ def linked_list_to_list(head: Optional[ListNode]) -> List[int]:
         curr = curr.next
     return res
 
-def list_to_tree(arr: List[Optional[int]]) -> Optional[TreeNode]:
+def list_to_tree(arr: list[Optional[int]]) -> Optional[TreeNode]:
     if not arr or arr[0] is None:
         return None
     root = TreeNode(arr[0])
@@ -78,10 +78,10 @@ def list_to_tree(arr: List[Optional[int]]) -> Optional[TreeNode]:
         i += 1
     return root
 
-def tree_to_list(root: Optional[TreeNode]) -> List[Optional[int]]:
+def tree_to_list(root: Optional[TreeNode]) -> list[Optional[int]]:
     if not root:
         return []
-    res: List[Optional[int]] = []
+    res: list[Optional[int]] = []
     queue = collections.deque([root])
     while queue:
         node = queue.popleft()
@@ -95,7 +95,7 @@ def tree_to_list(root: Optional[TreeNode]) -> List[Optional[int]]:
         res.pop()
     return res
 
-def make_cycle(arr: List[int], pos: int) -> Optional[ListNode]:
+def make_cycle(arr: list[int], pos: int) -> Optional[ListNode]:
     head = list_to_linked_list(arr)
     if pos == -1 or not head:
         return head
@@ -118,11 +118,11 @@ def ints_to_tree(*vals: int) -> Optional[TreeNode]:
         return None
     return list_to_tree(list(vals))
 
-def tree_to_ints(root: Optional[TreeNode]) -> List[int]:
+def tree_to_ints(root: Optional[TreeNode]) -> list[int]:
     raw = tree_to_list(root)
     return [v for v in raw if v is not None]
 
-def build_graph(adj: List[List[int]]) -> Optional[Node]:
+def build_graph(adj: list[list[int]]) -> Optional[Node]:
     if not adj:
         return None
     nodes = [Node(i + 1) for i in range(len(adj))]
@@ -131,10 +131,10 @@ def build_graph(adj: List[List[int]]) -> Optional[Node]:
             nodes[i].neighbors.append(nodes[nei - 1])
     return nodes[0]
 
-def graph_to_adj(node: Optional[Node]) -> List[List[int]]:
+def graph_to_adj(node: Optional[Node]) -> list[list[int]]:
     if not node:
         return []
-    visited: Dict[int, Node] = {}
+    visited: dict[int, Node] = {}
     def dfs(n: Node):
         if n.val in visited:
             return
@@ -142,7 +142,7 @@ def graph_to_adj(node: Optional[Node]) -> List[List[int]]:
         for nei in (n.neighbors or []):
             dfs(nei)
     dfs(node)
-    adj: List[List[int]] = []
+    adj: list[list[int]] = []
     for i in range(1, len(visited) + 1):
         if i in visited:
             adj.append([nei.val for nei in (visited[i].neighbors or [])])
@@ -159,10 +159,10 @@ def normalize_nested(groups: Any) -> Any:
     except TypeError:
         return sorted(normalized, key=lambda x: repr(x))
 
-def sort_strings(arr: List[str]) -> List[str]:
+def sort_strings(arr: list[str]) -> list[str]:
     return sorted(arr)
 
-def sort_ints(arr: List[int]) -> List[int]:
+def sort_ints(arr: list[int]) -> list[int]:
     return sorted(arr)
 
 class Tests:
