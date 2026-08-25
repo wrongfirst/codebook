@@ -1,6 +1,6 @@
 from typing import Optional, Any
 import collections
-from collections import defaultdict, deque
+from collections import defaultdict, deque, Counter
 import heapq
 import math
 
@@ -22,9 +22,19 @@ class TreeNode:
         return f"TreeNode({self.val})"
 
 class Node:
-    def __init__(self, val: int = 0, neighbors: Optional[list['Node']] = None):
+    def __init__(
+        self,
+        val: int = 0,
+        neighbors: Optional[list['Node']] = None,
+        next: Optional['Node'] = None,
+        random: Optional['Node'] = None,
+        prev: Optional['Node'] = None,
+    ):
         self.val = val
         self.neighbors = neighbors if neighbors is not None else []
+        self.next = next
+        self.random = random
+        self.prev = prev
 
     def __repr__(self):
         return f"Node({self.val})"
