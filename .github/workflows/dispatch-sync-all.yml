@@ -1,0 +1,40 @@
+name: Dispatch Sync to All Instances
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_repos:
+        description: "Comma-separated list of child repos (leave empty to use .github/instances.json)"
+        required: false
+        default: ""
+
+jobs:
+  dispatch:
+    if: github.repository == 'wrongfirst/codebook'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Dispatch Sync Event to Instances
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+          CUSTOM_REPOS: ${{ github.event.inputs.target_repos }}
+        run: |
+          if [ -n "$CUSTOM_REPOS" ]; then
+            REPOS=$(echo "$CUSTOM_REPOS" | tr ',' ' ')
+          elif [ -f ".github/instances.json" ]; then
+            REPOS=$(jq -r '.[]' .github/instances.json)
+          else
+            echo "No instance repos specified in input or .github/instances.json"
+            exit 1
+          fi
+
+          for REPO in $REPOS; do
+            echo "Sending sync dispatch event to $REPO..."
+            gh api \
+              --method POST \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/$REPO/dispatches" \
+              -f "event_type=template_updated" || echo "Failed to dispatch to $REPO (check permissions / PAT)"
+          done
