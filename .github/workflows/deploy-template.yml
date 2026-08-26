@@ -34,6 +34,9 @@ jobs:
           rm -rf .workspace
           rm -f src/TODO.md
           rm -f .github/workflows/deploy-template.yml
+          rm -f .github/workflows/dispatch-sync-all.yml
+          rm -f .github/instances.json
+          rm -rf scripts/sync-instances.sh
           find . -name ".DS_Store" -type f -delete 2>/dev/null || true
           git add -A
           if ! git diff-index --quiet HEAD --; then
