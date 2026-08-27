@@ -10,7 +10,9 @@ INSTANCES=("$@")
 if [ ${#INSTANCES[@]} -eq 0 ]; then
   CONFIG_FILE="$(dirname "$0")/../.github/instances.json"
   if [ -f "$CONFIG_FILE" ]; then
-    mapfile -t INSTANCES < <(jq -r '.[]' "$CONFIG_FILE")
+    while IFS= read -r repo; do
+      [ -n "$repo" ] && INSTANCES+=("$repo")
+    done < <(jq -r '.[]' "$CONFIG_FILE")
   else
     echo "Error: No repositories specified and .github/instances.json not found."
     echo "Usage: ./scripts/sync-instances.sh [owner/repo1 owner/repo2 ...]"
