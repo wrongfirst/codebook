@@ -45,7 +45,7 @@ export function renderProgressBar(
     let currentIndex = exercises.findIndex(e => e.id === activeLessonSlug);
     if (currentIndex === -1) currentIndex = 0;
 
-    const MAX_TOTAL_VISIBLE = typeof window !== 'undefined' && window.innerWidth < 800 ? 5 : 7;
+    const MAX_TOTAL_VISIBLE = typeof window !== 'undefined' && window.innerWidth < 1024 ? 5 : 7;
     const midCount = MAX_TOTAL_VISIBLE - 2;
     const half = Math.floor(midCount / 2);
 
