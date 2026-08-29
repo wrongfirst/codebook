@@ -1,5 +1,4 @@
-import { createLanguageLinter } from '../lint-helper';
-import runner from './adapter';
-
-export const lintExtension = createLanguageLinter(runner, 'cpp');
+import { createDynamicLanguageLinter } from '../lint-helper';
+ 
+export const lintExtension = createDynamicLanguageLinter('cpp');
 export default lintExtension;
