@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <functional>
 #include <iostream>
@@ -12,7 +13,6 @@
 #include <optional>
 #include <queue>
 #include <set>
-#include <sstream>
 #include <stack>
 #include <string>
 #include <tuple>
@@ -323,22 +323,16 @@ typename std::enable_if<std::is_arithmetic<T>::value &&
                             !std::is_same<T, char>::value,
                         std::string>::type
 to_string_repr(const T &val) {
-  std::ostringstream ss;
-  ss << val;
-  return ss.str();
+  return std::to_string(val);
 }
 
 inline std::string to_string_repr(const Interval &val) {
-  std::ostringstream ss;
-  ss << "[" << val.start << ", " << val.end << "]";
-  return ss.str();
+  return "[" + std::to_string(val.start) + ", " + std::to_string(val.end) + "]";
 }
 
 template <typename T1, typename T2>
 std::string to_string_repr(const std::pair<T1, T2> &p) {
-  std::ostringstream ss;
-  ss << "(" << to_string_repr(p.first) << ", " << to_string_repr(p.second) << ")";
-  return ss.str();
+  return "(" + to_string_repr(p.first) + ", " + to_string_repr(p.second) + ")";
 }
 
 template <typename T> std::string to_string_repr(const std::optional<T> &val) {
@@ -348,89 +342,77 @@ template <typename T> std::string to_string_repr(const std::optional<T> &val) {
 }
 
 template <typename T> std::string to_string_repr(const std::vector<T> &vec) {
-  std::ostringstream ss;
-  ss << "[";
+  std::string res = "[";
   for (size_t i = 0; i < vec.size(); ++i) {
-    if (i > 0)
-      ss << ", ";
-    ss << to_string_repr(vec[i]);
+    if (i > 0) res += ", ";
+    res += to_string_repr(vec[i]);
   }
-  ss << "]";
-  return ss.str();
+  res += "]";
+  return res;
 }
 
 template <typename T>
 std::string to_string_repr(const std::vector<std::vector<T>> &mat) {
   if (mat.empty())
     return "[]";
-  std::ostringstream ss;
-  ss << "[\n";
+  std::string res = "[\n";
   for (size_t i = 0; i < mat.size(); ++i) {
-    ss << "  [";
+    res += "  [";
     for (size_t j = 0; j < mat[i].size(); ++j) {
-      if (j > 0)
-        ss << ", ";
-      ss << to_string_repr(mat[i][j]);
+      if (j > 0) res += ", ";
+      res += to_string_repr(mat[i][j]);
     }
-    ss << "]" << (i + 1 < mat.size() ? ",\n" : "\n");
+    res += (i + 1 < mat.size()) ? "],\n" : "]\n";
   }
-  ss << "]";
-  return ss.str();
+  res += "]";
+  return res;
 }
 
 template <typename K, typename V>
 std::string to_string_repr(const std::map<K, V> &m) {
-  std::ostringstream ss;
-  ss << "{";
+  std::string res = "{";
   size_t i = 0;
   for (const auto &pair : m) {
-    if (i++ > 0)
-      ss << ", ";
-    ss << to_string_repr(pair.first) << ": " << to_string_repr(pair.second);
+    if (i++ > 0) res += ", ";
+    res += to_string_repr(pair.first) + ": " + to_string_repr(pair.second);
   }
-  ss << "}";
-  return ss.str();
+  res += "}";
+  return res;
 }
 
 template <typename K, typename V>
 std::string to_string_repr(const std::unordered_map<K, V> &m) {
-  std::ostringstream ss;
-  ss << "{";
+  std::string res = "{";
   size_t i = 0;
   for (const auto &pair : m) {
-    if (i++ > 0)
-      ss << ", ";
-    ss << to_string_repr(pair.first) << ": " << to_string_repr(pair.second);
+    if (i++ > 0) res += ", ";
+    res += to_string_repr(pair.first) + ": " + to_string_repr(pair.second);
   }
-  ss << "}";
-  return ss.str();
+  res += "}";
+  return res;
 }
 
 template <typename T> std::string to_string_repr(const std::set<T> &s) {
-  std::ostringstream ss;
-  ss << "{";
+  std::string res = "{";
   size_t i = 0;
   for (const auto &item : s) {
-    if (i++ > 0)
-      ss << ", ";
-    ss << to_string_repr(item);
+    if (i++ > 0) res += ", ";
+    res += to_string_repr(item);
   }
-  ss << "}";
-  return ss.str();
+  res += "}";
+  return res;
 }
 
 template <typename T>
 std::string to_string_repr(const std::unordered_set<T> &s) {
-  std::ostringstream ss;
-  ss << "{";
+  std::string res = "{";
   size_t i = 0;
   for (const auto &item : s) {
-    if (i++ > 0)
-      ss << ", ";
-    ss << to_string_repr(item);
+    if (i++ > 0) res += ", ";
+    res += to_string_repr(item);
   }
-  ss << "}";
-  return ss.str();
+  res += "}";
+  return res;
 }
 
 inline std::string to_string_repr(const ListNode *head) {
@@ -496,11 +478,11 @@ inline bool deep_equals(const T &a, const U &b) {
 struct _TestsRunner {
   static void bool_check(const std::string &msg, bool condition) {
     if (condition) {
-      std::cout << "Test passed: " << msg << "\n";
-      std::cout.flush();
+      printf("Test passed: %s\n", msg.c_str());
+      fflush(stdout);
     } else {
-      std::cout << "Test failed: " << msg << "\n";
-      std::cout.flush();
+      printf("Test failed: %s\n", msg.c_str());
+      fflush(stdout);
       std::exit(1);
     }
   }
@@ -509,15 +491,13 @@ struct _TestsRunner {
   static void equal_check(const std::string &msg, const T &expected,
                           const U &actual) {
     if (_harness_detail::deep_equals(expected, actual)) {
-      std::cout << "Test passed: " << msg << "\n";
-      std::cout.flush();
+      printf("Test passed: %s\n", msg.c_str());
+      fflush(stdout);
     } else {
-      std::cout << "Test failed: " << msg << "\n";
-      std::cout << "Expected: " << _harness_detail::to_string_repr(expected)
-                << "\n";
-      std::cout << "Actual:   " << _harness_detail::to_string_repr(actual)
-                << "\n";
-      std::cout.flush();
+      printf("Test failed: %s\n", msg.c_str());
+      printf("Expected: %s\n", _harness_detail::to_string_repr(expected).c_str());
+      printf("Actual:   %s\n", _harness_detail::to_string_repr(actual).c_str());
+      fflush(stdout);
       std::exit(1);
     }
   }
@@ -529,15 +509,13 @@ struct _TestsRunner {
     auto norm_exp = normalize_nested(expected);
     auto norm_act = normalize_nested(actual);
     if (norm_exp == norm_act) {
-      std::cout << "Test passed: " << msg << "\n";
-      std::cout.flush();
+      printf("Test passed: %s\n", msg.c_str());
+      fflush(stdout);
     } else {
-      std::cout << "Test failed: " << msg << "\n";
-      std::cout << "Expected: " << _harness_detail::to_string_repr(norm_exp)
-                << "\n";
-      std::cout << "Actual:   " << _harness_detail::to_string_repr(norm_act)
-                << "\n";
-      std::cout.flush();
+      printf("Test failed: %s\n", msg.c_str());
+      printf("Expected: %s\n", _harness_detail::to_string_repr(norm_exp).c_str());
+      printf("Actual:   %s\n", _harness_detail::to_string_repr(norm_act).c_str());
+      fflush(stdout);
       std::exit(1);
     }
   }
