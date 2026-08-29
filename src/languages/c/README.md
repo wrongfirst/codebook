@@ -18,10 +18,22 @@ This module implements C language execution, syntax highlighting, and live linti
 - **`Node`**: `{ int val; int numNeighbors; struct Node **neighbors; }`
 - **`Interval`**: `{ int start; int end; }`
 
+### Helper Functions
+
+- **Linked Lists**: `list_to_linked_list(arr, len)`, `linked_list_to_list(head, &out_len)`, `make_cycle(arr, len, pos)`
+- **Binary Trees**: `list_to_tree(arr, len)`, `tree_to_list(root, &out_len)`, `ints_to_tree(arr, len)`, `tree_to_ints(root, &out_len)`
+- **Graphs**: `build_graph(adj, col_sizes, row_size)`, `graph_to_adj(node, &out_row_size, &out_col_sizes)`
+- **Sorting & Normalization**: `sort_ints(arr, len)`, `sort_strings(arr, len)`, `normalize_nested_ints(...)`, `normalize_nested_strings(...)`
+
 ### Test Assertions
 
 - `Tests.bool_check(msg, condition)`
 - `Tests.equal_check_int(msg, expected, actual)`
+- `Tests.equal_check_long(msg, expected, actual)`
+- `Tests.equal_check_double(msg, expected, actual)`
 - `Tests.equal_check_str(msg, expected, actual)`
 - `Tests.equal_check_int_arr(msg, exp_arr, exp_len, act_arr, act_len)`
+- `Tests.equal_check_int_2d(msg, exp, exp_cols, exp_rows, act, act_cols, act_rows)`
+- `Tests.unordered_equal_check(msg, exp, exp_cols, exp_rows, act, act_cols, act_rows)`
+- `Tests.unordered_equal_check_str(msg, exp, exp_cols, exp_rows, act, act_cols, act_rows)`
 - `equal_check(msg, expected, actual)`

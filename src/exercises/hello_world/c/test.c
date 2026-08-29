@@ -1,1 +1,6 @@
-// Test harness for C hello_world exercise
+void hello_world(void);
+
+int main(void) {
+    hello_world();
+    return 0;
+}

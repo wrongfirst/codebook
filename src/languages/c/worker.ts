@@ -10,6 +10,7 @@ const CLANG_CDN_URL = 'https://cdn.jsdelivr.net/npm/@yowasp/clang@22.0.0-git2054
 
 let runClang: YowaspCommand | null = null;
 let isClangReady = false;
+let cachedPchBytes: Uint8Array | null = null;
 
 async function ensureClangReady(): Promise<void> {
   if (isClangReady && runClang) return;
@@ -28,11 +29,34 @@ async function ensureClangReady(): Promise<void> {
       throw new Error("Failed to find runClang in the loaded module");
     }
 
-    // Warm up Clang to pre-fetch and compile WASM assets into memory
-    await runClang(['clang', '--version'], {}, {
-      stdout: () => {},
-      stderr: () => {}
-    });
+    // Warm up Clang and attempt to precompile the harness header into a PCH
+    try {
+      const pchRes = await runClang(
+        ['clang', '-x', 'c-header', '-Xclang', '-fno-pch-timestamp', 'harness.h', '-o', 'harness.pch'],
+        { 'harness.h': harness },
+        {
+          stdout: () => {},
+          stderr: () => {}
+        }
+      ) as YowaspTree | undefined;
+
+      const pch = pchRes?.['harness.pch'];
+      if (pch && pch instanceof Uint8Array) {
+        cachedPchBytes = pch;
+      }
+    } catch (pchErr) {
+      console.warn('[C Worker] PCH precompilation skipped, using direct include fallback:', pchErr);
+      cachedPchBytes = null;
+    }
+
+    if (!cachedPchBytes) {
+      // Fallback warmup via standard version check if PCH generation was skipped
+      await runClang(['clang', '--version'], {}, {
+        stdout: () => {},
+        stderr: () => {}
+      });
+    }
+
     isClangReady = true;
   } catch (err) {
     console.error('[C Worker] Clang warmup failed:', err);
@@ -41,54 +65,94 @@ async function ensureClangReady(): Promise<void> {
 }
 
 
-function prepareSourceCode(userCode: string, testCode: string = ''): string {
-  const hasMain = userCode.includes('main(') || testCode.includes('main(');
+function prepareSourceCode(userCode: string, testCode: string = '', includeHarnessText = true): string {
+  const mainRegex = /\b(?:int\s+)?main\s*\(/;
+  const testHasMain = mainRegex.test(testCode);
+  const userHasMain = mainRegex.test(userCode);
 
-  let fullCode = harness + '\n\n';
-  fullCode += '#line 1 "user.c"\n';
-  fullCode += userCode + '\n\n';
+  let fullCode = '';
+  if (includeHarnessText) {
+    fullCode += harness + '\n\n';
+  }
+
+  if (testHasMain && userHasMain) {
+    // If userCode defines a main() while testCode also provides main(), isolate user's main
+    fullCode += '#define main __user_unused_main\n';
+    fullCode += '#line 1 "user.c"\n' + userCode + '\n\n';
+    fullCode += '#undef main\n';
+  } else {
+    fullCode += '#line 1 "user.c"\n' + userCode + '\n\n';
+  }
 
   if (testCode.trim()) {
-    fullCode += '#line 1 "test.c"\n';
-    if (hasMain) {
-      fullCode += testCode + '\n';
-    } else {
-      fullCode += 'int main(int argc, char** argv) {\n';
-      fullCode += testCode + '\n';
-      fullCode += '    return 0;\n';
-      fullCode += '}\n';
-    }
-  } else if (!hasMain) {
-    fullCode += 'int main(int argc, char** argv) {\n    return 0;\n}\n';
+    fullCode += '#line 1 "test.c"\n' + testCode + '\n';
+  }
+
+  // Fallback: If neither provided a main entry point, synthesize an empty one
+  if (!testHasMain && !userHasMain) {
+    fullCode += '\nint main(int argc, char** argv) {\n    return 0;\n}\n';
   }
 
   return fullCode;
 }
 
 function parseClangDiagnostics(stderrOutput: string): DiagnosticItem[] {
+  if (!stderrOutput || !stderrOutput.trim()) return [];
+
   const diags: DiagnosticItem[] = [];
   // Match lines like: user.c:12:5: error: expected ';' after expression
   const diagRegex = /(?:user\.c):(\d+):(\d+):\s*(error|warning|note):\s*(.*)/g;
 
   let match: RegExpExecArray | null;
+  let lastDiag: DiagnosticItem | null = null;
+
   while ((match = diagRegex.exec(stderrOutput)) !== null) {
     const line = parseInt(match[1], 10) || 1;
     const column = parseInt(match[2], 10) || 1;
     const type = match[3];
     const message = match[4].trim();
 
-    if (type === 'note') continue;
+    if (type === 'note') {
+      // Attach contextual note to the previous nearby diagnostic if available
+      if (lastDiag && Math.abs((lastDiag.line || 1) - line) <= 1) {
+        lastDiag.message += ` (note: ${message})`;
+      }
+      continue;
+    }
 
-    diags.push({
+    const item: DiagnosticItem = {
       line,
       column,
+      endLine: line,
+      endColumn: column + 1,
       message,
       severity: type === 'error' ? 'error' : 'warning',
       source: 'clang'
-    });
+    };
+
+    diags.push(item);
+    lastDiag = item;
   }
 
   return diags;
+}
+
+function formatCompileError(compileStderr: string): string {
+  if (!compileStderr) return '';
+
+  const lines = compileStderr.split('\n');
+  const formatted: string[] = [];
+
+  for (const line of lines) {
+    if (line.includes('test.c:')) {
+      const cleaned = line.replace(/test\.c:\d+:\d+:\s*(error|warning):\s*/, '');
+      formatted.push(`[Function Signature Mismatch] Test harness compilation error:\n  -> ${cleaned}`);
+    } else {
+      formatted.push(line);
+    }
+  }
+
+  return formatted.join('\n');
 }
 
 createWorkerHandler({
@@ -99,16 +163,28 @@ createWorkerHandler({
   async execute(userCode: string, testCode: string = '') {
     await ensureClangReady();
 
-    const source = prepareSourceCode(userCode, testCode);
+    const usePch = Boolean(cachedPchBytes);
+    const source = prepareSourceCode(userCode, testCode, !usePch);
     let compileStderr = '';
 
     const decoder = new TextDecoder('utf-8');
 
+    const clangArgs = ['clang', '-O0', '-Wall', '-Wno-unused-variable', '-Wno-unused-function'];
+    const virtualFiles: Record<string, Uint8Array | string> = { 'main.c': source };
+
+    if (usePch && cachedPchBytes) {
+      clangArgs.push('-include-pch', 'harness.pch');
+      virtualFiles['harness.pch'] = cachedPchBytes;
+      virtualFiles['harness.h'] = harness;
+    }
+
+    clangArgs.push('main.c', '-o', 'main.wasm');
+
     let outputFiles: YowaspTree | undefined;
     try {
       const res = await runClang!(
-        ['clang', '-O0', '-Wall', '-Wno-unused-variable', '-Wno-unused-function', 'main.c', '-o', 'main.wasm'],
-        { 'main.c': source },
+        clangArgs,
+        virtualFiles,
         {
           stdout: () => {},
           stderr: (bytes: Uint8Array | null) => {
@@ -123,7 +199,7 @@ createWorkerHandler({
       return {
         success: false,
         output: '',
-        error: compileStderr || err?.message || String(err)
+        error: formatCompileError(compileStderr) || err?.message || String(err)
       };
     }
 
@@ -132,7 +208,7 @@ createWorkerHandler({
       return {
         success: false,
         output: '',
-        error: compileStderr || 'Compilation failed: no WebAssembly binary was generated.'
+        error: formatCompileError(compileStderr) || 'Compilation failed: no WebAssembly binary was generated.'
       };
     }
 
@@ -153,14 +229,10 @@ createWorkerHandler({
     const wasi = new WASI(['main.wasm'], [], [stdinFd, stdoutFd, stderrFd]);
 
     try {
-      const wasmBuffer = wasmBytes.buffer.slice(
-        wasmBytes.byteOffset,
-        wasmBytes.byteOffset + wasmBytes.byteLength
-      ) as ArrayBuffer;
-      const wasmModule = await WebAssembly.compile(wasmBuffer);
-      const instance = await WebAssembly.instantiate(wasmModule, {
+      const wasmResult: any = await WebAssembly.instantiate(wasmBytes, {
         wasi_snapshot_preview1: wasi.wasiImport
       });
+      const instance = wasmResult.instance || wasmResult;
 
       let exitCode = 0;
       try {
@@ -194,14 +266,26 @@ createWorkerHandler({
     try {
       await ensureClangReady();
 
-      const source = prepareSourceCode(userCode, '');
+      const usePch = Boolean(cachedPchBytes);
+      const source = prepareSourceCode(userCode, '', !usePch);
       let compileStderr = '';
       const decoder = new TextDecoder('utf-8');
 
+      const clangArgs = ['clang', '-fsyntax-only', '-Wall'];
+      const virtualFiles: Record<string, Uint8Array | string> = { 'main.c': source };
+
+      if (usePch && cachedPchBytes) {
+        clangArgs.push('-include-pch', 'harness.pch');
+        virtualFiles['harness.pch'] = cachedPchBytes;
+        virtualFiles['harness.h'] = harness;
+      }
+
+      clangArgs.push('main.c');
+
       try {
         await runClang!(
-          ['clang', '-fsyntax-only', '-Wall', 'main.c'],
-          { 'main.c': source },
+          clangArgs,
+          virtualFiles,
           {
             stdout: () => {},
             stderr: (bytes: Uint8Array | null) => {
@@ -224,6 +308,7 @@ createWorkerHandler({
 
   async reset() {
     isClangReady = false;
+    cachedPchBytes = null;
     await ensureClangReady();
   }
 });
