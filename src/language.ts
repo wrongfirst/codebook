@@ -65,7 +65,7 @@ export const activeRunner: CodeRunner = {
                         currentRunnerUnsub = existingRunner.subscribeStatus(listener);
                     }
                     if (existingRunner.whenReady) {
-                        existingRunner.whenReady().catch(() => {});
+                        existingRunner.whenReady().catch(() => { });
                     } else if ((existingRunner as any).ensureWorker) {
                         (existingRunner as any).ensureWorker();
                     }
@@ -77,7 +77,7 @@ export const activeRunner: CodeRunner = {
                             currentRunnerUnsub = runner.subscribeStatus(listener);
                         }
                         if (runner.whenReady) {
-                            runner.whenReady().catch(() => {});
+                            runner.whenReady().catch(() => { });
                         } else if ((runner as any).ensureWorker) {
                             (runner as any).ensureWorker();
                         }
