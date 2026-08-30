@@ -229,3 +229,93 @@ export function getModelsUrl(baseUrl: string): string {
   return `${clean}/models`;
 }
 
+/**
+ * Generates a concise topic title for an existing conversation using the configured AI endpoint.
+ * Used by the automated `/rename` slash command without adding messages to chat history.
+ */
+export async function generateConversationTitle(conversationId: string): Promise<string | null> {
+  const state = store.getState();
+  const settings = state.chatSettings;
+  const { activeLessonSlug } = state;
+
+  if (!settings?.enabled || !settings.baseUrl || !settings.model) {
+    console.debug('[Chat Title] Cannot generate title: chat settings not enabled or incomplete.');
+    return null;
+  }
+
+  const convs = state.chatConversations[activeLessonSlug] || [];
+  const activeConv = convs.find(c => c.id === conversationId);
+  const history = (activeConv?.messages || [])
+    .filter(m => m.role === 'user' || m.role === 'assistant')
+    .map(m => ({ role: m.role, content: m.content }));
+
+  if (history.length === 0) {
+    console.debug('[Chat Title] Cannot generate title: conversation history is empty.');
+    return null;
+  }
+
+  const endpoint = getChatCompletionsUrl(settings.baseUrl);
+  const rawKey = settings.apiKey || '';
+  const resolvedKey = (await decryptSecret(rawKey)).trim();
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (resolvedKey) {
+    headers['Authorization'] = `Bearer ${resolvedKey}`;
+  }
+  if (settings.baseUrl.includes('anthropic.com')) {
+    headers['anthropic-dangerous-direct-browser-access'] = 'true';
+  }
+
+  const messages = [
+    {
+      role: 'system',
+      content:
+        'You are a concise conversation summarizer. Output a 1-3 word title summarizing the user discussion enclosed in <title>...</title> tags (e.g. <title>Binary Search</title>). Respond ONLY with the title tags, no other text.',
+    },
+    ...history,
+    {
+      role: 'user',
+      content: 'Summarize the topic of this conversation in a 1-3 word title enclosed in <title>...</title> tags.',
+    },
+  ];
+
+  try {
+    console.debug('[Chat Title] Requesting /rename title generation from endpoint...');
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model: settings.model,
+        messages,
+        temperature: 0.3,
+        max_tokens: 30,
+      }),
+    });
+
+    if (!response.ok) {
+      console.debug('[Chat Title] /rename endpoint call failed with HTTP status:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const rawContent: string = data.choices?.[0]?.message?.content || data.choices?.[0]?.text || '';
+    console.debug('[Chat Title] Raw response for /rename:', rawContent);
+
+    const match = rawContent.match(/<title>([^<]*)<\/title>/i) || rawContent.match(/^\s*<title>([^<]*)<\/title>/i);
+    let title: string | null = null;
+    if (match) {
+      title = match[1].trim().replace(/[#*_`]/g, '').slice(0, 24);
+    } else if (rawContent.trim()) {
+      title = rawContent.trim().replace(/[#*_`]/g, '').replace(/^title:\s*/i, '').slice(0, 24);
+    }
+
+    console.debug('[Chat Title] Extracted title for /rename:', title);
+    return title || null;
+  } catch (err) {
+    console.debug('[Chat Title] Error during /rename title generation:', err);
+    return null;
+  }
+}
+
