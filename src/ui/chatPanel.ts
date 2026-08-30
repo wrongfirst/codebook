@@ -649,23 +649,16 @@ async function handleChatCommand(rawInput: string, currentExId: string, convId: 
     if (manualTitle) {
       const sanitized = manualTitle.replace(/[#*_`]/g, '').trim().slice(0, 24);
       if (sanitized) {
-        console.debug('[Chat Command] Manual rename applied:', sanitized);
         store.getState().updateConversationTitle(currentExId, convId, sanitized);
       }
     } else {
-      console.debug('[Chat Command] Automated AI /rename requested for conversation:', convId);
       generateConversationTitle(convId)
         .then((aiTitle) => {
           if (aiTitle) {
-            console.debug('[Chat Command] Applying AI-generated title:', aiTitle);
             store.getState().updateConversationTitle(currentExId, convId, aiTitle);
-          } else {
-            console.debug('[Chat Command] AI title generation returned null or failed.');
           }
         })
-        .catch((err) => {
-          console.debug('[Chat Command] Error during automated /rename:', err);
-        });
+        .catch(() => {});
     }
     return true;
   }
@@ -768,7 +761,6 @@ async function submitUserMessage() {
       if (title) {
         const conv = store.getState().chatConversations[currentExId]?.find(c => c.id === convId);
         if (conv && (!conv.title || conv.title === 'Chat')) {
-          console.debug('[Chat Title] Title extracted during stream chunk:', title);
           store.getState().updateConversationTitle(currentExId, convId, title);
         }
       }
@@ -780,13 +772,10 @@ async function submitUserMessage() {
     signal: abortController.signal,
   })
     .then((accumulatedResponse) => {
-      console.debug('[Chat Title] Stream completed. First 120 chars:', JSON.stringify(accumulatedResponse.slice(0, 120)));
       const { title, content } = extractAndStripTitle(accumulatedResponse);
-      console.debug('[Chat Title] extractAndStripTitle result:', { title, contentLength: content.length });
       if (title) {
         const conv = store.getState().chatConversations[currentExId]?.find(c => c.id === convId);
         if (conv && (!conv.title || conv.title === 'Chat')) {
-          console.debug('[Chat Title] Setting title from completed stream:', title);
           store.getState().updateConversationTitle(currentExId, convId, title);
         }
       }

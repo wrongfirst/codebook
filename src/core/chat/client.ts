@@ -239,7 +239,6 @@ export async function generateConversationTitle(conversationId: string): Promise
   const { activeLessonSlug } = state;
 
   if (!settings?.enabled || !settings.baseUrl || !settings.model) {
-    console.debug('[Chat Title] Cannot generate title: chat settings not enabled or incomplete.');
     return null;
   }
 
@@ -250,8 +249,7 @@ export async function generateConversationTitle(conversationId: string): Promise
     .map(m => ({ role: m.role, content: m.content }));
 
   if (history.length === 0) {
-    console.debug('[Chat Title] Cannot generate title: conversation history is empty.');
-    return null;
+    return 'Chat';
   }
 
   const endpoint = getChatCompletionsUrl(settings.baseUrl);
@@ -272,7 +270,7 @@ export async function generateConversationTitle(conversationId: string): Promise
     {
       role: 'system',
       content:
-        'You are a concise conversation summarizer. Output a 1-3 word title summarizing the user discussion enclosed in <title>...</title> tags (e.g. <title>Binary Search</title>). Respond ONLY with the title tags, no other text.',
+        'You are a concise conversation summarizer. Output a 1-3 word topic title summarizing the user discussion enclosed in <title>...</title> tags (e.g. <title>Binary Search</title>). Respond ONLY with the title tags, no other text.',
     },
     ...history,
     {
@@ -282,7 +280,6 @@ export async function generateConversationTitle(conversationId: string): Promise
   ];
 
   try {
-    console.debug('[Chat Title] Requesting /rename title generation from endpoint...');
     const response = await fetch(endpoint, {
       method: 'POST',
       headers,
@@ -290,18 +287,39 @@ export async function generateConversationTitle(conversationId: string): Promise
         model: settings.model,
         messages,
         temperature: 0.3,
-        max_tokens: 30,
+        max_tokens: 1024,
       }),
     });
 
     if (!response.ok) {
-      console.debug('[Chat Title] /rename endpoint call failed with HTTP status:', response.status);
       return null;
     }
 
-    const data = await response.json();
-    const rawContent: string = data.choices?.[0]?.message?.content || data.choices?.[0]?.text || '';
-    console.debug('[Chat Title] Raw response for /rename:', rawContent);
+    const text = await response.text();
+    let rawContent = '';
+    try {
+      const data = JSON.parse(text);
+      const choice = data.choices?.[0];
+      rawContent = choice?.message?.content || choice?.text || '';
+      // Fallback if model output is in reasoning_content
+      if (!rawContent.trim() && choice?.message?.reasoning_content) {
+        const rMatch = choice.message.reasoning_content.match(/<title>([^<]*)<\/title>/i);
+        if (rMatch) {
+          rawContent = rMatch[0];
+        }
+      }
+    } catch {
+      // In case the endpoint returned SSE streaming text even without stream: true
+      const lines = text.split('\n');
+      for (const line of lines) {
+        if (line.startsWith('data:') && !line.includes('[DONE]')) {
+          try {
+            const parsed = JSON.parse(line.slice(5).trim());
+            rawContent += parsed.choices?.[0]?.delta?.content || parsed.choices?.[0]?.text || '';
+          } catch {}
+        }
+      }
+    }
 
     const match = rawContent.match(/<title>([^<]*)<\/title>/i) || rawContent.match(/^\s*<title>([^<]*)<\/title>/i);
     let title: string | null = null;
@@ -311,11 +329,10 @@ export async function generateConversationTitle(conversationId: string): Promise
       title = rawContent.trim().replace(/[#*_`]/g, '').replace(/^title:\s*/i, '').slice(0, 24);
     }
 
-    console.debug('[Chat Title] Extracted title for /rename:', title);
     return title || null;
-  } catch (err) {
-    console.debug('[Chat Title] Error during /rename title generation:', err);
+  } catch {
     return null;
   }
 }
+
 
