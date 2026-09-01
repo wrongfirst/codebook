@@ -111,14 +111,14 @@ export async function pushToGist(): Promise<GistActionResult> {
       gistSyncSettings.token,
       gistSyncSettings.lastSyncedAt
     );
-    
+
     if (pullRes.error) {
       setSyncStatus('error', pullRes.error);
       return { success: false, error: pullRes.error };
     }
 
     const newFiles = await buildGistFiles(store.getState());
-    
+
     const currentPayloadString = JSON.stringify(newFiles);
     if (!pullRes.merged && currentPayloadString === lastPushedPayloadString) {
       const now = Date.now();
@@ -275,7 +275,7 @@ export function scheduleAutoPush(delayMs = 5000): void {
 
   autoPushTimeout = setTimeout(() => {
     autoPushTimeout = null;
-    pushToGist().catch(() => {});
+    pushToGist().catch(() => { });
   }, delayMs);
 }
 
@@ -289,7 +289,7 @@ export function triggerImmediatePush(): void {
   }
   const { gistSyncSettings } = store.getState();
   if (gistSyncSettings?.enabled && gistSyncSettings?.token && gistSyncSettings?.gistId) {
-    pushToGist().catch(() => {});
+    pushToGist().catch(() => { });
   }
 }
 
@@ -337,7 +337,7 @@ export async function handleOAuthCallback(): Promise<boolean> {
     try {
       const parsed = JSON.parse(atob(rawState));
       if (parsed.csrf) incomingCsrf = parsed.csrf;
-    } catch {}
+    } catch { }
   }
 
   // CSRF validation
@@ -361,7 +361,7 @@ export async function handleOAuthCallback(): Promise<boolean> {
   window.history.replaceState({}, document.title, cleanUrl);
 
   setSyncStatus('syncing', 'Signing in with GitHub...');
-  showPopup('Syncing from GitHub...');
+  showPopup('Syncing from GitHub...', 3000);
 
   try {
     const exchangeRes = await exchangeOAuthCode(GITHUB_OAUTH_WORKER_URL, code);
@@ -456,7 +456,7 @@ export async function initStartupSync(): Promise<void> {
     });
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
-        checkAndPullOnFocus().catch(() => {});
+        checkAndPullOnFocus().catch(() => { });
       }
     });
   }
