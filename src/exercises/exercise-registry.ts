@@ -1,11 +1,28 @@
 import curriculumConfig from './curriculum.yaml';
 import { Exercise, Chapter, LanguageVariant } from '../core/types';
 import { enabledLanguageIds } from '../languages/language-registry';
+import { flattenCases } from '../languages/canonical';
+import type { CanonicalData, FlatCanonicalTestCase } from '../languages/canonical';
 
 // Discover all problem.md files dynamically
 const problemFiles = import.meta.glob<string>(
   './*/problem.md',
   { query: '?raw', import: 'default', eager: true }
+);
+
+// Discover canonical-data.json files across exercise folders
+const canonicalDataFiles = import.meta.glob<CanonicalData>(
+  './*/canonical-data.json',
+  { import: 'default', eager: true }
+);
+
+// Discover colocated language test-runner generators
+const testRunnerModules = import.meta.glob<{
+  buildTestCode?: (cases: FlatCanonicalTestCase[], meta: CanonicalData) => string;
+  default?: (cases: FlatCanonicalTestCase[], meta: CanonicalData) => string;
+}>(
+  '../languages/*/test-runner.ts',
+  { eager: true }
 );
 
 // Discover template, test, and optional validator files across all exercise subfolders
@@ -93,8 +110,25 @@ function attachDiscoveredVariants(chapterList: Chapter[]) {
     if (!enabledLanguageIds.includes(langId)) continue;
 
     const initialCode = templateFiles[path] || '';
-    const testPathKey = Object.keys(testFiles).find(p => p.startsWith(`./${folder}/${langId}/test.`));
-    const testCode = testPathKey ? (testFiles[testPathKey] || '') : '';
+
+    let testCode = '';
+    const canonicalPath = `./${folder}/canonical-data.json`;
+    const canonicalData = canonicalDataFiles[canonicalPath];
+
+    if (canonicalData) {
+      const runnerPath = `../languages/${langId}/test-runner.ts`;
+      const runnerMod = testRunnerModules[runnerPath];
+      const buildFn = runnerMod?.buildTestCode || runnerMod?.default;
+      if (buildFn) {
+        const cases = flattenCases(canonicalData.cases);
+        testCode = buildFn(cases, canonicalData);
+      }
+    }
+
+    if (!testCode) {
+      const testPathKey = Object.keys(testFiles).find(p => p.startsWith(`./${folder}/${langId}/test.`));
+      testCode = testPathKey ? (testFiles[testPathKey] || '') : '';
+    }
 
     const solutionPathKey = Object.keys(solutionFiles).find(p => p.startsWith(`./${folder}/${langId}/solution.`));
     const solutionCode = solutionPathKey ? (solutionFiles[solutionPathKey] || '') : '';
