@@ -302,7 +302,3 @@ export async function prefetchInactiveLanguageAssets(activeLangId?: string): Pro
   }
 }
 
-export async function prewarmBackgroundLanguages(activeLangId?: string): Promise<void> {
-  return prefetchInactiveLanguageAssets(activeLangId);
-}
-

@@ -1,9 +1,41 @@
+export type CanonicalInputType =
+  | 'standard'
+  | 'tree'
+  | 'tree_node'
+  | 'linked_list'
+  | 'linked_list_array'
+  | 'linked_list_cycle'
+  | 'graph'
+  | 'interval'
+  | 'interval_array'
+  | 'byte_grid';
+
+export type CanonicalReturnType =
+  | 'standard'
+  | 'tree'
+  | 'tree_node'
+  | 'linked_list'
+  | 'graph'
+  | 'void';
+
+export type CanonicalMode =
+  | 'function'
+  | 'operations'
+  | 'compose';
+
 /**
  * Root JSON structure of a canonical-data.json file
  */
 export interface CanonicalData {
   exercise: string;
   comments?: string[];
+  comparison?: 'exact' | 'unordered' | 'unordered_nested';
+  returns?: CanonicalReturnType;
+  inputs?: Record<string, CanonicalInputType>;
+  mutation?: { target: string };
+  mode?: CanonicalMode;
+  compose?: [string, string];
+  receiver?: string;
   cases: CanonicalCase[];
 }
 
@@ -30,6 +62,10 @@ export interface CanonicalTestCase {
   input: Record<string, any>;
   expected: any;
   comments?: string[];
+  comparison?: 'exact' | 'unordered' | 'unordered_nested';
+  returns?: 'tree' | 'linked_list' | 'graph' | 'void' | 'standard';
+  inputs?: Record<string, CanonicalInputType>;
+  mutation?: { target: string };
 }
 
 /**
