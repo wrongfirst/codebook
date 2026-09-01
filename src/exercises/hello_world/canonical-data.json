@@ -1,0 +1,12 @@
+{
+  "exercise": "hello_world",
+  "cases": [
+    {
+      "uuid": "af9756ca-ef19-456d-b5e0-1c0903333333",
+      "description": "Print Hello World",
+      "property": "hello",
+      "input": {},
+      "expected": "Hello, World!"
+    }
+  ]
+}

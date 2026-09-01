@@ -2,7 +2,7 @@ package main
 
 import "strconv"
 
-func FizzBuzz(n int) string {
+func fizzbuzz(n int) string {
 	// Your code here
 	return ""
 }

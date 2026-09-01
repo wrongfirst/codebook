@@ -36,8 +36,9 @@ export function buildTestCode(cases: FlatCanonicalTestCase[], _meta: CanonicalDa
   if (!cases.length) return '';
 
   const property = cases[0].property;
-  const goFnName = toPascalCase(property);
+  const goFnName = property;
   const inputKeys = Object.keys(cases[0].input || {});
+  const hasInputs = inputKeys.length > 0;
 
   const structFields = [
     ...inputKeys.map((k) => `\t${k} ${inferGoType(cases[0].input[k])}`),
@@ -54,6 +55,9 @@ export function buildTestCode(cases: FlatCanonicalTestCase[], _meta: CanonicalDa
 
   const callArgs = inputKeys.map((k) => `tc.${k}`).join(', ');
   const fmtInputs = inputKeys.map(() => `%v`).join(', ');
+  const msgFormat = hasInputs
+    ? `fmt.Sprintf("${goFnName}(${fmtInputs}) - %s", ${callArgs}, tc.desc)`
+    : `fmt.Sprintf("${goFnName}() - %s", tc.desc)`;
 
   return `testCases := []struct {
 ${structFields.join('\n')}
@@ -63,7 +67,7 @@ ${testCaseEntries.join('\n')}
 
 for _, tc := range testCases {
 \tres := ${goFnName}(${callArgs})
-\tTests.EqualCheck(fmt.Sprintf("${goFnName}(${fmtInputs}) - %s", ${callArgs}, tc.desc), tc.expected, res)
+\tTests.EqualCheck(${msgFormat}, tc.expected, res)
 }
 `;
 }

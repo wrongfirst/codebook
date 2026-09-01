@@ -2,8 +2,6 @@ export interface LanguageVariant {
     initialCode: string;
     testCode: string;
     solutionCode?: string;
-    validatorCode?: string;
-    validate?: (code: string, output: string) => true | string;
 }
 
 export interface Exercise {

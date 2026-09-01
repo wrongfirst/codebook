@@ -1,5 +1,5 @@
-#include <iostream>
+#include <string>
 
-void hello_world() {
-    std::cout << "some message" << std::endl;
+std::string hello() {
+    return "some message";
 }

@@ -1,1 +1,2 @@
-print("some message")
+def hello():
+    return "some message"

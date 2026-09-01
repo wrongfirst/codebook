@@ -15,8 +15,13 @@ export function buildTestCode(cases: FlatCanonicalTestCase[], _meta: CanonicalDa
 
   const property = cases[0].property;
   const inputKeys = Object.keys(cases[0].input || {});
-  const argNames = inputKeys.length === 1 ? 'input_val' : inputKeys.map((_, i) => `arg${i + 1}`).join(', ');
-  const callArgs = inputKeys.length === 1 ? 'input_val' : inputKeys.map((_, i) => `arg${i + 1}`).join(' ');
+  const hasInputs = inputKeys.length > 0;
+  const argNames = hasInputs
+    ? (inputKeys.length === 1 ? 'input_val' : inputKeys.map((_, i) => `arg${i + 1}`).join(', '))
+    : '()';
+  const callArgs = hasInputs
+    ? (inputKeys.length === 1 ? 'input_val' : inputKeys.map((_, i) => `arg${i + 1}`).join(' '))
+    : '()';
 
   const testCaseEntries = cases.map((c) => {
     const inputs = inputKeys.map((k) => formatOcamlLiteral(c.input[k]));
@@ -30,17 +35,25 @@ export function buildTestCode(cases: FlatCanonicalTestCase[], _meta: CanonicalDa
     ? 'Tests.string_check (fun s -> "\\"" ^ s ^ "\\"") msg expected res'
     : 'Tests.equal_check msg expected res';
 
-  const strInputs = inputKeys.length === 1
-    ? (typeof cases[0].input[inputKeys[0]] === 'number' ? 'string_of_int input_val' : 'input_val')
-    : inputKeys.map((_, i) => `string_of_int arg${i + 1}`).join(' ^ " " ^ ');
+  const strInputs = hasInputs
+    ? (inputKeys.length === 1
+        ? (typeof cases[0].input[inputKeys[0]] === 'number' ? 'string_of_int input_val' : 'input_val')
+        : inputKeys.map((_, i) => `string_of_int arg${i + 1}`).join(' ^ " " ^ '))
+    : '""';
+
+  const msgExpr = hasInputs
+    ? `"${property} " ^ ${strInputs} ^ " - " ^ desc`
+    : `"${property}() - " ^ desc`;
+
+  const iterPattern = hasInputs ? `(${argNames}, expected, desc)` : `(expected, desc)`;
 
   return `let () =
   let test_cases = [
 ${testCaseEntries.join('\n')}
   ] in
-  List.iter (fun (${argNames}, expected, desc) ->
+  List.iter (fun ${iterPattern} ->
     let res = ${property} ${callArgs} in
-    let msg = "${property} " ^ ${strInputs} ^ " - " ^ desc in
+    let msg = ${msgExpr} in
     ${assertion}
   ) test_cases
 `;

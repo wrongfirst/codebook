@@ -5,8 +5,10 @@ export function buildTestCode(cases: FlatCanonicalTestCase[], _meta: CanonicalDa
 
   const property = cases[0].property;
   const inputKeys = Object.keys(cases[0].input || {});
+  const hasInputs = inputKeys.length > 0;
   const argVars = inputKeys.length === 1 ? ['arg1'] : inputKeys.map((_, i) => `arg${i + 1}`);
-  const argVarsJoined = argVars.join(', ');
+  const destructureArgs = hasInputs ? `${argVars.join(', ')}, expected, desc` : 'expected, desc';
+  const callArgs = hasInputs ? argVars.map((v) => `${v} as any`).join(', ') : '';
 
   const testCaseRows = cases.map((c) => {
     const inputVals = inputKeys.map((k) => JSON.stringify(c.input[k]));
@@ -15,7 +17,9 @@ export function buildTestCode(cases: FlatCanonicalTestCase[], _meta: CanonicalDa
     return `  [${[...inputVals, expVal, desc].join(', ')}],`;
   });
 
-  const argFmt = inputKeys.length === 1 ? `\${${argVars[0]}}` : argVars.map((v) => `\${${v}}`).join(', ');
+  const argFmt = hasInputs
+    ? (inputKeys.length === 1 ? `\${${argVars[0]}}` : argVars.map((v) => `\${${v}}`).join(', '))
+    : '';
 
   return `// @ts-nocheck
 if (typeof ${property} !== "function") {
@@ -26,8 +30,8 @@ const testCases = [
 ${testCaseRows.join('\n')}
 ];
 
-for (const [${argVarsJoined}, expected, desc] of testCases) {
-  const result = ${property}(${argVars.map((v) => `${v} as any`).join(', ')});
+for (const [${destructureArgs}] of testCases) {
+  const result = ${property}(${callArgs});
   Tests.equalCheck(\`${property}(${argFmt}) - \${desc}\`, expected, result);
 }
 `;

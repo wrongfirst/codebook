@@ -1,5 +1,3 @@
-#include <stdio.h>
-
-void hello_world() {
-    printf("Hello, world!\n");
+const char* hello(void) {
+    return "Hello, World!";
 }

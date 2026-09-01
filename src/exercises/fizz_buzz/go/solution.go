@@ -2,7 +2,7 @@ package main
 
 import "strconv"
 
-func FizzBuzz(n int) string {
+func fizzbuzz(n int) string {
 	if n%15 == 0 {
 		return "FizzBuzz"
 	}

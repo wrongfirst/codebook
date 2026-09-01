@@ -30,9 +30,12 @@ export function buildTestCode(cases: FlatCanonicalTestCase[], _meta: CanonicalDa
 
   const property = cases[0].property;
   const inputKeys = Object.keys(cases[0].input || {});
+  const hasInputs = inputKeys.length > 0;
 
   const retType = inferCType(cases[0].expected);
-  const paramDecls = inputKeys.map((k) => `${inferCType(cases[0].input[k])} ${k}`).join(', ');
+  const paramDecls = hasInputs
+    ? inputKeys.map((k) => `${inferCType(cases[0].input[k])} ${k}`).join(', ')
+    : 'void';
 
   const structFields = [
     ...inputKeys.map((k) => `        ${inferCType(cases[0].input[k])} ${k};`),
@@ -52,6 +55,9 @@ export function buildTestCode(cases: FlatCanonicalTestCase[], _meta: CanonicalDa
     .map((k) => (inferCType(cases[0].input[k]) === 'const char*' ? '%s' : '%d'))
     .join(', ');
   const snprintfArgs = inputKeys.map((k) => `testCases[i].${k}`).join(', ');
+  const msgFormat = hasInputs
+    ? `snprintf(msg, sizeof(msg), "${property}(${snprintfFmt}) - %s", ${snprintfArgs}, testCases[i].desc);`
+    : `snprintf(msg, sizeof(msg), "${property}() - %s", testCases[i].desc);`;
   const assertion = getCAssertion(cases[0].expected);
 
   return `#include <stdio.h>
@@ -82,7 +88,7 @@ ${testCaseEntries.join('\n')}
     for (int i = 0; i < numTests; i++) {
         ${retType} res = ${property}(${callArgs});
         char msg[128];
-        snprintf(msg, sizeof(msg), "${property}(${snprintfFmt}) - %s", ${snprintfArgs}, testCases[i].desc);
+        ${msgFormat}
         ${assertion}
     }
 

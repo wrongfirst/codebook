@@ -8,14 +8,14 @@ Each exercise lives in a topic folder under `src/exercises/` (e.g. `hello_world/
 
 ```text
 src/exercises/hello_world/
+├── canonical-data.json  # Canonical test data (Exercism JSON schema)
 ├── problem.md           # Problem description (Markdown - first line "# Hello World" is the title)
 ├── ocaml/
 │   ├── template.ml      # Starter code for OCaml
-│   ├── test.ml          # Test suite for OCaml
-│   └── validator.ts     # (Optional) Custom validator for OCaml
+│   └── solution.ml      # Solution code for OCaml
 └── c/
     ├── template.c       # Starter code for C
-    └── test.c           # Test suite for C
+    └── solution.c       # Solution code for C
 ```
 
 ---

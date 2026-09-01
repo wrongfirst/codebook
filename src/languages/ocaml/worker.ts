@@ -73,10 +73,23 @@ function parseOCamlDiagnostics(errText: string, harnessLines: number): Diagnosti
 
 function stripHarnessSignatures(output: string): string {
   if (!output) return '';
-  return output
-    .replace(/^module Tests : sig[\s\S]*?end\n?/m, '')
-    .replace(/^module Tests :[\s\S]*?end\n?/m, '')
-    .trimStart();
+  let cleaned = output;
+
+  // Remove module signature blocks (e.g. module Tests : sig ... end)
+  cleaned = cleaned.replace(/^module\s+\w+\s*:\s*(?:sig[\s\S]*?end|[\s\S]*?end)\n?/gm, '');
+
+  // Remove multi-line and single-line type signatures printed by the REPL
+  cleaned = cleaned.replace(/^type\s+[\s\S]*?;\s*}/gm, '');
+  cleaned = cleaned.replace(/^type\s+[^\n]*\n?/gm, '');
+
+  // Remove val bindings printed by the REPL (e.g. val create_list_node : int -> list_node = <fun>)
+  cleaned = cleaned.replace(/^val\s+[\s\S]*?=\s*<fun>\n?/gm, '');
+  cleaned = cleaned.replace(/^val\s+[^\n]*\n?/gm, '');
+
+  // Remove anonymous toplevel signatures (e.g. "- : unit = ()")
+  cleaned = cleaned.replace(/^-\s*:\s*[^\n]*\n?/gm, '');
+
+  return cleaned.trim();
 }
 
 createWorkerHandler({

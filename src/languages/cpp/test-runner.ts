@@ -26,6 +26,7 @@ export function buildTestCode(cases: FlatCanonicalTestCase[], _meta: CanonicalDa
 
   const property = cases[0].property;
   const inputKeys = Object.keys(cases[0].input || {});
+  const hasInputs = inputKeys.length > 0;
 
   const retType = inferCppType(cases[0].expected);
   const paramDecls = inputKeys.map((k) => `${inferCppType(cases[0].input[k])} ${k}`).join(', ');
@@ -51,6 +52,10 @@ export function buildTestCode(cases: FlatCanonicalTestCase[], _meta: CanonicalDa
     })
     .join(' + ", " + ');
 
+  const msgExpr = hasInputs
+    ? `"${property}(" + ${strParams} + ") - " + tc.desc`
+    : `"${property}() - " + tc.desc`;
+
   return `#include <iostream>
 #include <string>
 #include <vector>
@@ -68,7 +73,7 @@ ${testCaseEntries.join('\n')}
 
     for (const auto& tc : testCases) {
         auto res = ${property}(${callArgs});
-        std::string msg = "${property}(" + ${strParams} + ") - " + tc.desc;
+        std::string msg = ${msgExpr};
         Tests.equal_check(msg, tc.expected, res);
     }
 

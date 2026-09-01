@@ -25,7 +25,7 @@ const testRunnerModules = import.meta.glob<{
   { eager: true }
 );
 
-// Discover template, test, and optional validator files across all exercise subfolders
+// Discover template, test, and solution files across all exercise subfolders
 const templateFiles = import.meta.glob<string>(
   './*/*/template.*',
   { query: '?raw', import: 'default', eager: true }
@@ -38,16 +38,6 @@ const testFiles = import.meta.glob<string>(
 
 const solutionFiles = import.meta.glob<string>(
   './*/*/solution.*',
-  { query: '?raw', import: 'default', eager: true }
-);
-
-const validatorFiles = import.meta.glob<{ default?: (code: string, output: string) => true | string; validate?: (code: string, output: string) => true | string }>(
-  './*/*/validator.ts',
-  { eager: true }
-);
-
-const validatorRawFiles = import.meta.glob<string>(
-  './*/*/validator.ts',
   { query: '?raw', import: 'default', eager: true }
 );
 
@@ -133,22 +123,13 @@ function attachDiscoveredVariants(chapterList: Chapter[]) {
     const solutionPathKey = Object.keys(solutionFiles).find(p => p.startsWith(`./${folder}/${langId}/solution.`));
     const solutionCode = solutionPathKey ? (solutionFiles[solutionPathKey] || '') : '';
 
-    const validatorPathKey = Object.keys(validatorFiles).find(p => p === `./${folder}/${langId}/validator.ts`);
-    const validatorMod = validatorPathKey ? validatorFiles[validatorPathKey] : undefined;
-    const validateFn = validatorMod?.validate || validatorMod?.default;
-
-    const validatorRawPathKey = Object.keys(validatorRawFiles).find(p => p === `./${folder}/${langId}/validator.ts`);
-    const validatorCode = validatorRawPathKey ? (validatorRawFiles[validatorRawPathKey] || '') : '';
-
     if (!discoveredMap[folder]) {
       discoveredMap[folder] = {};
     }
     discoveredMap[folder][langId] = {
       initialCode,
       testCode,
-      ...(solutionCode ? { solutionCode } : {}),
-      ...(validatorCode ? { validatorCode } : {}),
-      ...(validateFn ? { validate: validateFn } : {})
+      ...(solutionCode ? { solutionCode } : {})
     };
   }
 
