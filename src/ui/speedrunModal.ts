@@ -19,6 +19,7 @@ let isInitialized = false;
 let activeStatusFilter: StatusFilter = 'all';
 let currentSortOrder: SortOrder = 'default';
 let allResults: VerificationItemResult[] = [];
+const expandedCardIds = new Set<string>();
 
 export function initSpeedrunButton() {
   if (!import.meta.env.DEV) return;
@@ -311,6 +312,7 @@ function renderResultsList() {
   const container = elements.speedrun.resultsList;
   if (!container) return;
 
+  const previousScrollTop = container.scrollTop;
   const results = getFilteredAndSortedResults();
 
   if (results.length === 0) {
@@ -334,6 +336,7 @@ function renderResultsList() {
   for (const res of results) {
     appendResultCard(container, res);
   }
+  container.scrollTop = previousScrollTop;
 }
 
 async function handleToggleRun() {
@@ -346,6 +349,7 @@ async function handleToggleRun() {
   isRunning = true;
   abortRequested = false;
   allResults = [];
+  expandedCardIds.clear();
   activeStatusFilter = 'all';
   updateStatusFilterPills();
   updateSortButtonUI();
@@ -412,7 +416,18 @@ async function handleToggleRun() {
           if (stats.missing) stats.missing.textContent = String(missingCount);
           if (stats.time) stats.time.textContent = `${((performance.now() - startTime) / 1000).toFixed(2)}s`;
 
-          renderResultsList();
+          if (activeStatusFilter === 'all' || activeStatusFilter === res.status) {
+            if (currentSortOrder === 'default') {
+              if (resultsList) {
+                if (resultsList.querySelector('.text-center')) {
+                  resultsList.innerHTML = '';
+                }
+                appendResultCard(resultsList, res);
+              }
+            } else {
+              renderResultsList();
+            }
+          }
           updateExportButton();
         }
       }
@@ -445,9 +460,10 @@ function appendResultCard(container: HTMLElement, result: VerificationItemResult
 
   const badge = badgeColors[result.status] || badgeColors.error;
   const hasLogs = Boolean(result.error || result.output);
-  const cardId = `speedrun-card-${result.exerciseId.replace('.', '_')}-${result.languageId}`;
+  const cardId = `speedrun-card-${result.exerciseId.replace(/\./g, '_')}-${result.languageId}`;
   const displayNum = getExerciseDisplayNumber(result.exerciseId);
   const titleText = displayNum ? `${displayNum} ${result.exerciseTitle}` : result.exerciseTitle;
+  const isExpanded = expandedCardIds.has(cardId);
 
   const card = document.createElement('div');
   card.className = 'border border-border-default rounded-lg bg-bg-surface overflow-hidden transition-all text-xs';
@@ -463,12 +479,12 @@ function appendResultCard(container: HTMLElement, result: VerificationItemResult
       </div>
       <div class="flex items-center gap-3">
         <span class="font-mono text-fg-muted">${result.durationMs}ms</span>
-        ${hasLogs ? `<span class="text-fg-muted text-[10px] underline">Details</span>` : ''}
+        ${hasLogs ? `<span data-details-label="${cardId}" class="text-fg-muted text-[10px] underline">${isExpanded ? 'Hide' : 'Details'}</span>` : ''}
       </div>
     </div>
     ${hasLogs
       ? `
-      <div id="${cardId}" class="hidden px-4 py-3 border-t border-border-default bg-bg-app/40 space-y-2 font-mono text-[11px]">
+      <div id="${cardId}" class="${isExpanded ? '' : 'hidden '}px-4 py-3 border-t border-border-default bg-bg-app/40 space-y-2 font-mono text-[11px]">
         ${result.error
         ? `<div><span class="text-red-400 font-bold block mb-1">Error / Failure:</span><pre class="p-2 bg-bg-app rounded border border-border-default overflow-x-auto text-red-300 whitespace-pre-wrap">${escapeHtml(result.error)}</pre></div>`
         : ''
@@ -486,8 +502,19 @@ function appendResultCard(container: HTMLElement, result: VerificationItemResult
   if (hasLogs) {
     const toggleBtn = card.querySelector(`[data-toggle="${cardId}"]`);
     const details = card.querySelector(`#${cardId}`);
+    const detailsLabel = card.querySelector(`[data-details-label="${cardId}"]`);
     toggleBtn?.addEventListener('click', () => {
-      details?.classList.toggle('hidden');
+      if (!details) return;
+      const isHidden = details.classList.contains('hidden');
+      if (isHidden) {
+        details.classList.remove('hidden');
+        expandedCardIds.add(cardId);
+        if (detailsLabel) detailsLabel.textContent = 'Hide';
+      } else {
+        details.classList.add('hidden');
+        expandedCardIds.delete(cardId);
+        if (detailsLabel) detailsLabel.textContent = 'Details';
+      }
     });
   }
 
