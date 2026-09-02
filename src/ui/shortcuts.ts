@@ -11,6 +11,7 @@ interface Shortcut {
 
 const EDITOR_SHORTCUTS: Shortcut[] = [
     { action: "Save Code", keys: ["Cmd/Ctrl", "S"] },
+    { action: "Format Code", keys: ["Shift", "Alt", "F"] },
     { action: "Indent", keys: ["Tab"] },
     { action: "Unindent", keys: ["Shift", "Tab"] },
     { action: "Focus Out", keys: ["Esc", "Tab"] },

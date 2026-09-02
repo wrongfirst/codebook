@@ -3,7 +3,7 @@ import { store, ensureSettingsDecrypted } from './core/store';
 import { initStartupSync } from './core/sync/syncManager';
 import { exercises, curriculum, getExerciseDisplayNumber } from './exercises/exercise-registry';
 import { getExerciseVariant } from './core/types';
-import { loadExerciseCode, setEditorCode, updateEditorTheme } from './core/editor';
+import { loadExerciseCode, setEditorCode, updateEditorTheme, getCode, formatEditorCode } from './core/editor';
 import { parseMarkdown, highlightStaticBlocks, escapeHtml } from './core/markdown';
 
 //module imports
@@ -21,6 +21,8 @@ import { setupResize } from './ui/resize';
 import { initTabs } from './ui/tabs';
 import { initNavigation } from './ui/navigation';
 import { resetEditorText } from './ui/resetEditorText';
+import { setupCopyCodeButton } from './ui/copyCode';
+import { setupFormatCodeButton } from './ui/formatCode';
 import { renderFooter } from './ui/footer';
 import { initShortcuts } from './ui/shortcuts';
 import { initResetProgress } from './ui/resetProgress';
@@ -153,6 +155,16 @@ store.subscribe(render);
 
 //run button
 elements.runBtn.addEventListener('click', () => runner.run());
+
+//format button
+if (elements.formatCodeBtn) {
+    setupFormatCodeButton(elements.formatCodeBtn, () => formatEditorCode());
+}
+
+//copy button
+if (elements.copyCodeBtn) {
+    setupCopyCodeButton(elements.copyCodeBtn, () => getCode());
+}
 
 //reset button
 if (elements.resetBtn) {

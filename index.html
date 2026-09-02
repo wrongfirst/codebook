@@ -254,8 +254,14 @@
               <span id="editor-title" class="hidden">Editor</span>
               <div id="language-selector-container" class="normal-case"></div>
             </div>
-            <button id="reset-btn" class="hover:cursor-pointer" title="Reset">
-            </button>
+            <div class="flex items-center gap-3">
+              <button id="format-code-btn" class="hover:cursor-pointer hover:text-fg-primary transition-colors flex items-center" title="Format code (Shift+Alt+F)">
+              </button>
+              <button id="copy-code-btn" class="hover:cursor-pointer hover:text-fg-primary transition-colors flex items-center" title="Copy code">
+              </button>
+              <button id="reset-btn" class="hover:cursor-pointer hover:text-fg-primary transition-colors flex items-center" title="Reset">
+              </button>
+            </div>
           </div>
 
           <div class="flex-1 relative min-h-0" id="editor-wrapper">

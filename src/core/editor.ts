@@ -2,6 +2,7 @@ import { EditorView, keymap } from '@codemirror/view';
 import { basicSetup } from 'codemirror';
 import { EditorState, Compartment, Extension } from '@codemirror/state';
 import { defaultKeymap, indentWithTab } from '@codemirror/commands';
+import { indentRange } from '@codemirror/language';
 import { autocompletion, acceptCompletion } from '@codemirror/autocomplete';
 import { lintGutter, forEachDiagnostic } from '@codemirror/lint';
 import { vim } from '@replit/codemirror-vim';
@@ -84,6 +85,29 @@ export function setEditorCode(code: string) {
 
 export function getCode(): string {
     return view ? view.state.doc.toString() : "";
+}
+
+/**
+ * Re-indents the active editor document using CodeMirror's syntax tree indentation service.
+ */
+export function formatEditorCode(): boolean {
+    if (!view) return false;
+    const { state } = view;
+    const docLength = state.doc.length;
+    if (docLength === 0) return false;
+
+    try {
+        const changes = indentRange(state, 0, docLength);
+        view.dispatch({
+            changes,
+            scrollIntoView: false
+        });
+        scheduleAutoSave();
+        return true;
+    } catch (err) {
+        console.warn('[Editor] Failed to auto-format code:', err);
+        return false;
+    }
 }
 
 /**
@@ -228,6 +252,28 @@ export function loadExerciseCode(
                                 onSaveCallback();
                             } else {
                                 showPopup('Saved!');
+                            }
+                            return true;
+                        },
+                        preventDefault: true
+                    },
+                    {
+                        key: "Shift-Alt-f",
+                        run: () => {
+                            const success = formatEditorCode();
+                            if (success) {
+                                showPopup('Code formatted');
+                            }
+                            return true;
+                        },
+                        preventDefault: true
+                    },
+                    {
+                        key: "Mod-Alt-l",
+                        run: () => {
+                            const success = formatEditorCode();
+                            if (success) {
+                                showPopup('Code formatted');
                             }
                             return true;
                         },
