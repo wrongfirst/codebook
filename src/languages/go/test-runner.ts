@@ -1,4 +1,11 @@
-import type { FlatCanonicalTestCase, CanonicalData } from '../canonical';
+import {
+  type FlatCanonicalTestCase,
+  type CanonicalData,
+  type CanonicalTypeDescriptor,
+  type CanonicalMethodDescriptor,
+  type CanonicalSignature,
+  parseCanonicalSignature
+} from '../canonical';
 
 function inferScalarGoType(val: any): string {
   if (typeof val === 'boolean') return 'bool';
@@ -85,17 +92,180 @@ function formatGoLiteral(val: any, targetType: string, hint?: string): string {
   return JSON.stringify(val);
 }
 
+/**
+ * Convert a CanonicalTypeDescriptor to its Go type representation.
+ */
+function toGoType(desc: CanonicalTypeDescriptor): string {
+  switch (desc.kind) {
+    case 'primitive':
+      if (desc.type === 'int') return 'int';
+      if (desc.type === 'int64') return 'int64';
+      if (desc.type === 'uint32') return 'uint32';
+      if (desc.type === 'float') return 'float64';
+      if (desc.type === 'bool') return 'bool';
+      if (desc.type === 'string') return 'string';
+      return 'int';
+
+    case 'array':
+      return `[]${toGoType(desc.element)}`;
+
+    case 'tree':
+    case 'tree_node':
+      return '*TreeNode';
+
+    case 'linked_list':
+    case 'linked_list_cycle':
+      return '*ListNode';
+
+    case 'linked_list_array':
+      return '[]*ListNode';
+
+    case 'graph':
+      return '*Node';
+
+    case 'interval':
+      return 'Interval';
+
+    case 'interval_array':
+      return '[]Interval';
+
+    case 'byte_grid':
+      return '[][]byte';
+
+    case 'void':
+      return '';
+
+    default:
+      return 'interface{}';
+  }
+}
+
+function toDefaultGoReturnValue(desc: CanonicalTypeDescriptor): string {
+  switch (desc.kind) {
+    case 'void':
+      return '';
+    case 'primitive':
+      if (desc.type === 'bool') return 'return false';
+      if (desc.type === 'int' || desc.type === 'int64' || desc.type === 'uint32') return 'return 0';
+      if (desc.type === 'float') return 'return 0.0';
+      if (desc.type === 'string') return 'return ""';
+      return 'return 0';
+    case 'interval':
+      return 'return Interval{}';
+    default:
+      return 'return nil';
+  }
+}
+
+/**
+ * Generate starter template code for user editor conforming to the canonical contract.
+ */
+export function buildTemplateCode(meta: CanonicalData): string {
+  const sig = parseCanonicalSignature(meta);
+
+  if (sig.mode === 'operations') {
+    const ctorParams = sig.parameters
+      .map(p => `${p.name} ${toGoType(p.type)}`)
+      .join(', ');
+
+    const methodsCode = (sig.methods || [])
+      .map(m => {
+        const capitalized = m.name.charAt(0).toUpperCase() + m.name.slice(1);
+        const paramList = m.parameters
+          .map(p => `${p.name} ${toGoType(p.type)}`)
+          .join(', ');
+        const retType = toGoType(m.returnType);
+        const retTypeStr = retType ? ` ${retType}` : '';
+        const retStmt = toDefaultGoReturnValue(m.returnType);
+        const body = retStmt ? `\t// Your code here\n\t${retStmt}` : '\t// Your code here';
+        return `func (this *${sig.name}) ${capitalized}(${paramList})${retTypeStr} {\n${body}\n}`;
+      })
+      .join('\n\n');
+
+    return `type ${sig.name} struct {
+\t
+}
+
+func Constructor(${ctorParams}) ${sig.name} {
+\treturn ${sig.name}{}
+}
+
+${methodsCode}
+`;
+  }
+
+  if (sig.mode === 'compose') {
+    const innerFn = sig.innerFunction || {
+      name: sig.compose?.[1] || 'encode',
+      parameters: sig.parameters,
+      returnType: { kind: 'primitive', type: 'string' as const }
+    };
+    const outerFn = sig.outerFunction || {
+      name: sig.compose?.[0] || 'decode',
+      parameters: [
+        {
+          name: (sig.compose?.[0] || 'decode') === 'decode' ? 's' : 'data',
+          type: { kind: 'primitive', type: 'string' as const },
+          isMutationTarget: false
+        }
+      ],
+      returnType: sig.returnType
+    };
+
+    const formatGoMethod = (m: CanonicalMethodDescriptor, receiverName?: string) => {
+      const methodName = m.name.charAt(0).toUpperCase() + m.name.slice(1);
+      const paramList = m.parameters
+        .map(p => `${p.name} ${toGoType(p.type)}`)
+        .join(', ');
+      const retType = toGoType(m.returnType);
+      const retTypeStr = retType ? ` ${retType}` : '';
+      const retStmt = toDefaultGoReturnValue(m.returnType);
+      const body = retStmt ? `\t// Your code here\n\t${retStmt}` : '\t// Your code here';
+      const receiverPrefix = receiverName ? `(this *${receiverName}) ` : '';
+      return `func ${receiverPrefix}${methodName}(${paramList})${retTypeStr} {\n${body}\n}`;
+    };
+
+    if (sig.receiver) {
+      return `type ${sig.receiver} struct {
+\t
+}
+
+func Constructor() ${sig.receiver} {
+\treturn ${sig.receiver}{}
+}
+
+${formatGoMethod(innerFn, sig.receiver)}
+
+${formatGoMethod(outerFn, sig.receiver)}
+`;
+    }
+
+    return `${formatGoMethod(innerFn)}\n\n${formatGoMethod(outerFn)}\n`;
+  }
+
+  // Standard function
+  const paramList = sig.parameters
+    .map(p => `${p.name} ${toGoType(p.type)}`)
+    .join(', ');
+  const retType = toGoType(sig.returnType);
+  const retTypeStr = retType ? ` ${retType}` : '';
+  const retStmt = toDefaultGoReturnValue(sig.returnType);
+  const body = retStmt ? `\t// Your code here\n\t${retStmt}` : '\t// Your code here';
+
+  return `func ${sig.name}(${paramList})${retTypeStr} {\n${body}\n}\n`;
+}
+
 export function buildTestCode(cases: FlatCanonicalTestCase[], meta: CanonicalData): string {
   if (!cases.length) return '';
 
-  const mode = meta?.mode || (cases[0].property === 'operations' ? 'operations' : 'function');
+  const sig = parseCanonicalSignature(meta);
 
-  if (mode === 'operations') {
-    return buildOperationsTestCode(cases);
+  if (sig.mode === 'operations') {
+    return buildOperationsTestCode(cases, sig);
   }
 
-  if (mode === 'compose' || meta?.compose) {
-    return buildComposeTestCode(cases, meta);
+  if (sig.mode === 'compose') {
+    return buildComposeTestCode(cases, sig);
   }
 
   const comparison = meta?.comparison || cases[0]?.comparison || 'exact';
@@ -103,9 +273,8 @@ export function buildTestCode(cases: FlatCanonicalTestCase[], meta: CanonicalDat
   const inputsMeta = meta?.inputs || cases[0]?.inputs || {};
   const mutation = meta?.mutation || cases[0]?.mutation;
 
-  const property = cases[0].property;
-  const goFnName = property;
-  const inputKeys = Object.keys(cases[0].input || {});
+  const goFnName = sig.name;
+  const inputKeys = sig.parameters.map(p => p.name);
   const hasInputs = inputKeys.length > 0;
 
   const fieldTypes: Record<string, string> = {};
@@ -238,7 +407,7 @@ for _, tc := range testCases {
 `;
 }
 
-function buildOperationsTestCode(cases: FlatCanonicalTestCase[]): string {
+function buildOperationsTestCode(cases: FlatCanonicalTestCase[], sig: CanonicalSignature): string {
   const caseBlocks = cases.map((c) => {
     const ops: string[] = c.input.operations || [];
     const args: any[][] = c.input.arguments || [];
@@ -280,15 +449,16 @@ function buildOperationsTestCode(cases: FlatCanonicalTestCase[]): string {
   return caseBlocks.join('\n\n') + '\n';
 }
 
-function buildComposeTestCode(cases: FlatCanonicalTestCase[], meta: CanonicalData): string {
-  const compose = meta.compose || ['decode', 'encode'];
-  const outerFn = compose[0];
-  const innerFn = compose[1];
-  const receiver = meta.receiver;
-  const returns = meta.returns || 'standard';
-  const inputsMeta = meta.inputs || {};
+function buildComposeTestCode(cases: FlatCanonicalTestCase[], sig: CanonicalSignature): string {
+  const [outerFn, innerFn] = sig.compose || ['decode', 'encode'];
+  const receiver = sig.receiver;
+  const returns = sig.returnType.kind;
+  const inputsMeta = sig.parameters.reduce((acc, p) => {
+    acc[p.name] = p.type.kind;
+    return acc;
+  }, {} as Record<string, string>);
 
-  const inputKeys = Object.keys(cases[0].input || {});
+  const inputKeys = sig.parameters.map(p => p.name);
   const fieldTypes: Record<string, string> = {};
   for (const k of inputKeys) {
     fieldTypes[k] = inferFieldType(k, cases, inputsMeta[k]);
@@ -336,7 +506,9 @@ function buildComposeTestCode(cases: FlatCanonicalTestCase[], meta: CanonicalDat
     const innerMethod = innerFn.charAt(0).toUpperCase() + innerFn.slice(1);
     invocation = `res := inst.${outerMethod}(inst.${innerMethod}(${callArgs}))`;
   } else {
-    invocation = `res := ${outerFn}(${innerFn}(${callArgs}))`;
+    const outerMethod = outerFn.charAt(0).toUpperCase() + outerFn.slice(1);
+    const innerMethod = innerFn.charAt(0).toUpperCase() + innerFn.slice(1);
+    invocation = `res := ${outerMethod}(${innerMethod}(${callArgs}))`;
   }
 
   return `testCases := []struct {

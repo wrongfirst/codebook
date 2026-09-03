@@ -1,4 +1,11 @@
-import type { FlatCanonicalTestCase, CanonicalData } from '../canonical';
+import {
+  type FlatCanonicalTestCase,
+  type CanonicalData,
+  type CanonicalTypeDescriptor,
+  type CanonicalMethodDescriptor,
+  type CanonicalSignature,
+  parseCanonicalSignature
+} from '../canonical';
 
 function escapePyString(str: string): string {
   return JSON.stringify(str);
@@ -21,17 +28,168 @@ function formatPyValue(val: any): string {
   return String(val);
 }
 
+/**
+ * Convert a CanonicalTypeDescriptor to its Python type representation.
+ */
+function toPyType(desc: CanonicalTypeDescriptor): string {
+  switch (desc.kind) {
+    case 'primitive':
+      if (desc.type === 'int' || desc.type === 'int64' || desc.type === 'uint32') return 'int';
+      if (desc.type === 'float') return 'float';
+      if (desc.type === 'bool') return 'bool';
+      if (desc.type === 'string') return 'str';
+      return 'int';
+
+    case 'array':
+      return `list[${toPyType(desc.element)}]`;
+
+    case 'tree':
+    case 'tree_node':
+      return 'TreeNode | None';
+
+    case 'linked_list':
+    case 'linked_list_cycle':
+      return 'ListNode | None';
+
+    case 'linked_list_array':
+      return 'list[ListNode | None]';
+
+    case 'graph':
+      return 'Node | None';
+
+    case 'interval':
+      return 'Interval';
+
+    case 'interval_array':
+      return 'list[Interval]';
+
+    case 'byte_grid':
+      return 'list[list[str]]';
+
+    case 'void':
+      return 'None';
+
+    default:
+      return 'Any';
+  }
+}
+
+function toDefaultPyReturnValue(desc: CanonicalTypeDescriptor): string {
+  switch (desc.kind) {
+    case 'void':
+      return '';
+    case 'primitive':
+      if (desc.type === 'bool') return 'return False';
+      if (desc.type === 'int' || desc.type === 'int64' || desc.type === 'uint32') return 'return 0';
+      if (desc.type === 'float') return 'return 0.0';
+      if (desc.type === 'string') return 'return ""';
+      return 'return 0';
+    case 'array':
+      return 'return []';
+    case 'tree':
+    case 'tree_node':
+    case 'linked_list':
+    case 'linked_list_cycle':
+    case 'linked_list_array':
+    case 'graph':
+      return 'return None';
+    default:
+      return 'pass';
+  }
+}
+
+/**
+ * Generate starter template code for user editor conforming to the canonical contract.
+ */
+export function buildTemplateCode(meta: CanonicalData): string {
+  const sig = parseCanonicalSignature(meta);
+
+  if (sig.mode === 'operations') {
+    const ctorParams = sig.parameters.length > 0
+      ? ', ' + sig.parameters.map(p => `${p.name}: ${toPyType(p.type)}`).join(', ')
+      : '';
+
+    const methodsCode = (sig.methods || [])
+      .map(m => {
+        const paramList = m.parameters.length > 0
+          ? ', ' + m.parameters.map(p => `${p.name}: ${toPyType(p.type)}`).join(', ')
+          : '';
+        const retType = toPyType(m.returnType);
+        const retStmt = toDefaultPyReturnValue(m.returnType);
+        const body = retStmt ? `        ${retStmt}` : '        pass';
+        return `    def ${m.name}(self${paramList}) -> ${retType}:\n${body}`;
+      })
+      .join('\n\n');
+
+    return `class ${sig.name}:
+    def __init__(self${ctorParams}) -> None:
+        pass
+
+${methodsCode}
+`;
+  }
+
+  if (sig.mode === 'compose') {
+    const innerFn = sig.innerFunction || {
+      name: sig.compose?.[1] || 'encode',
+      parameters: sig.parameters,
+      returnType: { kind: 'primitive', type: 'string' as const }
+    };
+    const outerFn = sig.outerFunction || {
+      name: sig.compose?.[0] || 'decode',
+      parameters: [
+        {
+          name: (sig.compose?.[0] || 'decode') === 'decode' ? 's' : 'data',
+          type: { kind: 'primitive', type: 'string' as const },
+          isMutationTarget: false
+        }
+      ],
+      returnType: sig.returnType
+    };
+
+    const formatPyMethod = (m: CanonicalMethodDescriptor, isMethod = false) => {
+      const params = m.parameters.map(p => `${p.name}: ${toPyType(p.type)}`).join(', ');
+      const fullParams = isMethod ? (params ? `self, ${params}` : 'self') : params;
+      const retType = toPyType(m.returnType);
+      const retStmt = toDefaultPyReturnValue(m.returnType);
+      const indent = isMethod ? '    ' : '';
+      const body = retStmt ? `${indent}    ${retStmt}` : `${indent}    pass`;
+      return `${indent}def ${m.name}(${fullParams}) -> ${retType}:\n${body}`;
+    };
+
+    if (sig.receiver) {
+      return `class ${sig.receiver}:
+${formatPyMethod(innerFn, true)}
+
+${formatPyMethod(outerFn, true)}
+`;
+    }
+
+    return `${formatPyMethod(innerFn)}\n\n${formatPyMethod(outerFn)}\n`;
+  }
+
+  // Standard function
+  const paramList = sig.parameters
+    .map(p => `${p.name}: ${toPyType(p.type)}`)
+    .join(', ');
+  const retType = toPyType(sig.returnType);
+  const retStmt = toDefaultPyReturnValue(sig.returnType);
+  const body = retStmt ? `    ${retStmt}` : '    pass';
+
+  return `def ${sig.name}(${paramList}) -> ${retType}:\n${body}\n`;
+}
+
 export function buildTestCode(cases: FlatCanonicalTestCase[], meta: CanonicalData): string {
   if (!cases.length) return '';
 
-  const mode = meta?.mode || (cases[0].property === 'operations' ? 'operations' : 'function');
+  const sig = parseCanonicalSignature(meta);
 
-  if (mode === 'operations') {
+  if (sig.mode === 'operations') {
     return buildOperationsTestCode(cases);
   }
 
-  if (mode === 'compose' || meta?.compose) {
-    return buildComposeTestCode(cases, meta);
+  if (sig.mode === 'compose') {
+    return buildComposeTestCode(cases, sig);
   }
 
   const comparison = meta?.comparison || cases[0]?.comparison || 'exact';
@@ -96,6 +254,9 @@ export function buildTestCode(cases: FlatCanonicalTestCase[], meta: CanonicalDat
       callArgVars.push(`${v}_in`);
     } else if (type === 'interval_array') {
       inputTransforms.push(`${v}_in = [Interval(x[0], x[1]) for x in ${v}]`);
+      callArgVars.push(`${v}_in`);
+    } else if (type === 'byte_grid') {
+      inputTransforms.push(`${v}_in = [list(row) for row in ${v}]`);
       callArgVars.push(`${v}_in`);
     } else {
       inputTransforms.push(`${v}_in = ${v}`);
@@ -192,13 +353,14 @@ for operations, arguments, expected, desc in test_cases:
 `;
 }
 
-function buildComposeTestCode(cases: FlatCanonicalTestCase[], meta: CanonicalData): string {
-  const compose = meta.compose || ['decode', 'encode'];
-  const outerFn = compose[0];
-  const innerFn = compose[1];
-  const receiver = meta.receiver;
-  const returns = meta.returns || 'standard';
-  const inputsMeta = meta.inputs || {};
+function buildComposeTestCode(cases: FlatCanonicalTestCase[], sig: CanonicalSignature): string {
+  const [outerFn, innerFn] = sig.compose || ['decode', 'encode'];
+  const receiver = sig.receiver;
+  const returns = sig.returnType.kind;
+  const inputsMeta = sig.parameters.reduce((acc, p) => {
+    acc[p.name] = p.type.kind;
+    return acc;
+  }, {} as Record<string, string>);
 
   const inputKeys = Object.keys(cases[0].input || {});
   const hasInputs = inputKeys.length > 0;
@@ -222,6 +384,7 @@ function buildComposeTestCode(cases: FlatCanonicalTestCase[], meta: CanonicalDat
     if (type === 'tree') return `${v}_in = list_to_tree(${v})`;
     if (type === 'tree_node') return `${v}_in = TreeNode(${v}) if isinstance(${v}, int) else ${v}`;
     if (type === 'linked_list') return `${v}_in = list_to_linked_list(${v})`;
+    if (type === 'byte_grid') return `${v}_in = [list(row) for row in ${v}]`;
     return `${v}_in = ${v}`;
   });
 
