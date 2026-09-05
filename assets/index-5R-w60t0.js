@@ -5,7 +5,7 @@ Check the starter code in the exercise window, modify it to print "Hello, world!
 
 ## Problem Statement
 
-Print out \`Hello, world!\` to the output.
+Print \`Hello, world!\`
 `,l=`#include <stdio.h>
 #include <stdlib.h>
 
