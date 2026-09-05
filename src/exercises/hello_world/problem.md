@@ -4,4 +4,4 @@ Check the starter code in the exercise window, modify it to print "Hello, world!
 
 ## Problem Statement
 
-Print out `Hello, world!` to the output.
+Print `Hello, world!`
