@@ -14,7 +14,7 @@ export interface QuickStart {
 
 export const DEFAULT_QUICK_CHIPS: QuickStart[] = [
   { id: 'hint', label: 'Hint', prompt: 'Can you give me a subtle hint on how to approach this problem?' },
-  { id: 'explain-error', label: 'Explain error', prompt: 'Can you explain the error in the console and what might be causing it?' },
+  { id: 'explain-error', label: 'Explain error', prompt: 'Can you explain the error in the output and what might be causing it?' },
   { id: 'guide-approach', label: 'Guide approach', prompt: 'How should I structure my logic for this exercise?' },
   { id: 'review-code', label: 'Review code', prompt: 'Can you review my current code and point out potential issues?' },
 ];

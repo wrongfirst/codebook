@@ -34,8 +34,8 @@ class Orchestrator {
                     this.isReady = false;
                     status.setError();
                     this.setRunningState(this.isRunning);
-                    if (!elements.console.textContent || elements.console.textContent === "// Ready...") {
-                        elements.console.textContent = `${activeRunner.name.toUpperCase()} runtime initialization failed:\n${error || 'Unknown error'}`;
+                    if (!elements.output.textContent || elements.output.textContent === "// Ready...") {
+                        elements.output.textContent = `${activeRunner.name.toUpperCase()} runtime initialization failed:\n${error || 'Unknown error'}`;
                     }
                 }
             });
@@ -74,7 +74,7 @@ class Orchestrator {
         //prepare ui
         this.setRunningState(true);
         status.setRunning();
-        elements.console.textContent = "";
+        elements.output.textContent = "";
 
         try {
             //get code
@@ -97,7 +97,7 @@ class Orchestrator {
                 return;
             }
 
-            elements.console.textContent = result.output;
+            elements.output.textContent = result.output;
 
             //output-based validation (Runtime tests)
             const isAssertionFailure = Boolean(result.output && result.output.includes("Test failed"));
@@ -111,7 +111,7 @@ class Orchestrator {
                 const validation = exerciseVariant.validate(userCode, result.output);
                 if (validation !== true) {
                     status.setFailed();
-                    elements.console.textContent += `\n\n${validation}`;
+                    elements.output.textContent += `\n\n${validation}`;
                     return;
                 }
             }
@@ -131,17 +131,17 @@ class Orchestrator {
 
     private handleFailure(error: string, output: string) {
         status.setFailed();
-        elements.console.textContent = output ? output + "\n" + error : error;
+        elements.output.textContent = output ? output + "\n" + error : error;
     }
 
     private handleError(msg: string) {
         status.setError();
-        elements.console.textContent = "Runtime Error: " + msg;
+        elements.output.textContent = "Runtime Error: " + msg;
     }
 
     private handleSuccess(slug: string, completedSlugs: string[]) {
         status.setPassed();
-        elements.console.textContent += "\nALL TESTS PASSED!";
+        elements.output.textContent += "\nALL TESTS PASSED!";
 
         const alreadyCompleted = completedSlugs.includes(slug);
         store.getState().markComplete(slug);

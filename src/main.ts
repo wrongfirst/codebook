@@ -52,7 +52,7 @@ const switchTab = initTabs(
     elements.tabs.problem,
     elements.tabs.code,
     elements.problemAndChatPanel,
-    elements.editorConsolePanel
+    elements.editorOutputPanel
 );
 
 const navActions = initNavigation(
@@ -132,9 +132,9 @@ function render() {
             showPopup('Saved!');
         });
 
-        //reset console on exercise or language switch
+        //reset output on exercise or language switch
         if (isExerciseChanged || isLanguageChanged) {
-            elements.console.textContent = "// Ready...";
+            elements.output.textContent = "// Ready...";
             if (activeRunner.getStatus?.() === 'ready') {
                 status.setReady();
             }
@@ -179,11 +179,11 @@ if (elements.resetBtn) {
     });
 }
 
-//clear console
-if (elements.clearConsoleBtn) {
-    elements.clearConsoleBtn.innerHTML = ICONS.TRASH;
-    elements.clearConsoleBtn.addEventListener('click', () => {
-        if (elements.console) elements.console.textContent = "";
+//clear output
+if (elements.clearOutputBtn) {
+    elements.clearOutputBtn.innerHTML = ICONS.TRASH;
+    elements.clearOutputBtn.addEventListener('click', () => {
+        if (elements.output) elements.output.textContent = "";
     });
 }
 
@@ -210,7 +210,7 @@ window.addEventListener('hashchange', () => {
 
 //resize logic
 setupResize(elements.resize.dragHDesktop, elements.resize.paneProblem, 'horizontal');
-setupResize(elements.resize.dragVConsole, elements.resize.paneConsole, 'vertical', true);
+setupResize(elements.resize.dragVOutput, elements.resize.paneOutput, 'vertical', true);
 
 
 //startup

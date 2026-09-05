@@ -1,6 +1,6 @@
 // src/core/chat/client.ts
 import { store, ChatMessage } from '../store';
-import { buildSystemPrompt } from './context';
+import { buildSystemPrompt, formatUserPromptWithContext } from './context';
 import { decryptSecret } from '../crypto';
 
 export type StreamStatus = 'connecting' | 'thinking';
@@ -54,10 +54,19 @@ export async function streamCompletion(options: StreamOptions): Promise<string> 
   const lastMsg = history[history.length - 1];
   const isAlreadyInHistory = lastMsg && lastMsg.role === 'user' && lastMsg.content === userPrompt;
 
+  const enrichedUserPrompt = formatUserPromptWithContext(userPrompt);
+  const outgoingHistory = [...history];
+  if (isAlreadyInHistory) {
+    outgoingHistory[outgoingHistory.length - 1] = {
+      role: 'user',
+      content: enrichedUserPrompt,
+    };
+  }
+
   const messages = [
     { role: 'system', content: systemPrompt },
-    ...history,
-    ...(isAlreadyInHistory ? [] : [{ role: 'user', content: userPrompt }]),
+    ...outgoingHistory,
+    ...(isAlreadyInHistory ? [] : [{ role: 'user', content: enrichedUserPrompt }]),
   ];
 
   const headers: Record<string, string> = {
