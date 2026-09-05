@@ -635,7 +635,7 @@ ${UO(l||`No output recorded yet (code has not been run or output was cleared).`)
         class="chat-tab-item group relative flex items-center gap-1.5 px-2.5 py-1 text-[11px] rounded transition-all cursor-pointer select-none shrink-0 border ${l}"
         title="${Dk(n)} (${e.languageId})">
         ${s?`<span class="w-1.5 h-1.5 rounded-full bg-brand shrink-0 ${r||i?`animate-pulse`:``}" title="${c}"></span>`:``}
-        <span class="truncate max-w-[80px] sm:max-w-[110px]">${Dk(n)}</span>
+        <span class="truncate max-w-20 sm:max-w-27.5">${Dk(n)}</span>
         <button type="button"
           data-close-conv-id="${e.id}"
           class="chat-tab-close-btn opacity-60 hover:opacity-100 hover:text-red-400 p-0.5 rounded transition-all ml-0.5 cursor-pointer"
