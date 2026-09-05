@@ -57,7 +57,14 @@ export function initChatPanel() {
     elements.chat.newTabBtn.innerHTML = ICONS.PLUS;
   }
 
-  // Ensure an active conversation exists for current exercise
+  // Collapse conversation on initial load unless an active stream is running
+  const initExId = store.getState().activeLessonSlug;
+  const initConvs = store.getState().chatConversations[initExId] || [];
+  const initStreaming = initConvs.find(c => activeStreams.has(c.id));
+  if (!initStreaming) {
+    store.getState().setActiveConversation(initExId, '');
+  }
+
   ensureActiveConversation();
 
   // Bind static listeners
@@ -88,6 +95,19 @@ export function initChatPanel() {
         syncPanelVisibility();
       }
 
+      const isExerciseChanged = lastRenderedExerciseId === null || currentExId !== lastRenderedExerciseId;
+      const isLanguageChanged = lastRenderedLanguageId !== null && currentLangId !== lastRenderedLanguageId;
+
+      if (isExerciseChanged || isLanguageChanged) {
+        const currentConvs = state.chatConversations[currentExId] || [];
+        const streamingConv = currentConvs.find(c => activeStreams.has(c.id));
+        if (streamingConv) {
+          store.getState().setActiveConversation(currentExId, streamingConv.id);
+        } else {
+          store.getState().setActiveConversation(currentExId, '');
+        }
+      }
+
       lastRenderedLanguageId = currentLangId;
 
       ensureActiveConversation();
@@ -97,13 +117,12 @@ export function initChatPanel() {
       const activeConvId = activeConv?.id || null;
       const currentMessages = activeConv?.messages || [];
 
-      const isExerciseChanged = currentExId !== lastRenderedExerciseId;
       const isConvChanged = activeConvId !== lastRenderedConversationId;
       const isMessagesChanged = currentMessages !== lastRenderedChatMessages;
       const isConvsChanged = currentConvs !== lastRenderedConvs;
 
       // Re-render tabs & messages if exercise, conversation, tabs list, or messages changed
-      if (isExerciseChanged || isConvChanged || isMessagesChanged || isConvsChanged) {
+      if (isExerciseChanged || isLanguageChanged || isConvChanged || isMessagesChanged || isConvsChanged) {
         if (isExerciseChanged) {
           // Reset scroll position to top of problem description
           if (elements.chat.scrollContainer) {
@@ -148,8 +167,8 @@ function ensureActiveConversation() {
 
   if (convs.length > 0) {
     const activeId = state.activeConversationId[currentExId];
-    if (!activeId || !convs.some(c => c.id === activeId)) {
-      store.getState().setActiveConversation(currentExId, convs[0].id);
+    if (activeId && !convs.some(c => c.id === activeId)) {
+      store.getState().setActiveConversation(currentExId, '');
     }
   }
 }
@@ -195,7 +214,7 @@ export function renderConversationTabs() {
   const currentExId = state.activeLessonSlug;
   const convs: ChatConversation[] = state.chatConversations[currentExId] || [];
   lastRenderedConvs = convs;
-  const activeId = state.activeConversationId[currentExId] || (convs[0]?.id ?? '');
+  const activeId = state.activeConversationId[currentExId] || '';
 
   // Toggle plus button visibility: only visible if a conversation has started (has messages) or multiple tabs exist
   const canAddNewTab = convs.some(c => c.messages.length > 0) || convs.length > 1;
@@ -250,7 +269,12 @@ export function renderConversationTabs() {
     tabEl.addEventListener('click', (e) => {
       // Don't switch if clicking the close button
       if ((e.target as HTMLElement).closest('.chat-tab-close-btn')) return;
-      store.getState().setActiveConversation(currentExId, convId);
+      if (convId === activeId) {
+        // Toggle collapse if clicking the currently open tab
+        store.getState().setActiveConversation(currentExId, '');
+      } else {
+        store.getState().setActiveConversation(currentExId, convId);
+      }
     });
   });
 
@@ -265,6 +289,43 @@ export function renderConversationTabs() {
       ensureActiveConversation();
     });
   });
+
+  // Ensure active tab is scrolled into view within the tabs container if overflowing
+  const activeTabEl = container.querySelector<HTMLElement>(`[data-conv-id="${activeId}"]`);
+  if (activeTabEl) {
+    const containerRect = container.getBoundingClientRect();
+    const tabRect = activeTabEl.getBoundingClientRect();
+    const edgeOffset = 24;
+
+    if (tabRect.left < containerRect.left + edgeOffset) {
+      container.scrollBy({ left: tabRect.left - (containerRect.left + edgeOffset), behavior: 'smooth' });
+    } else if (tabRect.right > containerRect.right - edgeOffset) {
+      container.scrollBy({ left: tabRect.right - (containerRect.right - edgeOffset), behavior: 'smooth' });
+    }
+  }
+
+  requestAnimationFrame(() => {
+    updateTabScrollHints();
+  });
+}
+
+export function updateTabScrollHints() {
+  const container = elements.chat.tabsContainer;
+  const fadeLeft = elements.chat.tabsFadeLeft;
+  const fadeRight = elements.chat.tabsFadeRight;
+  if (!container || !fadeLeft || !fadeRight) return;
+
+  const { scrollLeft, scrollWidth, clientWidth } = container;
+  const maxScroll = scrollWidth - clientWidth;
+
+  const hasLeftOverflow = scrollLeft > 2;
+  const hasRightOverflow = maxScroll > 2 && scrollLeft < maxScroll - 2;
+
+  fadeLeft.classList.toggle('opacity-0', !hasLeftOverflow);
+  fadeLeft.classList.toggle('opacity-100', hasLeftOverflow);
+
+  fadeRight.classList.toggle('opacity-0', !hasRightOverflow);
+  fadeRight.classList.toggle('opacity-100', hasRightOverflow);
 }
 
 export function renderQuickChips(chips: QuickStart[] = DEFAULT_QUICK_CHIPS) {
@@ -480,6 +541,28 @@ function bindPanelEvents() {
     store.getState().createConversation(currentExId, currentLangId, 'Chat');
   });
 
+  // Tabs container scroll & wheel listeners for smooth overflow navigation
+  const tabsContainer = elements.chat.tabsContainer;
+  if (tabsContainer) {
+    tabsContainer.addEventListener('scroll', () => {
+      updateTabScrollHints();
+    }, { passive: true });
+
+    tabsContainer.addEventListener('wheel', (e) => {
+      if (e.deltaY !== 0 && tabsContainer.scrollWidth > tabsContainer.clientWidth) {
+        e.preventDefault();
+        tabsContainer.scrollLeft += e.deltaY;
+      }
+    }, { passive: false });
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const resizeObserver = new ResizeObserver(() => {
+        updateTabScrollHints();
+      });
+      resizeObserver.observe(tabsContainer);
+    }
+  }
+
   // Clear chat messages button
   elements.chat.clearBtn?.addEventListener('click', () => {
     const currentExId = store.getState().activeLessonSlug;
@@ -693,18 +776,24 @@ async function submitUserMessage() {
   ensureActiveConversation();
   let activeConv = state.getActiveConversation(currentExId);
 
-  // If no conversation exists yet for this exercise, create one lazily
+  // If no conversation is active yet for this exercise, reuse empty or create one lazily
   if (!activeConv) {
-    const newConvId = store.getState().createConversation(currentExId, currentLangId, 'Chat');
-    activeConv = store.getState().getActiveConversation(currentExId) || {
-      id: newConvId,
-      lessonSlug: currentExId,
-      languageId: currentLangId,
-      title: 'Chat',
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      messages: [],
-    };
+    const convs = state.chatConversations[currentExId] || [];
+    if (convs.length > 0 && convs[0].messages.length === 0) {
+      store.getState().setActiveConversation(currentExId, convs[0].id);
+      activeConv = convs[0];
+    } else {
+      const newConvId = store.getState().createConversation(currentExId, currentLangId, 'Chat');
+      activeConv = store.getState().getActiveConversation(currentExId) || {
+        id: newConvId,
+        lessonSlug: currentExId,
+        languageId: currentLangId,
+        title: 'Chat',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        messages: [],
+      };
+    }
   }
 
   const convId = activeConv.id;

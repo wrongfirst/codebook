@@ -161,3 +161,11 @@ body.resizing *::-webkit-scrollbar {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* chat tabs edge fade masks */
+.chat-tabs-fade-left {
+  background: linear-gradient(to right, var(--bg-surface) 0%, transparent 100%);
+}
+.chat-tabs-fade-right {
+  background: linear-gradient(to left, var(--bg-surface) 0%, transparent 100%);
+}

@@ -22,7 +22,7 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, 
     set({
       chatConversations: {
         ...get().chatConversations,
-        [lessonSlug]: [...convs, newConv],
+        [lessonSlug]: [newConv, ...convs],
       },
       activeConversationId: {
         ...get().activeConversationId,
@@ -80,11 +80,17 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, 
 
   deleteConversation: (lessonSlug: string, conversationId: string) => {
     const currentConvs = get().chatConversations[lessonSlug] || [];
+    const delIdx = currentConvs.findIndex((c) => c.id === conversationId);
     const updatedConvs = currentConvs.filter((c) => c.id !== conversationId);
     const activeId = get().activeConversationId[lessonSlug];
     let nextActiveId = activeId;
     if (activeId === conversationId) {
-      nextActiveId = updatedConvs.length > 0 ? updatedConvs[updatedConvs.length - 1].id : '';
+      if (updatedConvs.length > 0) {
+        const nextIdx = Math.min(Math.max(0, delIdx), updatedConvs.length - 1);
+        nextActiveId = updatedConvs[nextIdx].id;
+      } else {
+        nextActiveId = '';
+      }
     }
     set({
       chatConversations: {
@@ -103,7 +109,8 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, 
     const state = get();
     const convs = state.chatConversations[lessonSlug] || [];
     const activeId = state.activeConversationId[lessonSlug];
-    return convs.find((c) => c.id === activeId) || convs[0];
+    if (!activeId) return undefined;
+    return convs.find((c) => c.id === activeId);
   },
 
   addChatMessage: (lessonSlug: string, message: ChatMessage, conversationId?: string) => {
@@ -127,7 +134,7 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, 
         messages: [message],
         unread: isUnread,
       };
-      convs.push(targetConv);
+      convs.unshift(targetConv);
       targetId = newId;
     } else {
       convs = convs.map((c) => {
