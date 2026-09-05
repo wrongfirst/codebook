@@ -354,10 +354,7 @@ export function buildTestCode(cases: FlatCanonicalTestCase[], meta: CanonicalDat
   }
 
   const callArgs = callArgExprs.join(', ');
-  const argReprExprs = sig.parameters.map(p => `_harness_detail::to_string_repr(tc.${p.name})`);
-  const msgExpr = argReprExprs.length > 0
-    ? `"${property}(" + ${argReprExprs.join(' + ", " + ')} + ") - " + tc.desc`
-    : `"${property}() - " + tc.desc`;
+  const msgExpr = 'tc.desc';
 
   // In-place mutation handling
   if (mutation?.target) {
@@ -478,7 +475,7 @@ function buildOperationsTestCode(cases: FlatCanonicalTestCase[], sig: CanonicalS
         steps.push(`        obj.${op}(${methodArgs});`);
       } else {
         const expLit = formatCppLiteral(expectedVal, false);
-        const msg = JSON.stringify(`${op}(${methodArgs}) - ${c.description}`);
+        const msg = JSON.stringify(c.description);
         steps.push(
           `        Tests.equal_check(${msg}, ${expLit}, obj.${op}(${methodArgs}));`
         );
@@ -526,10 +523,7 @@ function buildComposeTestCode(cases: FlatCanonicalTestCase[], sig: CanonicalSign
   if (returns === 'tree') resTransform = 'tree_to_list(res)';
   else if (returns === 'linked_list') resTransform = 'linked_list_to_list(res)';
 
-  const composeArgReprExprs = sig.parameters.map(p => `_harness_detail::to_string_repr(tc.${p.name})`);
-  const msgExpr = composeArgReprExprs.length > 0
-    ? `"${outerFn}(${innerFn}(" + ${composeArgReprExprs.join(' + ", " + ')} + ")) - " + tc.desc`
-    : `"${outerFn}(${innerFn}()) - " + tc.desc`;
+  const msgExpr = 'tc.desc';
 
   const invocation = sig.receiver
     ? `        ${sig.receiver} inst;\n        auto res = inst.${outerFn}(inst.${innerFn}(${callArgs}));`

@@ -285,7 +285,7 @@ for ${destructureArgs} in test_cases:
 ${inputTransforms.map((t) => '    ' + t).join('\n')}
     ${property}(${callArgs})
     res = ${postTransform}
-    Tests.equal_check(f"${property}(${argFmt}) - {desc}", expected, res)
+    Tests.equal_check(desc, expected, res)
 `;
   }
 
@@ -302,11 +302,11 @@ ${inputTransforms.map((t) => '    ' + t).join('\n')}
   }
 
   // Assertion check
-  let assertion = `Tests.equal_check(f"${property}(${argFmt}) - {desc}", expected, ${resTransform})`;
+  let assertion = `Tests.equal_check(desc, expected, ${resTransform})`;
   if (comparison === 'unordered') {
-    assertion = `Tests.equal_check(f"${property}(${argFmt}) - {desc}", sorted(expected), sorted(${resTransform}))`;
+    assertion = `Tests.equal_check(desc, sorted(expected), sorted(${resTransform}))`;
   } else if (comparison === 'unordered_nested') {
-    assertion = `Tests.unordered_equal_check(f"${property}(${argFmt}) - {desc}", expected, ${resTransform})`;
+    assertion = `Tests.unordered_equal_check(desc, expected, ${resTransform})`;
   }
 
   return `if '${property}' not in globals():
@@ -349,7 +349,7 @@ for operations, arguments, expected, desc in test_cases:
             method = getattr(obj, op)
             r = method(*arg)
             res.append(r)
-    Tests.equal_check(f"Operations - {desc}", expected, res)
+    Tests.equal_check(desc, expected, res)
 `;
 }
 
@@ -417,6 +417,6 @@ ${receiverCheck}
 
 for ${destructureArgs} in test_cases:
 ${inputTransforms.length > 0 ? inputTransforms.map((t) => '    ' + t).join('\n') + '\n' : ''}    ${invocation}
-    Tests.equal_check(f"${outerFn}(${innerFn}(${argFmt})) - {desc}", expected, ${resTransform})
+    Tests.equal_check(desc, expected, ${resTransform})
 `;
 }

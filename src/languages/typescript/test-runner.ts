@@ -265,7 +265,7 @@ for (const [${destructureArgs}] of testCases) {
 ${inputTransforms.join('\n')}
   ${property}(${callArgs});
   const result = ${postTransform};
-  Tests.equalCheck(\`${property}(${argFmt}) - \${desc}\`, expected, result);
+  Tests.equalCheck(desc, expected, result);
 }
 `;
   }
@@ -276,9 +276,9 @@ ${inputTransforms.join('\n')}
   else if (returns === 'linked_list') resTransform = 'linkedListToList(result)';
   else if (returns === 'graph') resTransform = 'graphToAdj(result)';
 
-  let assertion = `Tests.equalCheck(\`${property}(${argFmt}) - \${desc}\`, expected, ${resTransform});`;
+  let assertion = `Tests.equalCheck(desc, expected, ${resTransform});`;
   if (comparison === 'unordered' || comparison === 'unordered_nested') {
-    assertion = `Tests.unorderedEqualCheck(\`${property}(${argFmt}) - \${desc}\`, expected, ${resTransform});`;
+    assertion = `Tests.unorderedEqualCheck(desc, expected, ${resTransform});`;
   }
 
   return `// @ts-nocheck
@@ -327,7 +327,7 @@ for (const [operations, args, expected, desc] of testCases) {
       res.push(r === undefined ? null : r);
     }
   }
-  Tests.equalCheck(\`Operations - \${desc}\`, expected, res);
+  Tests.equalCheck(desc, expected, res);
 }
 `;
 }
@@ -352,10 +352,6 @@ function buildComposeTestCode(cases: FlatCanonicalTestCase[], sig: CanonicalSign
     const desc = JSON.stringify(c.description);
     return `  [${[...inputVals, expVal, desc].join(', ')}],`;
   });
-
-  const argFmt = hasInputs
-    ? (inputKeys.length === 1 ? `\${${argVars[0]}}` : argVars.map((v) => `\${${v}}`).join(', '))
-    : '';
 
   const inputTransforms = inputKeys.map((key, i) => {
     const v = argVars[i];
@@ -390,7 +386,7 @@ ${receiverSetup}
 
 for (const [${destructureArgs}] of testCases) {
 ${inputTransforms.length > 0 ? inputTransforms.join('\n') + '\n' : ''}  ${callExpr}
-  Tests.equalCheck(\`${outerFn}(${innerFn}(${argFmt})) - \${desc}\`, expected, ${resTransform});
+  Tests.equalCheck(desc, expected, ${resTransform});
 }
 `;
 }

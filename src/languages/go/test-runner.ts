@@ -332,11 +332,7 @@ export function buildTestCode(cases: FlatCanonicalTestCase[], meta: CanonicalDat
 
   const callArgs = callArgExprs.join(', ');
 
-  const fmtInputs = inputKeys.map(() => `%v`).join(', ');
-  const rawArgs = inputKeys.map((k) => `tc.${k}`).join(', ');
-  const msgFormat = hasInputs
-    ? `fmt.Sprintf("${goFnName}(${fmtInputs}) - %s", ${rawArgs}, tc.desc)`
-    : `fmt.Sprintf("${goFnName}() - %s", tc.desc)`;
+  const msgFormat = 'tc.desc';
 
   // In-place mutation
   if (mutation?.target) {
@@ -436,7 +432,7 @@ function buildOperationsTestCode(cases: FlatCanonicalTestCase[], sig: CanonicalS
           expectedVal,
           typeof expectedVal === 'number' ? 'float64' : 'auto'
         );
-        const msg = JSON.stringify(`${op}(${methodArgs}) - ${c.description}`);
+        const msg = JSON.stringify(c.description);
         steps.push(
           `\tTests.EqualCheck(${msg}, ${expLit}, obj.${methodName}(${methodArgs}))`
         );
@@ -494,8 +490,7 @@ function buildComposeTestCode(cases: FlatCanonicalTestCase[], sig: CanonicalSign
     resTransform = 'LinkedListToList(res)';
   }
 
-  const rawArgs = inputKeys.map((k) => `tc.${k}`).join(', ');
-  const msgFormat = `fmt.Sprintf("${outerFn}(${innerFn}(%v)) - %s", ${rawArgs}, tc.desc)`;
+  const msgFormat = 'tc.desc';
 
   let instInit = '';
   let invocation = '';

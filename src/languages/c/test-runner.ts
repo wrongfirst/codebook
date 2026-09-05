@@ -239,13 +239,7 @@ export function buildTestCode(cases: FlatCanonicalTestCase[], meta: CanonicalDat
 
   const callArgs = callArgExprs.join(', ');
 
-  const snprintfFmt = inputKeys
-    .map((k) => (inferCType(cases[0].input[k], inputsMeta[k]) === 'const char*' ? '%s' : '%d'))
-    .join(', ');
-  const snprintfArgs = inputKeys.map((k) => `testCases[i].${k}`).join(', ');
-  const msgFormat = hasInputs
-    ? `snprintf(msg, sizeof(msg), "${property}(${snprintfFmt}) - %s", ${snprintfArgs}, testCases[i].desc);`
-    : `snprintf(msg, sizeof(msg), "${property}() - %s", testCases[i].desc);`;
+  const msgFormat = `const char* msg = testCases[i].desc;`;
 
   let resTransform = 'res';
   let outLenDecl = '';
@@ -287,7 +281,6 @@ ${testCaseEntries.join('\n')}
     for (int i = 0; i < numTests; i++) {
 ${outLenDecl}        ${targetType} targetVar = testCases[i].${targetKey};
         ${property}(targetVar);
-        char msg[128];
         ${msgFormat}
         ${getCAssertion(cases[0].expected, comparison, postTransform, expHasLen)}
     }
@@ -312,7 +305,6 @@ ${testCaseEntries.join('\n')}
     int numTests = sizeof(testCases) / sizeof(testCases[0]);
     for (int i = 0; i < numTests; i++) {
 ${outLenDecl}        ${retType} res = ${property}(${callArgs});
-        char msg[128];
         ${msgFormat}
         ${assertion}
     }

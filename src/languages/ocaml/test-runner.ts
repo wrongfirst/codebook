@@ -203,15 +203,7 @@ export function buildTestCode(cases: FlatCanonicalTestCase[], meta: CanonicalDat
     assertion = `Tests.equal_check msg expected ${resTransform}`;
   }
 
-  const strInputs = hasInputs
-    ? (inputKeys.length === 1
-        ? (typeof cases[0].input[inputKeys[0]] === 'number' ? 'string_of_int arg1' : 'arg1')
-        : inputKeys.map((_, i) => `string_of_int arg${i + 1}`).join(' ^ " " ^ '))
-    : '""';
-
-  const msgExpr = hasInputs
-    ? `"${property} " ^ ${strInputs} ^ " - " ^ desc`
-    : `"${property}() - " ^ desc`;
+  const msgExpr = 'desc';
 
   const iterPattern = hasInputs ? `(${argNames}, expected, desc)` : `(expected, desc)`;
 
