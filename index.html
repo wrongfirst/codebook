@@ -44,8 +44,8 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./favicon/favicon-16x16.png">
   <link rel="manifest" href="./favicon/site.webmanifest">
 
-  <script type="module" crossorigin src="./assets/index-DOeeDWg5.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-DA49VYUF.css">
+  <script type="module" crossorigin src="./assets/index-B70z9c6s.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-CZjUhaVg.css">
   <meta property="og:title" content="codebook | in-browser programming exercises">
   <meta name="description" content="Interactive programming exercises in the browser">
   <meta property="og:description" content="Interactive programming exercises in the browser">
@@ -187,24 +187,34 @@
             <!-- header like output -->
             <!-- Minimal Browser-Style Conversation Tabs Bar -->
             <div
-              class="h-9 px-2 bg-bg-surface flex items-center justify-between select-none border-b border-border-default gap-2 relative">
-              <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-1 min-w-0 py-1"
-                id="chat-tabs-wrapper">
-                <span
-                  class="text-[10px] font-bold text-fg-muted uppercase tracking-wider px-2 shrink-0 select-none">Rubber
-                  Duck</span>
-                <div id="chat-tabs-container" class="flex items-center gap-1 min-w-0">
+              class="h-9 px-2 bg-bg-surface flex items-center justify-between select-none border-b border-border-default gap-1.5 relative">
+              <span
+                class="text-[10px] font-bold text-fg-muted uppercase tracking-wider px-2 shrink-0 select-none border-r border-border-default/60 pr-2.5 mr-0.5">Rubber
+                Duck</span>
+
+              <!-- Tabs strip with dynamic edge fade hints -->
+              <div class="relative flex-1 min-w-0 flex items-center h-full overflow-hidden">
+                <div id="chat-tabs-container"
+                  class="flex items-center gap-1 overflow-x-auto no-scrollbar w-full py-1">
                   <!-- Dynamic conversation tabs injected via JS -->
                 </div>
+                <!-- Left scroll hint gradient -->
+                <div id="chat-tabs-fade-left"
+                  class="chat-tabs-fade-left pointer-events-none absolute left-0 top-0 bottom-0 w-6 transition-opacity duration-150 opacity-0 z-10">
+                </div>
+                <!-- Right scroll hint gradient -->
+                <div id="chat-tabs-fade-right"
+                  class="chat-tabs-fade-right pointer-events-none absolute right-0 top-0 bottom-0 w-6 transition-opacity duration-150 opacity-0 z-10">
+                </div>
+              </div>
+
+              <div class="flex items-center gap-1 shrink-0 pl-1 border-l border-border-default/60 ml-0.5">
                 <button type="button" id="new-chat-tab-btn"
                   class="hidden p-1 hover:bg-bg-app rounded text-fg-muted hover:text-fg-primary transition-colors cursor-pointer shrink-0"
                   title="New conversation">
                 </button>
-              </div>
-
-              <div class="flex items-center gap-1 shrink-0">
                 <button id="clear-chat-btn"
-                  class="p-1 hover:bg-bg-app rounded text-fg-muted hover:text-fg-primary transition-colors cursor-pointer"
+                  class="p-1 hover:bg-bg-app rounded text-fg-muted hover:text-fg-primary transition-colors cursor-pointer shrink-0"
                   title="Clear Chat Messages">
                 </button>
               </div>
