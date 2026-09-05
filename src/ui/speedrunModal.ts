@@ -231,6 +231,7 @@ function updateExportButton() {
 
   if (allResults.length > 0 && currentExportList.length > 0) {
     exportBtn.classList.remove('hidden');
+    exportBtn.classList.add('flex');
     exportBtn.removeAttribute('disabled');
     if (exportText) {
       if (activeStatusFilter === 'all') {
@@ -247,12 +248,14 @@ function updateExportButton() {
     }
   } else if (allResults.length > 0) {
     exportBtn.classList.remove('hidden');
+    exportBtn.classList.add('flex');
     exportBtn.setAttribute('disabled', 'true');
     if (exportText) {
       exportText.textContent = `Export (0)`;
     }
   } else {
     exportBtn.classList.add('hidden');
+    exportBtn.classList.remove('flex');
   }
 }
 

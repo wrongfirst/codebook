@@ -218,8 +218,8 @@ export function renderConversationTabs() {
     const dotTooltip = isRenaming
       ? 'Generating title...'
       : isStreaming
-      ? 'Generating response...'
-      : 'Unread message';
+        ? 'Generating response...'
+        : 'Unread message';
 
     const baseClasses = "group relative flex items-center gap-1.5 px-2.5 py-1 text-[11px] rounded transition-all cursor-pointer select-none shrink-0 border";
     const activeClasses = isActive
@@ -231,7 +231,7 @@ export function renderConversationTabs() {
         class="chat-tab-item ${baseClasses} ${activeClasses}"
         title="${escapeHtml(title)} (${conv.languageId})">
         ${showDot ? `<span class="w-1.5 h-1.5 rounded-full bg-brand shrink-0 ${isStreaming || isRenaming ? 'animate-pulse' : ''}" title="${dotTooltip}"></span>` : ''}
-        <span class="truncate max-w-[80px] sm:max-w-[110px]">${escapeHtml(title)}</span>
+        <span class="truncate max-w-20 sm:max-w-27.5">${escapeHtml(title)}</span>
         <button type="button"
           data-close-conv-id="${conv.id}"
           class="chat-tab-close-btn opacity-60 hover:opacity-100 hover:text-red-400 p-0.5 rounded transition-all ml-0.5 cursor-pointer"
@@ -667,7 +667,7 @@ async function handleChatCommand(rawInput: string, currentExId: string, convId: 
             store.getState().updateConversationTitle(currentExId, convId, aiTitle);
           }
         })
-        .catch(() => {})
+        .catch(() => { })
         .finally(() => {
           activeRenames.delete(convId);
           renderConversationTabs();
