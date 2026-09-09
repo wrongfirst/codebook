@@ -6,6 +6,8 @@ import { getEnabledLanguages } from '../languages/language-registry';
 import { getExercise, getExerciseDisplayNumber } from '../exercises/exercise-registry';
 import { getExerciseVariant } from '../core/types';
 import { elements } from '../core/elements';
+import { escapeHtml } from '../core/markdown';
+import { downloadJsonFile } from './download';
 import { ICONS } from './icons';
 
 type StatusFilter = 'all' | 'passed' | 'failed' | 'error' | 'missing_solution';
@@ -277,22 +279,8 @@ function handleExportCases() {
     };
   });
 
-  const dataStr = JSON.stringify(exportList, null, 2);
-  const blob = new Blob([dataStr], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
   const prefix = activeStatusFilter === 'all' ? 'speedrun-report' : `speedrun-${activeStatusFilter}`;
-
-  a.href = url;
-  a.download = `${prefix}-${timestamp}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  downloadJsonFile(prefix, exportList);
 }
 
 function getFilteredAndSortedResults(): VerificationItemResult[] {
@@ -524,11 +512,3 @@ function appendResultCard(container: HTMLElement, result: VerificationItemResult
   container.appendChild(card);
 }
 
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}

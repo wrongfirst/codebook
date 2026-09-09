@@ -40,5 +40,8 @@ export const layoutElements = {
 
     // Progress bar container
     get progressContainer() { return byId('progress-container'); },
+
+    // Footer
+    get footer() { return byId('footer'); },
 };
 

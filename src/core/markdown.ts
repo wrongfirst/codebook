@@ -33,7 +33,7 @@ export function escapeHtml(str: string): string {
         .replace(/'/g, '&#039;');
 }
 
-function isSafeUrl(url: string): boolean {
+export function isSafeUrl(url: string): boolean {
     if (!url) return false;
     const trimmed = url.trim().toLowerCase();
     // Allow safe absolute web and email protocols

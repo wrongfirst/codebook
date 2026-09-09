@@ -1,7 +1,8 @@
 import { elements } from '../core/elements';
 import { store, ChatMessage, ChatConversation } from '../core/store';
 import { ICONS } from './icons';
-import { parseChatMarkdown } from '../core/markdown';
+import { parseChatMarkdown, escapeHtml } from '../core/markdown';
+import { createUniqueId } from '../core/id';
 import { copyToClipboardSafe } from '../core/clipboard';
 import { streamCompletion, StreamStatus, generateConversationTitle } from '../core/chat/client';
 import { flushAutoSave } from '../core/editor';
@@ -32,24 +33,28 @@ interface ActiveStreamSession {
 const activeStreams = new Map<string, ActiveStreamSession>();
 const activeRenames = new Set<string>();
 
+function flushAndInterruptSession(convId: string, session: ActiveStreamSession): void {
+  if (!session.flushed) {
+    session.flushed = true;
+    const { content: partialContent } = extractAndStripTitle(session.accumulatedText);
+    if (partialContent.trim()) {
+      const assistantMsg: ChatMessage = {
+        id: createUniqueId('msg'),
+        role: 'assistant',
+        content: partialContent,
+        timestamp: Date.now(),
+      };
+      store.getState().addChatMessage(session.lessonSlug, assistantMsg, convId);
+    }
+  }
+  if (session.fiber) {
+    Effect.runFork(Fiber.interrupt(session.fiber));
+  }
+}
+
 export function abortAllStreams() {
   for (const [convId, session] of activeStreams.entries()) {
-    if (!session.flushed) {
-      session.flushed = true;
-      const { content: partialContent } = extractAndStripTitle(session.accumulatedText);
-      if (partialContent.trim()) {
-        const assistantMsg: ChatMessage = {
-          id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          role: 'assistant',
-          content: partialContent,
-          timestamp: Date.now(),
-        };
-        store.getState().addChatMessage(session.lessonSlug, assistantMsg, convId);
-      }
-    }
-    if (session.fiber) {
-      Effect.runFork(Fiber.interrupt(session.fiber));
-    }
+    flushAndInterruptSession(convId, session);
   }
   activeStreams.clear();
   activeRenames.clear();
@@ -689,22 +694,7 @@ function abortCurrentGeneration(conversationId?: string) {
 
   const session = activeStreams.get(targetConvId);
   if (session) {
-    if (!session.flushed) {
-      session.flushed = true;
-      const { content: partialContent } = extractAndStripTitle(session.accumulatedText);
-      if (partialContent.trim()) {
-        const assistantMsg: ChatMessage = {
-          id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          role: 'assistant',
-          content: partialContent,
-          timestamp: Date.now(),
-        };
-        store.getState().addChatMessage(currentExId, assistantMsg, targetConvId);
-      }
-    }
-    if (session.fiber) {
-      Effect.runFork(Fiber.interrupt(session.fiber));
-    }
+    flushAndInterruptSession(targetConvId, session);
     activeStreams.delete(targetConvId);
     updateSendButtonState();
     renderChatMessages();
@@ -855,7 +845,7 @@ async function submitUserMessage() {
 
   // Add user message to store
   const userMsg: ChatMessage = {
-    id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    id: createUniqueId('msg'),
     role: 'user',
     content,
     timestamp: Date.now(),
@@ -928,7 +918,7 @@ async function submitUserMessage() {
             }
             if (assistantContent.trim()) {
               const assistantMsg: ChatMessage = {
-                id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                id: createUniqueId('msg'),
                 role: 'assistant',
                 content: assistantContent,
                 timestamp: Date.now(),
@@ -941,7 +931,7 @@ async function submitUserMessage() {
               const { content: partialContent } = extractAndStripTitle(session.accumulatedText);
               if (partialContent.trim()) {
                 const assistantMsg: ChatMessage = {
-                  id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                  id: createUniqueId('msg'),
                   role: 'assistant',
                   content: partialContent,
                   timestamp: Date.now(),
@@ -954,7 +944,7 @@ async function submitUserMessage() {
                 ? (failureOpt.value as any).message || String(failureOpt.value)
                 : 'Failed to get response. Please check your API settings.';
               const errorMsg: ChatMessage = {
-                id: `err-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                id: createUniqueId('err'),
                 role: 'assistant',
                 content: errorMsgText,
                 timestamp: Date.now(),
@@ -1014,13 +1004,5 @@ function formatMessageTime(timestamp: number): string {
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
 
 

@@ -2,6 +2,7 @@
 import { StateCreator } from 'zustand/vanilla';
 import { AppState, ChatConversation, ChatMessage, ChatSlice } from '../../types';
 import { scheduleAutoPush } from '../../sync/syncManager';
+import { createUniqueId } from '../../id';
 
 export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, get) => ({
   chatConversations: {},
@@ -9,7 +10,7 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, 
 
   createConversation: (lessonSlug: string, languageId: string, title?: string) => {
     const convs = get().chatConversations[lessonSlug] || [];
-    const id = `conv-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const id = createUniqueId('conv');
     const newConv: ChatConversation = {
       id,
       lessonSlug,
@@ -109,7 +110,7 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, 
 
     let targetConv = convs.find((c) => c.id === targetId);
     if (!targetConv) {
-      const newId = `conv-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const newId = createUniqueId('conv');
       targetConv = {
         id: newId,
         lessonSlug,

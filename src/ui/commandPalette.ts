@@ -1,8 +1,8 @@
-import { elements, byId } from '../core/elements';
+import { elements } from '../core/elements';
 import { store } from '../core/store';
 import { focusEditor } from '../core/editor';
 import { ICONS } from './icons';
-import { defaultLanguageId } from '../languages/language-registry';
+import { getActiveLanguageId } from '../language';
 import { getAllCheatsheets } from '../core/cheatsheets/loader';
 import { searchCheatsheets, formatHighlightedTitle } from '../core/cheatsheets/search';
 import { renderCheatsheetPreview } from '../core/cheatsheets/highlighter';
@@ -74,11 +74,8 @@ export function openCommandPalette(): void {
   elements.shortcuts.modal?.classList.remove('flex');
   elements.settings.modal?.classList.add('hidden');
   elements.settings.modal?.classList.remove('flex');
-  const speedrun = byId('speedrun-modal');
-  if (speedrun) {
-    speedrun.classList.add('hidden');
-    speedrun.classList.remove('flex');
-  }
+  elements.speedrun.modal?.classList.add('hidden');
+  elements.speedrun.modal?.classList.remove('flex');
 
   selectedIndex = 0;
   if (el.input) {
@@ -119,13 +116,9 @@ export function toggleCommandPalette(): void {
   }
 }
 
-function getCurrentLangId(): string {
-  return store.getState().currentLanguageId || defaultLanguageId;
-}
-
 function executeSearch(): void {
   const query = elements.commandPalette.input?.value || '';
-  const currentLang = getCurrentLangId();
+  const currentLang = getActiveLanguageId();
 
   currentResults = searchCheatsheets(query, currentLang);
   if (selectedIndex >= currentResults.length) {

@@ -2,7 +2,7 @@ import { siteConfig } from '../core/siteConfig';
 import type { Extension } from '@codemirror/state';
 import type { CodeRunner } from '../core/types';
 import type { LanguageMetadata } from './types';
-import { createLanguageLinter, setLanguageRunnerLookup } from './lint-helper';
+import { createDynamicLanguageLinter, setLanguageRunnerLookup } from './lint-helper';
 
 // Discover metadata and syntax extensions synchronously for immediate UI rendering
 const metadataModules = import.meta.glob<{ metadata?: LanguageMetadata; default?: LanguageMetadata }>(
@@ -229,7 +229,7 @@ export function getLanguageLinter(id: string): Extension | undefined {
   if (linterMap.has(id)) {
     return linterMap.get(id);
   }
-  const autoLinter = createLanguageLinter(() => getLoadedLanguageRunner(id), id);
+  const autoLinter = createDynamicLanguageLinter(id);
   linterMap.set(id, autoLinter);
   return autoLinter;
 }

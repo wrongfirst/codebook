@@ -1,5 +1,5 @@
 import { ICONS } from './icons';
-import { showPopup } from './popup';
+import { setupToolbarActionButton } from './buttonFeedback';
 
 /**
  * Initializes the format button in the editor toolbar.
@@ -11,24 +11,11 @@ export function setupFormatCodeButton(
     btn: HTMLButtonElement,
     formatCodeFn: () => boolean
 ): void {
-    btn.innerHTML = ICONS.FORMAT;
-    let feedbackTimeout: ReturnType<typeof setTimeout> | null = null;
-
-    btn.addEventListener('click', () => {
-        const success = formatCodeFn();
-        if (success) {
-            if (feedbackTimeout) {
-                clearTimeout(feedbackTimeout);
-            }
-            btn.innerHTML = ICONS.CHECK;
-            showPopup('Code formatted');
-
-            feedbackTimeout = setTimeout(() => {
-                btn.innerHTML = ICONS.FORMAT;
-                feedbackTimeout = null;
-            }, 1500);
-        } else {
-            showPopup('Nothing to format');
-        }
+    setupToolbarActionButton(btn, {
+        defaultIcon: ICONS.FORMAT,
+        successMessage: 'Code formatted',
+        emptyOrErrorMessage: 'Nothing to format',
+        duration: 1500,
+        action: () => formatCodeFn(),
     });
 }

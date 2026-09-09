@@ -1,6 +1,6 @@
 import { Marked } from 'marked';
 import DOMPurify from 'dompurify';
-import { escapeHtml } from '../markdown';
+import { escapeHtml, isSafeUrl } from '../markdown';
 import { highlightCodeSnippet } from '../highlighter';
 
 export function highlightSearchTerms(html: string, query: string): string {
@@ -30,7 +30,8 @@ const previewMarked = new Marked({
       return `<h${depth} class="${sizeClass} text-fg-primary my-2">${text}</h${depth}>`;
     },
     link({ href, text }: { href: string; text: string }) {
-      return `<a href="${escapeHtml(href)}" class="text-brand underline" target="_blank" rel="noopener noreferrer">${text}</a>`;
+      const safeHref = isSafeUrl(href) ? href : '#';
+      return `<a href="${escapeHtml(safeHref)}" class="text-brand underline" target="_blank" rel="noopener noreferrer">${text}</a>`;
     },
   },
 });
