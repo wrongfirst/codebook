@@ -264,18 +264,7 @@ export function loadExerciseCode(
                         preventDefault: true
                     },
                     {
-                        key: "Shift-Alt-f",
-                        run: () => {
-                            const success = formatEditorCode();
-                            if (success) {
-                                showPopup('Code formatted');
-                            }
-                            return true;
-                        },
-                        preventDefault: true
-                    },
-                    {
-                        key: "Mod-Alt-l",
+                        key: "Mod-Shift-f",
                         run: () => {
                             const success = formatEditorCode();
                             if (success) {
