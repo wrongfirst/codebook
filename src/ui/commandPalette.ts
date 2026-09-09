@@ -14,6 +14,7 @@ let selectedIndex = 0;
 let currentResults: CheatsheetSearchResult[] = [];
 let isMouseDownOnBackdrop = false;
 let previouslyFocusedElement: HTMLElement | null = null;
+let lastPreviewedId: string | null = null;
 
 export function initCommandPalette(): void {
   const el = elements.commandPalette;
@@ -61,6 +62,8 @@ export function initCommandPalette(): void {
 
   el.input?.addEventListener('keydown', handleInputKeyDown);
   el.preview?.addEventListener('keydown', handlePreviewKeyDown);
+  el.input?.addEventListener('focus', () => renderFooterHints(false));
+  el.preview?.addEventListener('focus', () => renderFooterHints(true));
 }
 
 export function openCommandPalette(): void {
@@ -77,19 +80,31 @@ export function openCommandPalette(): void {
   elements.speedrun.modal?.classList.add('hidden');
   elements.speedrun.modal?.classList.remove('flex');
 
-  selectedIndex = 0;
-  if (el.input) {
-    el.input.value = '';
-  }
-
+  // Re-evaluate search to keep results current, preserving selected item
+  const previousId = currentResults[selectedIndex]?.item.id;
   executeSearch();
+  if (previousId) {
+    const matchedIdx = currentResults.findIndex(r => r.item.id === previousId);
+    if (matchedIdx !== -1) {
+      selectedIndex = matchedIdx;
+      renderResultsList();
+      renderPreview();
+    }
+  }
 
   el.modal.classList.remove('hidden');
   el.modal.classList.add('flex');
   isOpen = true;
 
-  renderFooterHints();
-  setTimeout(() => el.input?.focus(), 20);
+  renderFooterHints(false);
+  setTimeout(() => {
+    if (el.input) {
+      el.input.focus();
+      if (el.input.value) {
+        el.input.select();
+      }
+    }
+  }, 20);
 }
 
 export function closeCommandPalette(): void {
@@ -148,13 +163,13 @@ function renderResultsList(): void {
     const isSelected = idx === selectedIndex;
     const highlightedTitle = formatHighlightedTitle(res.item.title, res.positions);
     const rowClass = isSelected
-      ? 'bg-brand/10 border-l-2 border-brand text-fg-primary font-medium'
-      : 'hover:bg-bg-app text-fg-primary/85 border-l-2 border-transparent';
+      ? 'bg-brand/10 text-fg-primary font-medium'
+      : 'hover:bg-bg-app text-fg-primary/85';
 
     return `
-      <div data-index="${idx}" class="flex items-center justify-between px-3 py-2 rounded cursor-pointer transition-colors text-xs ${rowClass}">
+      <div data-index="${idx}" class="flex items-center justify-between px-3 py-2 cursor-pointer transition-colors text-xs ${rowClass}">
         <span class="truncate pr-2">${highlightedTitle}</span>
-        <span class="shrink-0 text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-bg-app border border-border-default text-fg-muted">${res.item.badge}</span>
+        <span class="shrink-0 text-[10px] font-mono uppercase px-1.5 py-0.5 bg-fg-muted/10 text-fg-muted">${res.item.badge}</span>
       </div>
     `;
   }).join('');
@@ -186,6 +201,7 @@ function renderPreview(): void {
   if (!container) return;
 
   if (currentResults.length === 0 || !currentResults[selectedIndex]) {
+    lastPreviewedId = null;
     container.innerHTML = `
       <div class="h-full flex flex-col items-center justify-center text-center text-fg-muted">
         <p class="text-xs">No entry selected</p>
@@ -201,6 +217,17 @@ function renderPreview(): void {
     result.item.rawMarkdown,
     query
   );
+
+  // Only reset scroll when switching to a different cheatsheet
+  if (lastPreviewedId !== result.item.id) {
+    container.scrollTop = 0;
+    lastPreviewedId = result.item.id;
+  }
+}
+
+function isPaneScrollable(element: HTMLElement | null): boolean {
+  if (!element) return false;
+  return element.scrollHeight > element.clientHeight;
 }
 
 function handleInputKeyDown(e: KeyboardEvent): void {
@@ -233,31 +260,59 @@ function handleInputKeyDown(e: KeyboardEvent): void {
 
   if (e.key === 'Tab' || e.key === 'Enter') {
     e.preventDefault();
+    if (currentResults.length > 0) {
+      elements.commandPalette.preview?.focus();
+      renderFooterHints(true);
+    }
     return;
   }
 }
 
+const PREVIEW_SCROLL_STEP = 60;
+
 function handlePreviewKeyDown(e: KeyboardEvent): void {
+  const preview = elements.commandPalette.preview;
+
   if (e.key === 'Tab') {
     e.preventDefault();
+    elements.commandPalette.input?.focus();
+    renderFooterHints(false);
     return;
   }
 
   if (e.key === 'Escape') {
     e.preventDefault();
     e.stopPropagation();
-    closeCommandPalette();
+    elements.commandPalette.input?.focus();
+    renderFooterHints(false);
     return;
   }
 
-  // Arrow keys and page scrolling handled natively by overflow scroll,
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'PageDown' || e.key === 'PageUp') {
+    e.preventDefault();
+    if (!preview || !isPaneScrollable(preview)) {
+      // Content is not long: do nothing
+      return;
+    }
+
+    const direction = (e.key === 'ArrowDown' || e.key === 'PageDown') ? 1 : -1;
+    const distance = (e.key === 'PageDown' || e.key === 'PageUp')
+      ? preview.clientHeight * 0.8
+      : PREVIEW_SCROLL_STEP;
+
+    preview.scrollBy({ top: direction * distance, behavior: 'smooth' });
+    return;
+  }
+
+  // Arrow keys and page scrolling handled,
   // but if user types any alphanumeric key, shift focus back to search input
   if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
     elements.commandPalette.input?.focus();
+    renderFooterHints(false);
   }
 }
 
-function renderFooterHints(): void {
+function renderFooterHints(isPreviewFocused = false): void {
   const footer = elements.commandPalette.footer;
   if (!footer) return;
 
@@ -265,12 +320,25 @@ function renderFooterHints(): void {
   const modKey = isMac ? '⌘K' : 'Ctrl+K';
 
   const kbd = (key: string) =>
-    `<kbd class="bg-bg-app border border-border-default rounded px-1.5 py-0.5 text-[10px] font-mono text-fg-muted inline-block mr-1">${key}</kbd>`;
+    `<kbd class="bg-fg-muted/10 px-1.5 py-0.5 text-[10px] font-mono text-fg-muted inline-block mr-1">${key}</kbd>`;
 
-  footer.innerHTML = `
-    <div class="flex items-center gap-3">
-      <span>${kbd('↑/↓')} Navigate</span>
-    </div>
-    <div>${kbd('Esc')} or ${kbd(modKey)} Close</div>
-  `;
+  if (isPreviewFocused) {
+    const preview = elements.commandPalette.preview;
+    const canScroll = isPaneScrollable(preview);
+    footer.innerHTML = `
+      <div class="flex items-center gap-3">
+        ${canScroll ? `<span>${kbd('↑/↓')} Scroll</span>` : ''}
+        <span>${kbd('Tab')} Search</span>
+      </div>
+      <div>${kbd('Esc')} Return · ${kbd(modKey)} Close</div>
+    `;
+  } else {
+    footer.innerHTML = `
+      <div class="flex items-center gap-3">
+        <span>${kbd('↑/↓')} Navigate</span>
+        <span>${kbd('Tab')} Preview</span>
+      </div>
+      <div>${kbd('Esc')} or ${kbd(modKey)} Close</div>
+    `;
+  }
 }

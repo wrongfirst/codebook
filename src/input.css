@@ -235,7 +235,7 @@ mark.search-highlight {
 .palette-preview-code {
   background-color: var(--bg-app);
   border: 1px solid var(--border-default);
-  border-radius: 6px;
+  border-radius: 0;
   padding: 0.75rem 1rem;
   font-family: var(--font-mono);
   font-size: 0.8125rem;

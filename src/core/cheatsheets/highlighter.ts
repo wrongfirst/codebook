@@ -57,7 +57,7 @@ export function renderCheatsheetPreview(
 
   const highlightedBody = searchQuery ? highlightSearchTerms(cleanHtml, searchQuery) : cleanHtml;
   const headerHtml = title
-    ? `<div class="mb-3 pb-2 border-b border-border-default"><h3 class="text-base font-bold text-fg-primary">${highlightSearchTerms(escapeHtml(title), searchQuery || '')}</h3></div>`
+    ? `<div class="mb-3"><h3 class="text-base font-semibold tracking-tight text-fg-primary">${highlightSearchTerms(escapeHtml(title), searchQuery || '')}</h3></div>`
     : '';
 
   return `<div class="prose prose-sm max-w-none text-fg-primary">${headerHtml}${highlightedBody}</div>`;
