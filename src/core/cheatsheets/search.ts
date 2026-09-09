@@ -3,30 +3,77 @@ import { getAllCheatsheets } from './loader';
 import { escapeHtml } from '../markdown';
 import type { CheatsheetItem, CheatsheetSearchResult } from './types';
 
+function getLanguageKeywordMap(items: CheatsheetItem[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const item of items) {
+    const lang = item.language.toLowerCase();
+    map.set(lang, lang);
+    if (item.badge) {
+      map.set(item.badge.toLowerCase(), lang);
+    }
+    if (item.aliases) {
+      for (const alias of item.aliases) {
+        map.set(alias.toLowerCase(), lang);
+      }
+    }
+  }
+  return map;
+}
+
+export function parseQueryLanguage(
+  query: string,
+  langMap: Map<string, string>
+): { explicitLang: string | null; cleanQuery: string } {
+  const tokens = query.trim().split(/\s+/);
+  if (tokens.length === 0 || !tokens[0]) {
+    return { explicitLang: null, cleanQuery: '' };
+  }
+
+  let explicitLang: string | null = null;
+  const remainingTokens: string[] = [];
+
+  for (const token of tokens) {
+    const normalized = token.toLowerCase();
+
+    if (!explicitLang && langMap.has(normalized)) {
+      explicitLang = langMap.get(normalized)!;
+    } else {
+      remainingTokens.push(token);
+    }
+  }
+
+  return {
+    explicitLang,
+    cleanQuery: remainingTokens.join(' ').trim(),
+  };
+}
+
 export function searchCheatsheets(
   query: string,
-  scopeId: string,
   currentLangId: string
 ): CheatsheetSearchResult[] {
   const allItems = getAllCheatsheets();
   const normalizedCurrent = (currentLangId || '').trim().toLowerCase();
-  const normalizedScope = (scopeId || 'current').trim().toLowerCase();
+  const langMap = getLanguageKeywordMap(allItems);
+
+  const { explicitLang, cleanQuery } = parseQueryLanguage(query, langMap);
 
   let pool: CheatsheetItem[];
-  if (normalizedScope === 'all') {
-    pool = allItems;
-  } else if (normalizedScope === 'current') {
-    pool = allItems.filter(item => item.language === normalizedCurrent);
-    if (pool.length === 0) {
-      pool = allItems;
-    }
+  if (explicitLang) {
+    pool = allItems.filter(item => item.language === explicitLang);
   } else {
-    pool = allItems.filter(item => item.language === normalizedScope);
+    pool = allItems;
   }
 
-  const trimmedQuery = query.trim();
-  if (!trimmedQuery) {
-    return pool.map(item => ({
+  if (!cleanQuery) {
+    const sorted = explicitLang
+      ? pool
+      : [
+          ...pool.filter(item => item.language === normalizedCurrent),
+          ...pool.filter(item => item.language !== normalizedCurrent),
+        ];
+
+    return sorted.map(item => ({
       item,
       score: 0,
       positions: new Set<number>(),
@@ -37,7 +84,7 @@ export function searchCheatsheets(
     selector: (item: CheatsheetItem) => item.title,
     casing: 'smart-case',
   });
-  const titleMatches = titleFzf.find(trimmedQuery);
+  const titleMatches = titleFzf.find(cleanQuery);
 
   const matchedIds = new Set(titleMatches.map(m => m.item.id));
   const remaining = pool.filter(item => !matchedIds.has(item.id));
@@ -48,21 +95,24 @@ export function searchCheatsheets(
       selector: (item: CheatsheetItem) => item.searchableText,
       casing: 'smart-case',
     });
-    contentMatches = contentFzf.find(trimmedQuery);
+    contentMatches = contentFzf.find(cleanQuery);
   }
 
-  return [
+  const results: CheatsheetSearchResult[] = [
     ...titleMatches.map(m => ({
       item: m.item,
-      score: m.score + 1000,
+      score: m.score + 1000 + (!explicitLang && m.item.language === normalizedCurrent ? 500 : 0),
       positions: m.positions,
     })),
     ...contentMatches.map(m => ({
       item: m.item,
-      score: m.score,
+      score: m.score + (!explicitLang && m.item.language === normalizedCurrent ? 500 : 0),
       positions: new Set<number>(),
     })),
   ];
+
+  results.sort((a, b) => b.score - a.score);
+  return results;
 }
 
 export function formatHighlightedTitle(title: string, positions: Set<number>): string {

@@ -2,16 +2,17 @@ import { elements, byId } from '../core/elements';
 import { store } from '../core/store';
 import { focusEditor } from '../core/editor';
 import { ICONS } from './icons';
-import { getAllCheatsheets, getDiscoveredLanguages } from '../core/cheatsheets/loader';
+import { getAllCheatsheets } from '../core/cheatsheets/loader';
 import { searchCheatsheets, formatHighlightedTitle } from '../core/cheatsheets/search';
 import { renderCheatsheetPreview } from '../core/cheatsheets/highlighter';
+import { escapeHtml } from '../core/markdown';
 import type { CheatsheetSearchResult } from '../core/cheatsheets/types';
 
 let isOpen = false;
-let activeScope = 'current';
 let selectedIndex = 0;
 let currentResults: CheatsheetSearchResult[] = [];
 let isMouseDownOnBackdrop = false;
+let previouslyFocusedElement: HTMLElement | null = null;
 
 export function initCommandPalette(): void {
   const el = elements.commandPalette;
@@ -40,6 +41,18 @@ export function initCommandPalette(): void {
     isMouseDownOnBackdrop = false;
   });
 
+  el.modal.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      closeCommandPalette();
+    }
+  });
+
   el.input?.addEventListener('input', () => {
     selectedIndex = 0;
     executeSearch();
@@ -47,14 +60,13 @@ export function initCommandPalette(): void {
 
   el.input?.addEventListener('keydown', handleInputKeyDown);
   el.preview?.addEventListener('keydown', handlePreviewKeyDown);
-
-  el.input?.addEventListener('focus', () => renderFooterHints(false));
-  el.preview?.addEventListener('focus', () => renderFooterHints(true));
 }
 
 export function openCommandPalette(): void {
   const el = elements.commandPalette;
   if (!el.modal) return;
+
+  previouslyFocusedElement = document.activeElement as HTMLElement | null;
 
   // Dismiss other active modals
   elements.shortcuts.modal?.classList.add('hidden');
@@ -67,20 +79,18 @@ export function openCommandPalette(): void {
     speedrun.classList.remove('flex');
   }
 
-  activeScope = 'current';
   selectedIndex = 0;
   if (el.input) {
     el.input.value = '';
   }
 
-  renderScopePills();
   executeSearch();
 
   el.modal.classList.remove('hidden');
   el.modal.classList.add('flex');
   isOpen = true;
 
-  renderFooterHints(false);
+  renderFooterHints();
   setTimeout(() => el.input?.focus(), 20);
 }
 
@@ -92,7 +102,12 @@ export function closeCommandPalette(): void {
   el.modal.classList.remove('flex');
   isOpen = false;
 
-  focusEditor();
+  if (previouslyFocusedElement && typeof previouslyFocusedElement.focus === 'function' && document.body.contains(previouslyFocusedElement)) {
+    previouslyFocusedElement.focus();
+  } else {
+    focusEditor();
+  }
+  previouslyFocusedElement = null;
 }
 
 export function toggleCommandPalette(): void {
@@ -111,50 +126,11 @@ function getCurrentLangId(): string {
   return store.getState().currentLanguageId || 'python';
 }
 
-function renderScopePills(): void {
-  const container = elements.commandPalette.pills;
-  if (!container) return;
-
-  const currentLang = getCurrentLangId();
-  const languages = getDiscoveredLanguages();
-
-  const currentLangName = currentLang.charAt(0).toUpperCase() + currentLang.slice(1);
-  const pills: { id: string; label: string }[] = [
-    { id: 'current', label: `Current (${currentLangName})` },
-    { id: 'all', label: 'All Languages' },
-    ...languages
-      .filter(l => l.id !== currentLang)
-      .map(l => ({ id: l.id, label: l.label })),
-  ];
-
-  container.innerHTML = pills.map(p => {
-    const isActive = activeScope === p.id;
-    const baseClasses = 'px-2.5 py-1 rounded-full text-[11px] border transition-all cursor-pointer select-none whitespace-nowrap';
-    const activeClasses = 'bg-brand text-white font-semibold border-brand shadow-xs';
-    const inactiveClasses = 'bg-bg-surface text-fg-muted hover:text-fg-primary hover:bg-bg-app border-border-default';
-
-    return `<button type="button" data-scope="${p.id}" class="${baseClasses} ${isActive ? activeClasses : inactiveClasses}">${p.label}</button>`;
-  }).join('');
-
-  container.querySelectorAll('button[data-scope]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const targetScope = btn.getAttribute('data-scope');
-      if (targetScope && targetScope !== activeScope) {
-        activeScope = targetScope;
-        selectedIndex = 0;
-        renderScopePills();
-        executeSearch();
-        elements.commandPalette.input?.focus();
-      }
-    });
-  });
-}
-
 function executeSearch(): void {
   const query = elements.commandPalette.input?.value || '';
   const currentLang = getCurrentLangId();
 
-  currentResults = searchCheatsheets(query, activeScope, currentLang);
+  currentResults = searchCheatsheets(query, currentLang);
   if (selectedIndex >= currentResults.length) {
     selectedIndex = Math.max(0, currentResults.length - 1);
   }
@@ -171,8 +147,8 @@ function renderResultsList(): void {
     const query = elements.commandPalette.input?.value || '';
     container.innerHTML = `
       <div class="h-full flex flex-col items-center justify-center p-6 text-center text-fg-muted">
-        <p class="text-xs">No cheatsheets found matching <span class="font-medium text-fg-primary">"${query}"</span>.</p>
-        <p class="text-[11px] mt-1.5 opacity-70">Try switching to "All Languages" or check your spelling.</p>
+        <p class="text-xs">No cheatsheets found matching <span class="font-medium text-fg-primary">"${escapeHtml(query)}"</span>.</p>
+        <p class="text-[11px] mt-1.5 opacity-70">Try searching for concepts like "comprehension", "nullish", or filter with "python", "ts".</p>
       </div>
     `;
     return;
@@ -266,26 +242,22 @@ function handleInputKeyDown(e: KeyboardEvent): void {
     return;
   }
 
-  if (e.key === 'Enter' || (e.key === 'Tab' && !e.shiftKey)) {
-    if (currentResults.length > 0) {
-      e.preventDefault();
-      elements.commandPalette.preview?.focus();
-    }
+  if (e.key === 'Tab' || e.key === 'Enter') {
+    e.preventDefault();
     return;
   }
 }
 
 function handlePreviewKeyDown(e: KeyboardEvent): void {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    return;
+  }
+
   if (e.key === 'Escape') {
     e.preventDefault();
     e.stopPropagation();
     closeCommandPalette();
-    return;
-  }
-
-  if (e.key === 'Tab' && e.shiftKey) {
-    e.preventDefault();
-    elements.commandPalette.input?.focus();
     return;
   }
 
@@ -296,7 +268,7 @@ function handlePreviewKeyDown(e: KeyboardEvent): void {
   }
 }
 
-function renderFooterHints(isPreviewFocused: boolean): void {
+function renderFooterHints(): void {
   const footer = elements.commandPalette.footer;
   if (!footer) return;
 
@@ -306,21 +278,10 @@ function renderFooterHints(isPreviewFocused: boolean): void {
   const kbd = (key: string) =>
     `<kbd class="bg-bg-app border border-border-default rounded px-1.5 py-0.5 text-[10px] font-mono text-fg-muted inline-block mr-1">${key}</kbd>`;
 
-  if (isPreviewFocused) {
-    footer.innerHTML = `
-      <div class="flex items-center gap-3">
-        <span>${kbd('↑/↓')} Scroll Doc</span>
-        <span>${kbd('Shift+Tab')} Return to Search</span>
-      </div>
-      <div>${kbd('Esc')} or ${kbd(modKey)} Close</div>
-    `;
-  } else {
-    footer.innerHTML = `
-      <div class="flex items-center gap-3">
-        <span>${kbd('↑/↓')} Navigate</span>
-        <span>${kbd('↵ / Tab')} Focus Preview</span>
-      </div>
-      <div>${kbd('Esc')} or ${kbd(modKey)} Close</div>
-    `;
-  }
+  footer.innerHTML = `
+    <div class="flex items-center gap-3">
+      <span>${kbd('↑/↓')} Navigate</span>
+    </div>
+    <div>${kbd('Esc')} or ${kbd(modKey)} Close</div>
+  `;
 }
