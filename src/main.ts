@@ -1,6 +1,7 @@
 import './input.css';
 import { store, ensureSettingsDecrypted } from './core/store';
 import { initStartupSync } from './core/sync/syncManager';
+import { Effect } from 'effect';
 import { exercises, curriculum, getExerciseDisplayNumber } from './exercises/exercise-registry';
 import { getExerciseVariant } from './core/types';
 import { loadExerciseCode, setEditorCode, updateEditorTheme, getCode, formatEditorCode } from './core/editor';
@@ -234,7 +235,9 @@ render();
 
 //kick off background credential decryption and startup sync (non-blocking)
 ensureSettingsDecrypted(store)
-    .then(() => initStartupSync())
+    .then(() => {
+        Effect.runFork(initStartupSync());
+    })
     .catch((err) => {
         console.warn('[main] Startup decryption or sync check failed:', err);
     });

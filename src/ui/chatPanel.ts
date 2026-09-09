@@ -5,6 +5,7 @@ import { parseChatMarkdown } from '../core/markdown';
 import { copyToClipboardSafe } from '../core/clipboard';
 import { streamCompletion, StreamStatus, generateConversationTitle } from '../core/chat/client';
 import { flushAutoSave } from '../core/editor';
+import { Effect, Stream, Fiber, Cause, Exit, Option } from 'effect';
 
 export interface QuickStart {
   id: string;
@@ -22,7 +23,7 @@ export const DEFAULT_QUICK_CHIPS: QuickStart[] = [
 export interface ActiveStreamSession {
   lessonSlug: string;
   conversationId: string;
-  abortController: AbortController;
+  fiber: Fiber.RuntimeFiber<void, unknown>;
   status: StreamStatus;
   accumulatedText: string;
 }
@@ -32,7 +33,7 @@ const activeRenames = new Set<string>();
 
 export function abortAllStreams() {
   for (const session of activeStreams.values()) {
-    session.abortController.abort();
+    Effect.runFork(Fiber.interrupt(session.fiber));
   }
   activeStreams.clear();
   activeRenames.clear();
@@ -672,7 +673,7 @@ function abortCurrentGeneration(conversationId?: string) {
 
   const session = activeStreams.get(targetConvId);
   if (session) {
-    session.abortController.abort();
+    Effect.runFork(Fiber.interrupt(session.fiber));
     activeStreams.delete(targetConvId);
     updateSendButtonState();
   }
@@ -744,7 +745,7 @@ async function handleChatCommand(rawInput: string, currentExId: string, convId: 
     } else {
       activeRenames.add(convId);
       renderConversationTabs();
-      generateConversationTitle(convId)
+      Effect.runPromise(generateConversationTitle(convId))
         .then((aiTitle) => {
           if (aiTitle) {
             store.getState().updateConversationTitle(currentExId, convId, aiTitle);
@@ -833,11 +834,10 @@ async function submitUserMessage() {
   scrollToBottom(true);
 
   // Create stream session for this conversation
-  const abortController = new AbortController();
   const session: ActiveStreamSession = {
     lessonSlug: currentExId,
     conversationId: convId,
-    abortController,
+    fiber: null as any,
     status: 'connecting',
     accumulatedText: '',
   };
@@ -846,8 +846,7 @@ async function submitUserMessage() {
   updateSendButtonState();
   showStreamingPlaceholder('Connecting...');
 
-  // Detached background stream execution
-  streamCompletion({
+  const stream = streamCompletion({
     userPrompt: content,
     conversationId: convId,
     onStatus: (status: StreamStatus) => {
@@ -857,74 +856,90 @@ async function submitUserMessage() {
         updateStreamingStatus(status === 'connecting' ? 'Connecting...' : 'Thinking...');
       }
     },
-    onChunk: (text) => {
-      session.accumulatedText = text;
-      const { title } = extractAndStripTitle(text);
-      if (title) {
-        const conv = store.getState().chatConversations[currentExId]?.find(c => c.id === convId);
-        if (conv && (!conv.title || conv.title === 'Chat')) {
-          store.getState().updateConversationTitle(currentExId, convId, title);
+  });
+
+  const streamEffect = stream.pipe(
+    Stream.tap((delta) =>
+      Effect.sync(() => {
+        session.accumulatedText += delta;
+        const { title } = extractAndStripTitle(session.accumulatedText);
+        if (title) {
+          const conv = store.getState().chatConversations[currentExId]?.find((c) => c.id === convId);
+          if (conv && (!conv.title || conv.title === 'Chat')) {
+            store.getState().updateConversationTitle(currentExId, convId, title);
+          }
         }
-      }
-      const currentActiveConv = store.getState().getActiveConversation(store.getState().activeLessonSlug);
-      if (currentActiveConv?.id === convId) {
-        appendStreamingToken(text);
-      }
-    },
-    signal: abortController.signal,
-  })
-    .then((accumulatedResponse) => {
-      const { title, content } = extractAndStripTitle(accumulatedResponse);
-      if (title) {
-        const conv = store.getState().chatConversations[currentExId]?.find(c => c.id === convId);
-        if (conv && (!conv.title || conv.title === 'Chat')) {
-          store.getState().updateConversationTitle(currentExId, convId, title);
+        const currentActiveConv = store.getState().getActiveConversation(store.getState().activeLessonSlug);
+        if (currentActiveConv?.id === convId) {
+          appendStreamingToken(session.accumulatedText);
         }
-      }
-      if (content.trim()) {
-        const assistantMsg: ChatMessage = {
-          id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          role: 'assistant',
-          content,
-          timestamp: Date.now(),
-        };
-        store.getState().addChatMessage(currentExId, assistantMsg, convId);
-      }
-    })
-    .catch((err: any) => {
-      if (err.name === 'AbortError' || abortController.signal.aborted) {
-        const { content } = extractAndStripTitle(session.accumulatedText);
-        if (content.trim()) {
-          const assistantMsg: ChatMessage = {
-            id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-            role: 'assistant',
-            content,
-            timestamp: Date.now(),
-          };
-          store.getState().addChatMessage(currentExId, assistantMsg, convId);
+      })
+    ),
+    Stream.runDrain,
+    Effect.onExit((exit) =>
+      Effect.sync(() => {
+        try {
+          if (Exit.isSuccess(exit)) {
+            const { title, content: assistantContent } = extractAndStripTitle(session.accumulatedText);
+            if (title) {
+              const conv = store.getState().chatConversations[currentExId]?.find((c) => c.id === convId);
+              if (conv && (!conv.title || conv.title === 'Chat')) {
+                store.getState().updateConversationTitle(currentExId, convId, title);
+              }
+            }
+            if (assistantContent.trim()) {
+              const assistantMsg: ChatMessage = {
+                id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                role: 'assistant',
+                content: assistantContent,
+                timestamp: Date.now(),
+              };
+              store.getState().addChatMessage(currentExId, assistantMsg, convId);
+            }
+          } else {
+            const cause = exit.cause;
+            if (Cause.isInterruptedOnly(cause)) {
+              const { content: partialContent } = extractAndStripTitle(session.accumulatedText);
+              if (partialContent.trim()) {
+                const assistantMsg: ChatMessage = {
+                  id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                  role: 'assistant',
+                  content: partialContent,
+                  timestamp: Date.now(),
+                };
+                store.getState().addChatMessage(currentExId, assistantMsg, convId);
+              }
+            } else {
+              const failureOpt = Cause.failureOption(cause);
+              const errorMsgText = Option.isSome(failureOpt)
+                ? (failureOpt.value as any).message || String(failureOpt.value)
+                : 'Failed to get response. Please check your API settings.';
+              const errorMsg: ChatMessage = {
+                id: `err-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                role: 'assistant',
+                content: errorMsgText,
+                timestamp: Date.now(),
+                isError: true,
+                failedPrompt: content,
+                userMsgId: userMsg.id,
+              };
+              store.getState().addChatMessage(currentExId, errorMsg, convId);
+            }
+          }
+        } finally {
+          activeStreams.delete(convId);
+          const currentActiveConv = store.getState().getActiveConversation(store.getState().activeLessonSlug);
+          if (currentActiveConv?.id === convId) {
+            updateSendButtonState();
+            renderChatMessages();
+            scrollToBottom(true);
+          }
         }
-      } else {
-        const errorMsg: ChatMessage = {
-          id: `err-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          role: 'assistant',
-          content: err?.message || 'Failed to get response. Please check your API settings.',
-          timestamp: Date.now(),
-          isError: true,
-          failedPrompt: content,
-          userMsgId: userMsg.id,
-        };
-        store.getState().addChatMessage(currentExId, errorMsg, convId);
-      }
-    })
-    .finally(() => {
-      activeStreams.delete(convId);
-      const currentActiveConv = store.getState().getActiveConversation(store.getState().activeLessonSlug);
-      if (currentActiveConv?.id === convId) {
-        updateSendButtonState();
-        renderChatMessages();
-        scrollToBottom(true);
-      }
-    });
+      })
+    )
+  );
+
+  session.fiber = Effect.runFork(streamEffect);
 }
 
 function renderMathInChat(element: HTMLElement) {
