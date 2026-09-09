@@ -2,6 +2,7 @@ import { runner } from '../core/runner';
 import { elements } from '../core/elements';
 import { store } from '../core/store';
 import { focusChatInput } from './chatPanel';
+import { toggleCommandPalette } from './commandPalette';
 import { ICONS } from './icons';
 
 interface Shortcut {
@@ -18,6 +19,7 @@ const EDITOR_SHORTCUTS: Shortcut[] = [
 ];
 
 const NAVIGATION_SHORTCUTS: Shortcut[] = [
+    { action: "Command Palette", keys: ["Cmd/Ctrl", "K"] },
     { action: "Run Code", keys: ["Cmd/Ctrl", "Enter"] },
     { action: "Focus Rubber Duck", keys: ["Cmd/Ctrl", "Shift", "A"] },
     { action: "Previous Lesson", keys: ["Cmd/Ctrl", "["] },
@@ -61,6 +63,14 @@ export function initShortcuts() {
 
     //shortcut logic
     document.addEventListener('keydown', (e) => {
+
+        // command palette: Cmd/Ctrl + K
+        if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleCommandPalette();
+            return;
+        }
 
         // run: Cmd/Ctrl+Enter
         if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {

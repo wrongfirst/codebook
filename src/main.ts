@@ -26,6 +26,7 @@ import { setupCopyCodeButton } from './ui/copyCode';
 import { setupFormatCodeButton } from './ui/formatCode';
 import { renderFooter } from './ui/footer';
 import { initShortcuts } from './ui/shortcuts';
+import { initCommandPalette } from './ui/commandPalette';
 import { initResetProgress } from './ui/resetProgress';
 import { initSettings } from './ui/settings';
 import { initChatPanel } from './ui/chatPanel';
@@ -39,6 +40,7 @@ Object.defineProperty(window, 'fetch', { value: window.fetch, writable: false, c
 //initialisation
 initBranding();
 initShortcuts();
+initCommandPalette();
 initSettings();
 initChatPanel();
 initResetProgress();

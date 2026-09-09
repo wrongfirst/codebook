@@ -334,6 +334,52 @@
       </div>
     </div>
 
+    <!-- command palette modal -->
+    <div id="command-palette-modal"
+      class="hidden fixed inset-0 z-100 items-start justify-center pt-[10vh] md:pt-[12vh] bg-black/60 backdrop-blur-sm p-4 max-md:!hidden">
+      <div
+        class="bg-bg-surface border border-border-default rounded-xl shadow-2xl w-full max-w-4xl h-[560px] max-h-[85vh] flex flex-col overflow-hidden text-fg-primary">
+        <!-- Top Search Bar -->
+        <div class="flex items-center border-b border-border-default bg-bg-surface shrink-0">
+          <div id="command-palette-search-icon" class="pl-4 pr-2 text-fg-muted flex items-center justify-center">
+            <!-- search icon injected via js -->
+          </div>
+          <input id="command-palette-input" type="text" autocomplete="off" spellcheck="false"
+            placeholder="Search cheatsheets..."
+            class="flex-1 bg-transparent py-3.5 text-sm md:text-base text-fg-primary placeholder:text-fg-muted focus:outline-none" />
+          <button id="close-command-palette-btn"
+            class="mr-3 text-fg-muted hover:text-fg-primary transition-colors p-1.5 rounded-lg hover:bg-bg-app cursor-pointer"
+            title="Close (Esc)">
+            <!-- close icon injected via js -->
+          </button>
+        </div>
+
+        <!-- Scope Pills Row -->
+        <div id="command-palette-pills"
+          class="px-4 py-2 bg-bg-app/40 border-b border-border-default flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0 text-xs">
+          <!-- pills injected via js -->
+        </div>
+
+        <!-- Split View: Results List (Left) + Live Preview Pane (Right) -->
+        <div class="flex-1 flex overflow-hidden min-h-0">
+          <div id="command-palette-results"
+            class="w-[42%] min-w-[260px] border-r border-border-default overflow-y-auto p-2 space-y-1 select-none">
+            <!-- result items injected via js -->
+          </div>
+          <div id="command-palette-preview" tabindex="0"
+            class="flex-1 overflow-y-auto p-5 bg-bg-app/20 focus:outline-none select-text min-h-0">
+            <!-- live preview rendered via js -->
+          </div>
+        </div>
+
+        <!-- Dynamic Keybinding Footer -->
+        <div id="command-palette-footer"
+          class="h-8 px-4 bg-bg-surface border-t border-border-default flex items-center justify-between text-[11px] text-fg-muted font-mono select-none shrink-0">
+          <!-- shortcuts hint injected via js -->
+        </div>
+      </div>
+    </div>
+
     <!-- shortcuts modal -->
     <div id="shortcuts-modal"
       class="hidden fixed inset-0 z-100 items-center justify-center bg-black/50 backdrop-blur-sm p-4">

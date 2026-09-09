@@ -59,6 +59,12 @@ export function updateEditorTheme(isDark: boolean) {
     }
 }
 
+export function focusEditor(): void {
+    if (view) {
+        view.focus();
+    }
+}
+
 //safely updates editor content without triggering auto-save
 function setDocText(code: string) {
     if (!view) return;
