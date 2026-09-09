@@ -9,6 +9,7 @@ import {
   GistTimeoutError,
   OAuthExchangeError,
   GistParseError,
+  GistHttpError,
   GistError,
 } from './errors';
 
@@ -30,13 +31,11 @@ export interface GistFileEntry {
 }
 
 export interface GistActionResult {
-  success: boolean;
   gistId?: string;
   htmlUrl?: string;
   files?: Record<string, GistFileEntry>;
   updatedAt?: string;
   notModified?: boolean;
-  error?: string;
 }
 
 export interface DiscoveredGist {
@@ -93,7 +92,7 @@ function getHeaders(token?: string, ifModifiedSince?: string): Record<string, st
  */
 function parseResponseError(
   res: Response
-): Effect.Effect<never, GistAuthError | GistNotFoundError | GistRateLimitError | GistNetworkError> {
+): Effect.Effect<never, GistAuthError | GistNotFoundError | GistRateLimitError | GistNetworkError | GistHttpError> {
   return Effect.gen(function* () {
     let errorMsg = '';
     try {
@@ -143,9 +142,18 @@ function parseResponseError(
       );
     }
 
+    if (res.status >= 500) {
+      return yield* Effect.fail(
+        new GistNetworkError({
+          message: errorMsg || `GitHub server error (HTTP ${res.status}: ${res.statusText})`,
+        })
+      );
+    }
+
     return yield* Effect.fail(
-      new GistNetworkError({
+      new GistHttpError({
         message: errorMsg || `GitHub API error (HTTP ${res.status}: ${res.statusText})`,
+        status: res.status,
       })
     );
   });
@@ -183,10 +191,11 @@ export function validateToken(
 
   const pipeline = Effect.gen(function* () {
     const res = yield* Effect.tryPromise({
-      try: () =>
+      try: (signal) =>
         fetch('https://api.github.com/user', {
           method: 'GET',
           headers: getHeaders(token),
+          signal,
         }),
       catch: (cause) =>
         new GistNetworkError({
@@ -253,7 +262,7 @@ export function createGist(
 
   const pipeline = Effect.gen(function* () {
     const res = yield* Effect.tryPromise({
-      try: () =>
+      try: (signal) =>
         fetch('https://api.github.com/gists', {
           method: 'POST',
           headers: {
@@ -265,6 +274,7 @@ export function createGist(
             public: false, // Secret / unlisted gist
             files: filesPayload,
           }),
+          signal,
         }),
       catch: (cause) =>
         new GistNetworkError({
@@ -286,7 +296,6 @@ export function createGist(
     });
 
     return {
-      success: true,
       gistId: data.id,
       htmlUrl: data.html_url,
       updatedAt: data.updated_at,
@@ -327,10 +336,11 @@ export function fetchGist(
 
   const pipeline = Effect.gen(function* () {
     const res = yield* Effect.tryPromise({
-      try: () =>
+      try: (signal) =>
         fetch(`https://api.github.com/gists/${cleanId}`, {
           method: 'GET',
           headers: getHeaders(token, options?.ifModifiedSince),
+          signal,
         }),
       catch: (cause) =>
         new GistNetworkError({
@@ -341,7 +351,6 @@ export function fetchGist(
 
     if (res.status === 304) {
       return {
-        success: true,
         notModified: true,
         gistId: cleanId,
       };
@@ -360,22 +369,24 @@ export function fetchGist(
     });
 
     const rawFiles = data.files || {};
-    const parsedFiles: Record<string, GistFileEntry> = {};
     const entries = Object.entries<any>(rawFiles);
 
-    // Fetch truncated raw files with bounded concurrency
-    yield* Effect.forEach(
+    // Fetch truncated raw files with bounded concurrency (pure aggregation)
+    const parsedEntries = yield* Effect.forEach(
       entries,
       ([filename, fileObj]) =>
         Effect.gen(function* () {
           let content = fileObj.content;
           if (fileObj.truncated && fileObj.raw_url) {
-            const rawRes = yield* Effect.tryPromise(() =>
-              fetch(fileObj.raw_url, {
-                headers:
-                  token && !token.startsWith('enc:v1:') ? { Authorization: `Bearer ${token.trim()}` } : {},
-              })
-            ).pipe(Effect.catchAll(() => Effect.succeed(null)));
+            const rawRes = yield* Effect.tryPromise({
+              try: (signal) =>
+                fetch(fileObj.raw_url, {
+                  headers:
+                    token && !token.startsWith('enc:v1:') ? { Authorization: `Bearer ${token.trim()}` } : {},
+                  signal,
+                }),
+              catch: () => null,
+            }).pipe(Effect.catchAll(() => Effect.succeed(null)));
 
             if (rawRes && rawRes.ok) {
               content = yield* Effect.tryPromise(() => rawRes.text()).pipe(
@@ -384,19 +395,21 @@ export function fetchGist(
             }
           }
 
-          parsedFiles[filename] = {
+          const entry: GistFileEntry = {
             filename,
             content,
             truncated: fileObj.truncated,
             raw_url: fileObj.raw_url,
             size: fileObj.size,
           };
+          return [filename, entry] as const;
         }),
       { concurrency: 4 }
     );
 
+    const parsedFiles = Object.fromEntries(parsedEntries);
+
     return {
-      success: true,
       gistId: data.id,
       htmlUrl: data.html_url,
       files: parsedFiles,
@@ -451,7 +464,7 @@ export function updateGist(
 
   const pipeline = Effect.gen(function* () {
     const res = yield* Effect.tryPromise({
-      try: () =>
+      try: (signal) =>
         fetch(`https://api.github.com/gists/${cleanId}`, {
           method: 'PATCH',
           headers: {
@@ -462,6 +475,7 @@ export function updateGist(
             description,
             files: filesPayload,
           }),
+          signal,
         }),
       catch: (cause) =>
         new GistNetworkError({
@@ -483,7 +497,6 @@ export function updateGist(
     });
 
     return {
-      success: true,
       gistId: data.id,
       htmlUrl: data.html_url,
       updatedAt: data.updated_at,
@@ -527,7 +540,7 @@ export function exchangeOAuthCode(
 
   const pipeline = Effect.gen(function* () {
     const res = yield* Effect.tryPromise({
-      try: () =>
+      try: (signal) =>
         fetch(workerUrl.trim(), {
           method: 'POST',
           headers: {
@@ -535,6 +548,7 @@ export function exchangeOAuthCode(
             Accept: 'application/json',
           },
           body: JSON.stringify({ code: code.trim() }),
+          signal,
         }),
       catch: (cause) =>
         new GistNetworkError({
@@ -602,10 +616,11 @@ export function findSiteGist(
 
   const pipeline = Effect.gen(function* () {
     const res = yield* Effect.tryPromise({
-      try: () =>
+      try: (signal) =>
         fetch('https://api.github.com/gists?per_page=100', {
           method: 'GET',
           headers: getHeaders(token),
+          signal,
         }),
       catch: (cause) =>
         new GistNetworkError({

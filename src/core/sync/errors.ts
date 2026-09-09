@@ -45,6 +45,11 @@ export class GistParseError extends Data.TaggedError('GistParseError')<{
   readonly message: string;
 }> {}
 
+export class GistHttpError extends Data.TaggedError('GistHttpError')<{
+  readonly message: string;
+  readonly status: number;
+}> {}
+
 export type GistError =
   | GistAuthError
   | GistNotFoundError
@@ -54,4 +59,5 @@ export type GistError =
   | GistNetworkError
   | GistTimeoutError
   | OAuthExchangeError
-  | GistParseError;
+  | GistParseError
+  | GistHttpError;

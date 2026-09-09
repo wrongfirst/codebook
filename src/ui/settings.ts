@@ -725,34 +725,21 @@ async function triggerModelFetch() {
     modelFetchError = null;
     syncSettingsUI();
 
-    const result = await Effect.runPromise(
-        fetchAvailableModels(baseUrl, apiKey).pipe(
-            Effect.map((models) => ({ success: true, models, error: undefined })),
-            Effect.catchAll((err) =>
-                Effect.succeed({
-                    success: false,
-                    models: [] as string[],
-                    error: err.message || 'Failed to fetch models',
-                })
-            )
-        )
-    );
-    isFetchingModels = false;
-
-    if (result.success) {
-        cachedModels = result.models;
+    try {
+        cachedModels = await Effect.runPromise(fetchAvailableModels(baseUrl, apiKey));
         modelFetchError = null;
         // If current model is not set or not in list, pick the first model from the endpoint
         const currentModel = store.getState().chatSettings.model;
         if (!currentModel || (!cachedModels.includes(currentModel) && cachedModels.length > 0)) {
             store.getState().setChatSettings({ model: cachedModels[0] });
         }
-    } else {
+    } catch (err: any) {
         cachedModels = [];
-        modelFetchError = result.error || 'Failed to fetch models';
+        modelFetchError = err?.message || 'Failed to fetch models';
+    } finally {
+        isFetchingModels = false;
+        syncSettingsUI();
     }
-
-    syncSettingsUI();
 }
 
 function openModal() {

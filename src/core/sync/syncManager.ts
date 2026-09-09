@@ -43,6 +43,7 @@ let lastPushedPayloadString: string | null = null;
 
 // Concurrency lock to serialize sync operations
 const syncSemaphore = Effect.unsafeMakeSemaphore(1);
+let isListenersInitialized = false;
 
 /**
  * Validates that remote Gist files belong to the current site instance.
@@ -138,7 +139,7 @@ export function pushToGist(): Effect.Effect<GistActionResult, GistError> {
     if (!pullRes.merged && currentPayloadString === lastPushedPayloadString) {
       const now = Date.now();
       setSyncStatus('synced', 'Synced successfully.', now);
-      return { success: true };
+      return { updatedAt: new Date(now).toISOString() };
     }
 
     const validFileSet = new Set(Object.values(BACKUP_FILENAMES));
@@ -197,7 +198,7 @@ export function pullFromGist(options?: { smartMerge?: boolean }): Effect.Effect<
     const res = yield* fetchGist(gistSyncSettings.gistId, gistSyncSettings.token);
     if (!res.files) {
       return yield* Effect.fail(
-        new GistParseError({ message: res.error || 'Failed to fetch Gist content.' })
+        new GistParseError({ message: 'Failed to fetch Gist content.' })
       );
     }
 
@@ -219,7 +220,7 @@ export function pullFromGist(options?: { smartMerge?: boolean }): Effect.Effect<
     const now = Date.now();
     store.getState().setGistSyncSettings({ lastSyncedAt: now, enabled: true });
     setSyncStatus('synced', 'Synced successfully.', now);
-    return { success: true, updatedAt: res.updatedAt };
+    return { updatedAt: res.updatedAt };
   });
 
   return syncSemaphore.withPermits(1)(operation).pipe(
@@ -241,9 +242,8 @@ export function createAndLinkGist(token: string): Effect.Effect<GistActionResult
     );
   }
 
-  setSyncStatus('syncing');
-
   const operation = Effect.gen(function* () {
+    setSyncStatus('syncing');
     const files = yield* Effect.promise(() => buildGistFiles(store.getState()));
     const res = yield* createGist(token, files);
 
@@ -285,13 +285,22 @@ export function scheduleAutoPush(delayMs = 5000): void {
     autoPushFiber = null;
   }
 
+  let taskFiber: Fiber.RuntimeFiber<void, never> | null = null;
   const delayedTask = Effect.sleep(`${delayMs} millis`).pipe(
     Effect.andThen(pushToGist()),
     Effect.ignoreLogged,
+    Effect.ensuring(
+      Effect.sync(() => {
+        if (autoPushFiber === taskFiber) {
+          autoPushFiber = null;
+        }
+      })
+    ),
     Effect.asVoid
   );
 
-  autoPushFiber = Effect.runFork(delayedTask);
+  taskFiber = Effect.runFork(delayedTask);
+  autoPushFiber = taskFiber;
 }
 
 /**
@@ -335,49 +344,48 @@ export function initiateOAuthLogin(): void {
  * Handles incoming GitHub OAuth redirect callback (?code=...&state=...) on application startup.
  */
 export function handleOAuthCallback(): Effect.Effect<boolean, GistError> {
-  if (typeof window === 'undefined' || !window.location.search) {
-    return Effect.succeed(false);
-  }
-
-  const urlParams = new URLSearchParams(window.location.search);
-  const code = urlParams.get('code');
-  const rawState = urlParams.get('state');
-
-  if (!code) return Effect.succeed(false);
-
-  // Extract CSRF from state payload
-  let incomingCsrf = rawState;
-  if (rawState) {
-    try {
-      const parsed = JSON.parse(atob(rawState));
-      if (parsed.csrf) incomingCsrf = parsed.csrf;
-    } catch { }
-  }
-
-  // CSRF validation
-  const savedState = sessionStorage.getItem('codebook_gh_oauth_state');
-  sessionStorage.removeItem('codebook_gh_oauth_state');
-
-  if (savedState && incomingCsrf && incomingCsrf !== savedState) {
-    console.error('[sync] OAuth state mismatch (possible CSRF attack).');
-    setSyncStatus('error', 'OAuth security verification failed.');
-    return Effect.succeed(false);
-  }
-
-  // Remove OAuth query parameters from URL bar without reloading
-  urlParams.delete('code');
-  urlParams.delete('state');
-  const remainingQuery = urlParams.toString();
-  const cleanUrl =
-    window.location.pathname +
-    (remainingQuery ? `?${remainingQuery}` : '') +
-    window.location.hash;
-  window.history.replaceState({}, document.title, cleanUrl);
-
-  setSyncStatus('syncing', 'Signing in with GitHub...');
-  showPopup('Syncing from GitHub...', 3000);
-
   return Effect.gen(function* () {
+    if (typeof window === 'undefined' || !window.location.search) {
+      return false;
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const rawState = urlParams.get('state');
+
+    if (!code) return false;
+
+    // Extract CSRF from state payload
+    let incomingCsrf = rawState;
+    if (rawState) {
+      try {
+        const parsed = JSON.parse(atob(rawState));
+        if (parsed.csrf) incomingCsrf = parsed.csrf;
+      } catch { }
+    }
+
+    // CSRF validation
+    const savedState = sessionStorage.getItem('codebook_gh_oauth_state');
+    sessionStorage.removeItem('codebook_gh_oauth_state');
+
+    if (savedState && incomingCsrf && incomingCsrf !== savedState) {
+      console.error('[sync] OAuth state mismatch (possible CSRF attack).');
+      setSyncStatus('error', 'OAuth security verification failed.');
+      return false;
+    }
+
+    // Remove OAuth query parameters from URL bar without reloading
+    urlParams.delete('code');
+    urlParams.delete('state');
+    const remainingQuery = urlParams.toString();
+    const cleanUrl =
+      window.location.pathname +
+      (remainingQuery ? `?${remainingQuery}` : '') +
+      window.location.hash;
+    window.history.replaceState({}, document.title, cleanUrl);
+
+    setSyncStatus('syncing', 'Signing in with GitHub...');
+    showPopup('Syncing from GitHub...', 3000);
     const token = yield* exchangeOAuthCode(GITHUB_OAUTH_WORKER_URL, code);
 
     setSyncStatus('syncing', 'Locating your Codebook backup...');
@@ -401,7 +409,7 @@ export function handleOAuthCallback(): Effect.Effect<boolean, GistError> {
     } else {
       // No existing backup found; create a new one
       const createRes = yield* createAndLinkGist(token);
-      if (createRes.success) {
+      if (createRes.gistId) {
         setSyncStatus('synced', 'Created new Codebook backup on GitHub Gist.');
         showPopup('Connected to GitHub!');
         return true;
@@ -444,10 +452,12 @@ export function checkAndPullOnFocus(): Effect.Effect<void, never> {
     if (now - lastFocusCheckAt < FOCUS_CHECK_COOLDOWN_MS) return;
     lastFocusCheckAt = now;
 
-    yield* pullAndMergeIfNeeded(
-      gistSyncSettings.gistId,
-      gistSyncSettings.token,
-      gistSyncSettings.lastSyncedAt
+    yield* syncSemaphore.withPermits(1)(
+      pullAndMergeIfNeeded(
+        gistSyncSettings.gistId,
+        gistSyncSettings.token,
+        gistSyncSettings.lastSyncedAt
+      )
     ).pipe(
       Effect.catchAll((err) => {
         console.warn('[sync] Focus check failed:', err);
@@ -464,8 +474,9 @@ export function checkAndPullOnFocus(): Effect.Effect<void, never> {
  */
 export function initStartupSync(): Effect.Effect<void, never> {
   return Effect.gen(function* () {
-    // Setup network and visibility status listeners
-    if (typeof window !== 'undefined') {
+    // Setup network and visibility status listeners (once)
+    if (typeof window !== 'undefined' && !isListenersInitialized) {
+      isListenersInitialized = true;
       window.addEventListener('online', () => {
         setSyncStatus('idle');
         scheduleAutoPush(1000);
@@ -499,10 +510,12 @@ export function initStartupSync(): Effect.Effect<void, never> {
 
     if (!handledAuth) {
       if (gistSyncSettings.token && gistSyncSettings.lastSyncedAt) {
-        yield* pullAndMergeIfNeeded(
-          gistSyncSettings.gistId,
-          gistSyncSettings.token,
-          gistSyncSettings.lastSyncedAt
+        yield* syncSemaphore.withPermits(1)(
+          pullAndMergeIfNeeded(
+            gistSyncSettings.gistId,
+            gistSyncSettings.token,
+            gistSyncSettings.lastSyncedAt
+          )
         ).pipe(
           Effect.catchAll((err) => {
             console.warn('[sync] Startup sync failed:', err);

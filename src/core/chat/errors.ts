@@ -33,6 +33,10 @@ export class ChatStreamParseError extends Data.TaggedError('ChatStreamParseError
   readonly message: string;
 }> {}
 
+export class ChatParseError extends Data.TaggedError('ChatParseError')<{
+  readonly message: string;
+}> {}
+
 export type ChatError =
   | ChatConfigError
   | ChatAuthError
@@ -40,4 +44,5 @@ export type ChatError =
   | ChatRateLimitError
   | ChatInactivityTimeoutError
   | ChatNetworkError
-  | ChatStreamParseError;
+  | ChatStreamParseError
+  | ChatParseError;

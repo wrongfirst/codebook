@@ -12,6 +12,7 @@ import {
   ChatNotFoundError,
   ChatRateLimitError,
   ChatStreamParseError,
+  ChatParseError,
 } from './errors';
 
 export type StreamStatus = 'connecting' | 'thinking';
@@ -101,7 +102,7 @@ export function streamCompletion(options: StreamOptions): Stream.Stream<string, 
       const resolvedKey = (
         yield* Effect.tryPromise({
           try: () => decryptSecret(rawKey),
-          catch: (cause) => new ChatNetworkError({ message: 'Failed to decrypt API key', cause }),
+          catch: () => new ChatConfigError({ message: 'Failed to decrypt API key' }),
         })
       ).trim();
 
@@ -134,7 +135,17 @@ export function streamCompletion(options: StreamOptions): Stream.Stream<string, 
             message: 'Network connection failed during chat completion',
             cause,
           }),
-      });
+      }).pipe(
+        Effect.timeout('30 seconds'),
+        Effect.catchTag('TimeoutException', () =>
+          Effect.fail(
+            new ChatInactivityTimeoutError({
+              message: 'Connection timed out after 30s. The AI endpoint failed to respond.',
+              timeoutMs: 30000,
+            })
+          )
+        )
+      );
 
       if (!response.ok) {
         const errorText = yield* Effect.tryPromise({
@@ -196,29 +207,54 @@ export function streamCompletion(options: StreamOptions): Stream.Stream<string, 
       const tokenStream = rawByteStream.pipe(
         Stream.decodeText('utf-8'),
         Stream.splitLines,
-        Stream.filterMap((rawLine) => {
-          const line = rawLine.trim();
-          if (!line || line.startsWith(':') || !line.startsWith('data:')) {
-            return Option.none();
-          }
-
-          const dataStr = line.slice(5).trim();
-          if (dataStr === '[DONE]') {
-            return Option.none();
-          }
-
-          try {
-            const parsed = JSON.parse(dataStr);
-            const delta =
-              parsed.choices?.[0]?.delta?.content ?? parsed.choices?.[0]?.text ?? '';
-            if (typeof delta === 'string' && delta.length > 0) {
-              return Option.some(delta);
+        Stream.mapEffect((rawLine) =>
+          Effect.gen(function* () {
+            const line = rawLine.trim();
+            if (!line || line.startsWith(':') || !line.startsWith('data:')) {
+              return Option.none<string>();
             }
-          } catch {
-            // ignore malformed JSON chunk in stream
-          }
-          return Option.none();
-        }),
+
+            const dataStr = line.slice(5).trim();
+            if (dataStr === '[DONE]') {
+              return Option.none<string>();
+            }
+
+            try {
+              const parsed = JSON.parse(dataStr);
+              if (parsed.error) {
+                const errMsg = parsed.error.message || JSON.stringify(parsed.error);
+                const errCode = parsed.error.code;
+                if (errCode === 429 || /rate\s*limit/i.test(errMsg)) {
+                  return yield* Effect.fail(
+                    new ChatRateLimitError({
+                      message: `Rate limit exceeded (429): ${errMsg}. Please try again shortly.`,
+                    })
+                  );
+                } else if (errCode === 401 || /auth|unauthorized|api.?key/i.test(errMsg)) {
+                  return yield* Effect.fail(
+                    new ChatAuthError({
+                      message: `Authentication failed: ${errMsg}. Please check your API key.`,
+                      status: 401,
+                    })
+                  );
+                }
+                return yield* Effect.fail(new ChatNetworkError({ message: `API Error: ${errMsg}` }));
+              }
+
+              const delta =
+                parsed.choices?.[0]?.delta?.content ??
+                parsed.choices?.[0]?.text ??
+                '';
+              if (typeof delta === 'string' && delta.length > 0) {
+                return Option.some(delta);
+              }
+            } catch {
+              // ignore malformed JSON chunk in stream
+            }
+            return Option.none<string>();
+          })
+        ),
+        Stream.filterMap((opt) => opt),
         Stream.timeoutFail(
           () =>
             new ChatInactivityTimeoutError({
@@ -250,7 +286,7 @@ export function fetchAvailableModels(
     const resolvedApiKey = (
       yield* Effect.tryPromise({
         try: () => decryptSecret(apiKey || ''),
-        catch: (cause) => new ChatNetworkError({ message: 'Failed to decrypt API key', cause }),
+        catch: () => new ChatConfigError({ message: 'Failed to decrypt API key' }),
       })
     ).trim();
 
@@ -331,8 +367,8 @@ export function fetchAvailableModels(
 
     const data = yield* Effect.tryPromise({
       try: () => res.json(),
-      catch: (cause) =>
-        new ChatStreamParseError({ message: 'Failed to parse models response JSON' }),
+      catch: () =>
+        new ChatParseError({ message: 'Failed to parse models response JSON' }),
     });
 
     let list: string[] = [];
@@ -428,7 +464,7 @@ export function generateConversationTitle(
     const resolvedKey = (
       yield* Effect.tryPromise({
         try: () => decryptSecret(rawKey),
-        catch: (cause) => new ChatNetworkError({ message: 'Failed to decrypt API key', cause }),
+        catch: () => new ChatConfigError({ message: 'Failed to decrypt API key' }),
       })
     ).trim();
 

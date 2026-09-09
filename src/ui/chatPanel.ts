@@ -23,17 +23,33 @@ export const DEFAULT_QUICK_CHIPS: QuickStart[] = [
 export interface ActiveStreamSession {
   lessonSlug: string;
   conversationId: string;
-  fiber: Fiber.RuntimeFiber<void, unknown>;
+  fiber?: Fiber.RuntimeFiber<void, unknown>;
   status: StreamStatus;
   accumulatedText: string;
+  flushed?: boolean;
 }
 
 const activeStreams = new Map<string, ActiveStreamSession>();
 const activeRenames = new Set<string>();
 
 export function abortAllStreams() {
-  for (const session of activeStreams.values()) {
-    Effect.runFork(Fiber.interrupt(session.fiber));
+  for (const [convId, session] of activeStreams.entries()) {
+    if (!session.flushed) {
+      session.flushed = true;
+      const { content: partialContent } = extractAndStripTitle(session.accumulatedText);
+      if (partialContent.trim()) {
+        const assistantMsg: ChatMessage = {
+          id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          role: 'assistant',
+          content: partialContent,
+          timestamp: Date.now(),
+        };
+        store.getState().addChatMessage(session.lessonSlug, assistantMsg, convId);
+      }
+    }
+    if (session.fiber) {
+      Effect.runFork(Fiber.interrupt(session.fiber));
+    }
   }
   activeStreams.clear();
   activeRenames.clear();
@@ -673,9 +689,26 @@ function abortCurrentGeneration(conversationId?: string) {
 
   const session = activeStreams.get(targetConvId);
   if (session) {
-    Effect.runFork(Fiber.interrupt(session.fiber));
+    if (!session.flushed) {
+      session.flushed = true;
+      const { content: partialContent } = extractAndStripTitle(session.accumulatedText);
+      if (partialContent.trim()) {
+        const assistantMsg: ChatMessage = {
+          id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          role: 'assistant',
+          content: partialContent,
+          timestamp: Date.now(),
+        };
+        store.getState().addChatMessage(currentExId, assistantMsg, targetConvId);
+      }
+    }
+    if (session.fiber) {
+      Effect.runFork(Fiber.interrupt(session.fiber));
+    }
     activeStreams.delete(targetConvId);
     updateSendButtonState();
+    renderChatMessages();
+    scrollToBottom(true);
   }
 }
 
@@ -749,9 +782,12 @@ async function handleChatCommand(rawInput: string, currentExId: string, convId: 
         .then((aiTitle) => {
           if (aiTitle) {
             store.getState().updateConversationTitle(currentExId, convId, aiTitle);
+            renderConversationTabs();
           }
         })
-        .catch(() => { })
+        .catch(() => {
+          // Ignore title generation errors gracefully
+        })
         .finally(() => {
           activeRenames.delete(convId);
           renderConversationTabs();
@@ -837,7 +873,6 @@ async function submitUserMessage() {
   const session: ActiveStreamSession = {
     lessonSlug: currentExId,
     conversationId: convId,
-    fiber: null as any,
     status: 'connecting',
     accumulatedText: '',
   };
@@ -879,6 +914,10 @@ async function submitUserMessage() {
     Effect.onExit((exit) =>
       Effect.sync(() => {
         try {
+          if (session.flushed) {
+            return;
+          }
+          session.flushed = true;
           if (Exit.isSuccess(exit)) {
             const { title, content: assistantContent } = extractAndStripTitle(session.accumulatedText);
             if (title) {
