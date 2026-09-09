@@ -1,24 +1,17 @@
 import { EditorView, keymap } from '@codemirror/view';
-import { basicSetup } from 'codemirror';
 import { EditorState, Compartment, Extension } from '@codemirror/state';
-import { defaultKeymap, indentWithTab } from '@codemirror/commands';
+import { indentWithTab } from '@codemirror/commands';
 import { indentRange } from '@codemirror/language';
 import { autocompletion, acceptCompletion } from '@codemirror/autocomplete';
-import { lintGutter, forEachDiagnostic } from '@codemirror/lint';
+import { lintGutter } from '@codemirror/lint';
 import { vim } from '@replit/codemirror-vim';
-import { themeCompartment, getTheme } from '../ui/theme';
-import { showPopup } from '../ui/popup';
-import { store } from './store';
-
-interface EditorDiagnostic {
-    message: string;
-    severity: 'error' | 'warning' | 'info' | 'hint';
-    from: number;
-    to: number;
-    line: number;
-    column: number;
-    source?: string;
-}
+import { themeCompartment, getTheme } from '../../ui/theme';
+import { showPopup } from '../../ui/popup';
+import { store } from '../store';
+import { baseEditorExtensions } from './setup';
+import { formatLintMessages } from './diagnostics';
+export { baseEditorExtensions } from './setup';
+export { getEditorDiagnostics, type EditorDiagnostic } from './diagnostics';
 
 let view: EditorView | null = null;
 let tabCount = 0;
@@ -29,9 +22,7 @@ let isProgrammaticChange = false;
 let activeExerciseId: string | null = null;
 let activeLanguageId: string | null = null;
 
-//JN: since Codemirror's editor state and config are immutable by design, we use compartments to update
-//the language syntax and theme. Compartments are dynamic slots for extensions (like syntax highlighting 
-//or theme) used to swap the configs dynamically.
+// Compartments are dynamic slots for extensions swapped dynamically at runtime
 const languageCompartment = new Compartment();
 const vimCompartment = new Compartment();
 
@@ -65,7 +56,7 @@ export function focusEditor(): void {
     }
 }
 
-//safely updates editor content without triggering auto-save
+// Safely updates editor content without triggering auto-save
 function setDocText(code: string) {
     if (!view) return;
     if (autoSaveTimeout) {
@@ -117,45 +108,10 @@ export function formatEditorCode(): boolean {
 }
 
 /**
- * Returns all active diagnostics currently registered on the active CodeMirror editor state.
- */
-function getEditorDiagnostics(): EditorDiagnostic[] {
-    const editorView = view;
-    if (!editorView) return [];
-    const diagnostics: EditorDiagnostic[] = [];
-    try {
-        forEachDiagnostic(editorView.state, (diag, from, to) => {
-            const lineObj = editorView.state.doc.lineAt(from);
-            diagnostics.push({
-                message: diag.message,
-                severity: (diag.severity as any) || 'error',
-                from,
-                to,
-                line: lineObj.number,
-                column: from - lineObj.from + 1,
-                source: diag.source
-            });
-        });
-    } catch (err) {
-        console.warn('[Editor] Error reading diagnostics:', err);
-    }
-    return diagnostics;
-}
-
-/**
  * Formats active editor diagnostics into a human-readable list for LLM context.
  */
 export function getFormattedLintMessages(): string {
-    const diags = getEditorDiagnostics();
-    if (diags.length === 0) {
-        return '';
-    }
-    return diags
-        .map(d => {
-            const sourceStr = d.source ? ` (${d.source})` : '';
-            return `[${d.severity.toUpperCase()}] Line ${d.line}, Col ${d.column}: ${d.message}${sourceStr}`;
-        })
-        .join('\n');
+    return formatLintMessages(view);
 }
 
 // Immediately flushes pending edits to the store for the active exercise/language
@@ -219,7 +175,7 @@ export function loadExerciseCode(
             doc: code,
             extensions: [
                 vimCompartment.of(isVim ? vim() : []),
-                basicSetup,
+                ...baseEditorExtensions,
                 autocompletion(),
                 lintGutter(),
                 EditorView.updateListener.of((update) => {
@@ -248,7 +204,6 @@ export function loadExerciseCode(
                             return false;
                         }
                     },
-                    ...defaultKeymap,
                     indentWithTab,
                     {
                         key: "Mod-s",
@@ -281,7 +236,7 @@ export function loadExerciseCode(
                     "&": { height: "100%", backgroundColor: "var(--bg-app)", color: "var(--fg-primary)" },
                     ".cm-scroller": { overflow: "auto", fontFamily: "var(--font-mono)" },
                 }),
-                //adding domEventHandlers here ensure the Tab is not overriden by the indentWithTab
+                // Adding domEventHandlers here ensures Tab is not overridden by indentWithTab
                 EditorView.domEventHandlers({
                     keydown: (event) => {
                         if (event.key !== 'Tab') {
@@ -305,4 +260,3 @@ export function loadExerciseCode(
         setDocText(code);
     }
 }
-
