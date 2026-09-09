@@ -2,7 +2,6 @@ import { Marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { escapeHtml } from '../markdown';
 import { highlightCodeSnippet } from '../highlighter';
-export { highlightCodeSnippet };
 
 export function highlightSearchTerms(html: string, query: string): string {
   if (!query || query.trim().length === 0) return html;
@@ -39,7 +38,6 @@ const previewMarked = new Marked({
 export function renderCheatsheetPreview(
   title: string,
   rawMarkdown: string,
-  defaultLang: string,
   searchQuery?: string
 ): string {
   const parsed = previewMarked.parse(rawMarkdown || '') as string;

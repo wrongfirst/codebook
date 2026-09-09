@@ -50,20 +50,6 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, 
     });
   },
 
-  updateConversationLanguage: (lessonSlug: string, conversationId: string, languageId: string) => {
-    const currentConvs = get().chatConversations[lessonSlug] || [];
-    const updatedConvs = currentConvs.map((c) =>
-      c.id === conversationId ? { ...c, languageId } : c
-    );
-    set({
-      chatConversations: {
-        ...get().chatConversations,
-        [lessonSlug]: updatedConvs,
-      },
-    });
-    scheduleAutoPush();
-  },
-
   updateConversationTitle: (lessonSlug: string, conversationId: string, title: string) => {
     const currentConvs = get().chatConversations[lessonSlug] || [];
     const updatedConvs = currentConvs.map((c) =>

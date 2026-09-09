@@ -866,7 +866,7 @@ function formatBytes(bytes: number, decimals = 1): string {
     return `${formatted} ${sizes[i] || 'B'}`;
 }
 
-export function calculateLocalStorageUsage(): { bytes: number; formatted: string } {
+function calculateLocalStorageUsage(): { bytes: number; formatted: string } {
     let totalBytes = 0;
     try {
         for (let i = 0; i < localStorage.length; i++) {

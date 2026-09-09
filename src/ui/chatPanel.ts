@@ -7,20 +7,20 @@ import { streamCompletion, StreamStatus, generateConversationTitle } from '../co
 import { flushAutoSave } from '../core/editor';
 import { Effect, Stream, Fiber, Cause, Exit, Option } from 'effect';
 
-export interface QuickStart {
+interface QuickStart {
   id: string;
   label: string;
   prompt: string;
 }
 
-export const DEFAULT_QUICK_CHIPS: QuickStart[] = [
+const DEFAULT_QUICK_CHIPS: QuickStart[] = [
   { id: 'hint', label: 'Hint', prompt: 'Can you give me a subtle hint on how to approach this problem?' },
   { id: 'explain-error', label: 'Explain error', prompt: 'Can you explain the error in the output and what might be causing it?' },
   { id: 'guide-approach', label: 'Guide approach', prompt: 'How should I structure my logic for this exercise?' },
   { id: 'review-code', label: 'Review code', prompt: 'Can you review my current code and point out potential issues?' },
 ];
 
-export interface ActiveStreamSession {
+interface ActiveStreamSession {
   lessonSlug: string;
   conversationId: string;
   fiber?: Fiber.RuntimeFiber<void, unknown>;
@@ -190,7 +190,7 @@ function ensureActiveConversation() {
   }
 }
 
-export function syncPanelVisibility() {
+function syncPanelVisibility() {
   const cs = store.getState().chatSettings;
   const isEnabled = !!cs?.enabled;
 
@@ -222,7 +222,7 @@ export function focusChatInput() {
 }
 
 
-export function renderConversationTabs() {
+function renderConversationTabs() {
   const container = elements.chat.tabsContainer;
   const newTabBtn = elements.chat.newTabBtn;
   if (!container) return;
@@ -326,7 +326,7 @@ export function renderConversationTabs() {
   });
 }
 
-export function updateTabScrollHints() {
+function updateTabScrollHints() {
   const container = elements.chat.tabsContainer;
   const fadeLeft = elements.chat.tabsFadeLeft;
   const fadeRight = elements.chat.tabsFadeRight;
@@ -345,7 +345,7 @@ export function updateTabScrollHints() {
   fadeRight.classList.toggle('opacity-100', hasRightOverflow);
 }
 
-export function renderQuickChips(chips: QuickStart[] = DEFAULT_QUICK_CHIPS) {
+function renderQuickChips(chips: QuickStart[] = DEFAULT_QUICK_CHIPS) {
   const container = elements.chat.quickChips;
   if (!container) return;
 
@@ -395,7 +395,7 @@ const DEFAULT_EMPTY_STATE_HTML = `
   </div>
 `;
 
-export function renderChatMessages() {
+function renderChatMessages() {
   const container = elements.chat.messages;
   if (!container) return;
 
@@ -468,7 +468,7 @@ export function renderChatMessages() {
   renderMathInChat(container);
 }
 
-export function showStreamingPlaceholder(statusText: string = 'Connecting...') {
+function showStreamingPlaceholder(statusText: string = 'Connecting...') {
   const container = elements.chat.messages;
   if (!container) return;
 
@@ -491,14 +491,14 @@ export function showStreamingPlaceholder(statusText: string = 'Connecting...') {
   scrollToBottom(false);
 }
 
-export function updateStreamingStatus(statusText: string) {
+function updateStreamingStatus(statusText: string) {
   const statusEl = document.getElementById('chat-streaming-status');
   if (statusEl) {
     statusEl.textContent = statusText;
   }
 }
 
-export function extractAndStripTitle(text: string): { title: string | null; content: string } {
+function extractAndStripTitle(text: string): { title: string | null; content: string } {
   // Check for complete <title>...</title> tag near the beginning
   const titleMatch = text.match(/^\s*<title>([^<]*)<\/title>\s*/i);
   if (titleMatch) {
@@ -521,7 +521,7 @@ export function extractAndStripTitle(text: string): { title: string | null; cont
   return { title: null, content: text };
 }
 
-export function appendStreamingToken(partialContent: string, statusText?: string) {
+function appendStreamingToken(partialContent: string, statusText?: string) {
   const container = elements.chat.messages;
   if (!container) return;
 

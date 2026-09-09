@@ -46,7 +46,7 @@ export interface VerificationOptions {
   shouldAbort?: () => boolean;
 }
 
-export async function verifySingleExercise(
+async function verifySingleExercise(
   exercise: Exercise,
   languageId: string
 ): Promise<VerificationItemResult> {

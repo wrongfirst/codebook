@@ -26,8 +26,6 @@ class Orchestrator {
                     this.setRunningState(this.isRunning);
                 } else if (runnerStatus === 'loading' || runnerStatus === 'idle') {
                     this.isReady = false;
-                    const langName = activeRunner.name || 'runtime';
-                    const capitalizedLang = langName.charAt(0).toUpperCase() + langName.slice(1);
                     status.setLoading(`Loading...`);
                     this.setRunningState(this.isRunning);
                 } else if (runnerStatus === 'error') {
@@ -48,7 +46,6 @@ class Orchestrator {
         // If active runtime is still loading, gracefully await readiness instead of alerting
         if (!this.isReady) {
             const langName = activeRunner.name || 'runtime';
-            const capitalizedLang = langName.charAt(0).toUpperCase() + langName.slice(1);
             status.setLoading(`Loading...`);
             try {
                 if (activeRunner.whenReady) {

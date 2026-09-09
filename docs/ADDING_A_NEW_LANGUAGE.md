@@ -173,7 +173,7 @@ languages = ["ocaml", "python", "go", "typescript"] # Add language ID
 ## More Checks
 
 ### 1. Static Code Blocks in Markdown Descriptions (`problem.md`)
-`highlightStaticBlocks()` in `src/core/markdown.ts` automatically queries `getLanguageSyntax(lang)` from `language-registry.ts`. Fenced blocks (e.g. ` ```python `) in `problem.md` are highlighted automatically as long as `syntax.ts` exists.
+Fenced code blocks (e.g. ` ```python `) in `problem.md` are highlighted automatically via Highlight.js in `src/core/markdown.ts`.
 
 ### 2. Custom File Import Declarations (`src/declarations.d.ts`)
 If starter code, harnesses, or tests are imported as raw strings (e.g. `import harness from './harness.py?raw'`), ensure the file extension pattern is covered in `src/declarations.d.ts`.

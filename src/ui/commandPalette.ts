@@ -119,10 +119,6 @@ export function toggleCommandPalette(): void {
   }
 }
 
-export function isCommandPaletteOpen(): boolean {
-  return isOpen;
-}
-
 function getCurrentLangId(): string {
   return store.getState().currentLanguageId || defaultLanguageId;
 }
@@ -210,7 +206,6 @@ function renderPreview(): void {
   container.innerHTML = renderCheatsheetPreview(
     result.item.title,
     result.item.rawMarkdown,
-    result.item.codeLang,
     query
   );
 }

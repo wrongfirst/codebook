@@ -411,7 +411,7 @@ export function fetchAvailableModels(
 /**
  * Normalizes a base URL and returns the standard chat completions endpoint URL.
  */
-export function getChatCompletionsUrl(baseUrl: string): string {
+function getChatCompletionsUrl(baseUrl: string): string {
   const clean = baseUrl.trim().replace(/\/+$/, '');
   if (clean.endsWith('/chat/completions')) {
     return clean;
@@ -422,7 +422,7 @@ export function getChatCompletionsUrl(baseUrl: string): string {
 /**
  * Normalizes a base URL and returns the standard models listing endpoint URL.
  */
-export function getModelsUrl(baseUrl: string): string {
+function getModelsUrl(baseUrl: string): string {
   const clean = baseUrl.trim().replace(/\/+$/, '');
   if (clean.endsWith('/chat/completions')) {
     return clean.replace(/\/chat\/completions$/, '/models');
