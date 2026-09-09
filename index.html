@@ -44,8 +44,8 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./favicon/favicon-16x16.png">
   <link rel="manifest" href="./favicon/site.webmanifest">
 
-  <script type="module" crossorigin src="./assets/index-D-TdbIC2.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-CZjUhaVg.css">
+  <script type="module" crossorigin src="./assets/index-DwvNIMMZ.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-DwcsK37o.css">
   <meta property="og:title" content="codebook | in-browser programming exercises">
   <meta name="description" content="Interactive programming exercises in the browser">
   <meta property="og:description" content="Interactive programming exercises in the browser">
@@ -57,15 +57,24 @@
   <!-- site header -->
   <header
     class="h-14 border-b border-border-default bg-bg-surface flex items-center justify-between px-8 z-10 shrink-0">
-    <a href="#" id="header-brand" class="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-
-      <div class="text-[30px] opacity-80 flex items-center justify-start leading-none translate-y-0.5" id="header-logo">📓</div>
+    <div class="flex items-center gap-2.5">
+      <a href="#" id="header-brand" class="flex items-center hover:opacity-80 transition-opacity" title="codebook">
+        <div class="text-[30px] opacity-80 flex items-center justify-start leading-none translate-y-0.5" id="header-logo">📓</div>
+      </a>
       <div class="flex flex-col justify-center gap-1.5">
         <!-- JN: These are injected by vite during build from site.toml -->
-        <h1 id="header-title" class="font-bold text-fg-primary tracking-tight text-lg leading-none">codebook</h1>
-        <p id="header-subtitle" class="text-[10px] text-fg-muted font-mono uppercase tracking-wider leading-none">by wrongfirst</p>
+        <a href="#" id="header-title-link" class="hover:opacity-80 transition-opacity">
+          <h1 id="header-title" class="font-bold text-fg-primary tracking-tight text-lg leading-none">codebook</h1>
+        </a>
+        <a id="header-subtitle" href="https://wrongfirst.github.io" target="_blank" rel="noopener noreferrer"
+          class="inline-flex items-center gap-1 text-[10px] text-fg-muted hover:text-fg-primary font-mono uppercase tracking-wider leading-none transition-colors group">
+          <span id="header-subtitle-text">by wrongfirst</span>
+          <svg id="header-subtitle-icon" class="w-2.5 h-2.5 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all shrink-0" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3.5 8.5l5-5M4 3.5h4.5V8"/>
+          </svg>
+        </a>
       </div>
-    </a>
+    </div>
   </header>
 
   <!-- page layout -->
@@ -269,7 +278,7 @@
               <div id="language-selector-container" class="normal-case"></div>
             </div>
             <div class="flex items-center gap-3">
-              <button id="format-code-btn" class="hover:cursor-pointer hover:text-fg-primary transition-colors flex items-center" title="Format code (Shift+Alt+F)">
+              <button id="format-code-btn" class="hover:cursor-pointer hover:text-fg-primary transition-colors flex items-center" title="Format code (Cmd/Ctrl+Shift+F)">
               </button>
               <button id="copy-code-btn" class="hover:cursor-pointer hover:text-fg-primary transition-colors flex items-center" title="Copy code">
               </button>
@@ -334,6 +343,46 @@
             class="px-4 py-2 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-md transition-colors shadow-sm cursor-pointer">
             Reset All
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- command palette modal -->
+    <div id="command-palette-modal"
+      class="hidden fixed inset-0 z-100 items-start justify-center pt-[10vh] md:pt-[12vh] bg-black/60 backdrop-blur-sm p-4 max-md:!hidden">
+      <div
+        class="bg-bg-surface border border-border-default/60 rounded-lg shadow-2xl w-full max-w-4xl h-[560px] max-h-[85vh] flex flex-col overflow-hidden text-fg-primary">
+        <!-- Top Search Bar -->
+        <div class="flex items-center border-b border-border-default/40 bg-bg-surface shrink-0">
+          <div id="command-palette-search-icon" class="pl-4 pr-2 text-fg-muted flex items-center justify-center">
+            <!-- search icon injected via js -->
+          </div>
+          <input id="command-palette-input" type="text" autocomplete="off" spellcheck="false"
+            placeholder="Search cheatsheets (e.g. 'comprehension', 'python', 'ts')..."
+            class="flex-1 bg-transparent py-3.5 text-sm md:text-base text-fg-primary placeholder:text-fg-muted focus:outline-none" />
+          <button id="close-command-palette-btn" tabindex="-1"
+            class="mr-3 text-fg-muted hover:text-fg-primary transition-colors p-1.5 rounded-none hover:bg-bg-app cursor-pointer"
+            title="Close (Esc)">
+            <!-- close icon injected via js -->
+          </button>
+        </div>
+
+        <!-- Split View: Results List (Left) + Live Preview Pane (Right) -->
+        <div class="flex-1 flex overflow-hidden min-h-0 p-2 gap-2">
+          <div id="command-palette-results"
+            class="w-[40%] min-w-[250px] overflow-y-auto p-1 space-y-0.5 select-none">
+            <!-- result items injected via js -->
+          </div>
+          <div id="command-palette-preview" tabindex="-1"
+            class="flex-1 overflow-y-auto p-5 bg-bg-app/40 rounded-none focus:outline-none focus:ring-1 focus:ring-brand/30 focus:bg-bg-app/60 transition-colors select-text min-h-0">
+            <!-- live preview rendered via js -->
+          </div>
+        </div>
+
+        <!-- Dynamic Keybinding Footer -->
+        <div id="command-palette-footer"
+          class="h-9 px-4 bg-bg-surface flex items-center justify-between text-[11px] text-fg-muted font-mono select-none shrink-0">
+          <!-- shortcuts hint injected via js -->
         </div>
       </div>
     </div>
