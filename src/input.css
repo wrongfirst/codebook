@@ -206,6 +206,22 @@ body.resizing *::-webkit-scrollbar {
 .tok-meta { color: var(--tok-meta); }
 .tok-variableName { color: var(--tok-variable); }
 
+/* highlight.js tokens */
+.hljs {
+  color: var(--fg-primary);
+  background: transparent;
+}
+.hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-built_in, .hljs-tag { color: var(--tok-keyword); }
+.hljs-string, .hljs-symbol, .hljs-regexp { color: var(--tok-string); }
+.hljs-number { color: var(--tok-number); }
+.hljs-comment, .hljs-quote, .hljs-deletion { color: var(--tok-comment); font-style: italic; }
+.hljs-title.function_, .hljs-function, .hljs-title { color: var(--tok-function); }
+.hljs-type, .hljs-title.class_, .hljs-section { color: var(--tok-type); }
+.hljs-operator { color: var(--tok-operator); }
+.hljs-punctuation { color: var(--tok-punctuation); }
+.hljs-meta, .hljs-meta .hljs-keyword, .hljs-meta .hljs-string { color: var(--tok-meta); }
+.hljs-variable, .hljs-template-variable, .hljs-attr, .hljs-attribute, .hljs-property, .hljs-params { color: var(--tok-variable); }
+
 /* search match highlight */
 mark.search-highlight {
   background-color: color-mix(in srgb, var(--color-brand) 25%, transparent);

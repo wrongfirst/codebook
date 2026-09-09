@@ -5,7 +5,7 @@ import { Effect } from 'effect';
 import { exercises, curriculum, getExerciseDisplayNumber } from './exercises/exercise-registry';
 import { getExerciseVariant } from './core/types';
 import { loadExerciseCode, setEditorCode, updateEditorTheme, getCode, formatEditorCode } from './core/editor';
-import { parseMarkdown, highlightStaticBlocks, escapeHtml } from './core/markdown';
+import { parseMarkdown, escapeHtml } from './core/markdown';
 
 //module imports
 import { elements } from './core/elements';
@@ -122,9 +122,6 @@ function render() {
 
         //update nav
         if (navActions) navActions.updateNavState(activeLessonSlug);
-
-        //highlight static blocks
-        highlightStaticBlocks();
 
         //language selector
         renderLanguageSelector(elements.languageSelectorContainer, currentEx);

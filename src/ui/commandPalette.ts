@@ -2,6 +2,7 @@ import { elements, byId } from '../core/elements';
 import { store } from '../core/store';
 import { focusEditor } from '../core/editor';
 import { ICONS } from './icons';
+import { defaultLanguageId } from '../languages/language-registry';
 import { getAllCheatsheets } from '../core/cheatsheets/loader';
 import { searchCheatsheets, formatHighlightedTitle } from '../core/cheatsheets/search';
 import { renderCheatsheetPreview } from '../core/cheatsheets/highlighter';
@@ -123,7 +124,7 @@ export function isCommandPaletteOpen(): boolean {
 }
 
 function getCurrentLangId(): string {
-  return store.getState().currentLanguageId || 'python';
+  return store.getState().currentLanguageId || defaultLanguageId;
 }
 
 function executeSearch(): void {

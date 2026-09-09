@@ -1,22 +1,37 @@
 import yaml from 'yaml';
 import type { CheatsheetFrontmatter, CheatsheetItem } from './types';
 
-function extractFrontmatter(content: string): { frontmatter: CheatsheetFrontmatter; body: string } {
-  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+function extractFrontmatter(
+  content: string,
+  fallbackLanguage?: string
+): { frontmatter: CheatsheetFrontmatter; body: string } {
+  const fallbackLang = (fallbackLanguage || '').trim().toLowerCase() || 'general';
+  const fallbackBadge = fallbackLang.length <= 4 ? fallbackLang : fallbackLang.slice(0, 3);
+  const trimmed = content.trimStart();
+  const match = trimmed.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+
   if (!match) {
     return {
-      frontmatter: { language: 'general', badge: 'txt', aliases: [] },
+      frontmatter: {
+        language: fallbackLang,
+        badge: fallbackBadge,
+        aliases: fallbackLang !== 'general' ? [fallbackLang] : [],
+      },
       body: content,
     };
   }
 
   try {
     const parsed = yaml.parse(match[1]) || {};
-    const language = String(parsed.language || 'general').trim().toLowerCase();
-    const badge = String(parsed.badge || language).trim().toLowerCase();
-    const aliases = Array.isArray(parsed.aliases)
-      ? parsed.aliases.map((a: unknown) => String(a).trim().toLowerCase())
-      : [];
+    const language = String(parsed.language || fallbackLang).trim().toLowerCase();
+    const badge = String(parsed.badge || (language.length <= 4 ? language : language.slice(0, 3))).trim().toLowerCase();
+
+    let aliases: string[] = [];
+    if (Array.isArray(parsed.aliases)) {
+      aliases = parsed.aliases.map((a: unknown) => String(a).trim().toLowerCase()).filter(Boolean);
+    } else if (typeof parsed.aliases === 'string') {
+      aliases = parsed.aliases.split(',').map((a: string) => a.trim().toLowerCase()).filter(Boolean);
+    }
 
     return {
       frontmatter: { language, badge, aliases },
@@ -24,7 +39,11 @@ function extractFrontmatter(content: string): { frontmatter: CheatsheetFrontmatt
     };
   } catch {
     return {
-      frontmatter: { language: 'general', badge: 'txt', aliases: [] },
+      frontmatter: {
+        language: fallbackLang,
+        badge: fallbackBadge,
+        aliases: fallbackLang !== 'general' ? [fallbackLang] : [],
+      },
       body: match[2] || content,
     };
   }
@@ -38,9 +57,15 @@ function slugify(text: string): string {
     .replace(/[\s_-]+/g, '-');
 }
 
-export function parseCheatsheet(rawContent: string): CheatsheetItem[] {
-  const { frontmatter, body } = extractFrontmatter(rawContent);
-  const sections = body.split(/(?:^|\r?\n)##\s+/);
+export function parseCheatsheet(rawContent: string, fallbackLanguage?: string): CheatsheetItem[] {
+  const { frontmatter, body } = extractFrontmatter(rawContent, fallbackLanguage);
+  let sections = body.split(/(?:^|\r?\n)##\s+/);
+  if (sections.length <= 1) {
+    const singleSection = body.split(/(?:^|\r?\n)#\s+/);
+    if (singleSection.length > 1) {
+      sections = singleSection;
+    }
+  }
   const items: CheatsheetItem[] = [];
   const seenIds = new Set<string>();
 

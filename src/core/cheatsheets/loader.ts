@@ -1,8 +1,9 @@
 import { parseCheatsheet } from './parser';
 import type { CheatsheetItem } from './types';
+import { enabledLanguageIds } from '../../languages/language-registry';
 
 const cheatsheetModules = import.meta.glob<string>(
-  '../../languages/*/cheatsheet.md',
+  '../../../cheatsheets/**/*.{md,markdown}',
   { query: '?raw', eager: true, import: 'default' }
 );
 
@@ -27,23 +28,30 @@ export function loadAllCheatsheets(): CheatsheetItem[] {
 
   const items: CheatsheetItem[] = [];
   const languageMap = new Map<string, DiscoveredLanguage>();
+  const enabledSet = new Set(enabledLanguageIds.map(id => id.toLowerCase()));
 
   for (const path in cheatsheetModules) {
     const raw = cheatsheetModules[path];
     const content = typeof raw === 'string' ? raw : (raw as { default?: string })?.default || '';
     if (!content.trim()) continue;
 
-    const parsed = parseCheatsheet(content);
-    if (parsed.length > 0) {
-      items.push(...parsed);
+    const filename = path.split('/').pop()?.replace(/\.(md|markdown)$/i, '') || '';
+    const fallbackLang = filename.toLowerCase() !== 'cheatsheet' ? filename.toLowerCase() : '';
 
-      const sample = parsed[0];
-      if (!languageMap.has(sample.language)) {
-        languageMap.set(sample.language, {
-          id: sample.language,
-          badge: sample.badge,
-          label: capitalize(sample.language),
-        });
+    const parsed = parseCheatsheet(content, fallbackLang || undefined);
+    const enabledParsed = parsed.filter(item => enabledSet.has(item.language.toLowerCase()));
+
+    if (enabledParsed.length > 0) {
+      items.push(...enabledParsed);
+
+      for (const item of enabledParsed) {
+        if (!languageMap.has(item.language)) {
+          languageMap.set(item.language, {
+            id: item.language,
+            badge: item.badge,
+            label: capitalize(item.language),
+          });
+        }
       }
     }
   }

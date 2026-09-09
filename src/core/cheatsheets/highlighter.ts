@@ -1,55 +1,8 @@
-import { highlightCode, classHighlighter } from '@lezer/highlight';
-import { getLanguageSyntax } from '../../languages/language-registry';
-import { escapeHtml } from '../markdown';
 import { Marked } from 'marked';
 import DOMPurify from 'dompurify';
-
-//TODO: clean this up w.r.t the list of supported languages - is there a better way than manually populating these here
-const LANG_ALIASES: Record<string, string> = {
-  py: 'python',
-  python: 'python',
-  ts: 'typescript',
-  typescript: 'typescript',
-  js: 'typescript',
-  javascript: 'typescript',
-  c: 'c',
-  cpp: 'cpp',
-  'c++': 'cpp',
-  go: 'go',
-  golang: 'go',
-  ocaml: 'ocaml',
-  ml: 'ocaml',
-};
-
-export function highlightCodeSnippet(code: string, lang: string): string {
-  const normalized = (lang || '').trim().toLowerCase();
-  const canonicalLang = LANG_ALIASES[normalized] || normalized;
-  const syntax = getLanguageSyntax(canonicalLang);
-
-  if (syntax && typeof (syntax as any).parser?.parse === 'function') {
-    try {
-      const tree = (syntax as any).parser.parse(code);
-      let html = '';
-      highlightCode(
-        code,
-        tree,
-        classHighlighter,
-        (text, classes) => {
-          const escaped = escapeHtml(text);
-          html += classes ? `<span class="${classes}">${escaped}</span>` : escaped;
-        },
-        () => {
-          html += '\n';
-        }
-      );
-      return html;
-    } catch {
-      // Fall through to plain escaped text on parser failure
-    }
-  }
-
-  return escapeHtml(code);
-}
+import { escapeHtml } from '../markdown';
+import { highlightCodeSnippet } from '../highlighter';
+export { highlightCodeSnippet };
 
 export function highlightSearchTerms(html: string, query: string): string {
   if (!query || query.trim().length === 0) return html;
@@ -71,7 +24,7 @@ const previewMarked = new Marked({
   renderer: {
     code({ text, lang }: { text: string; lang?: string }) {
       const highlighted = highlightCodeSnippet(text, lang || '');
-      return `<pre class="palette-preview-code my-2.5"><code>${highlighted}</code></pre>`;
+      return `<pre class="palette-preview-code my-2.5"><code class="hljs">${highlighted}</code></pre>`;
     },
     heading({ text, depth }: { text: string; depth: number }) {
       const sizeClass = depth === 1 ? 'text-lg font-bold' : depth === 2 ? 'text-base font-bold' : 'text-sm font-semibold';
