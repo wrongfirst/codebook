@@ -6,14 +6,14 @@ aliases: [cpp, c++, cplusplus]
 
 ## auto Type Deduction & decltype
 ```cpp
-auto x = 42;                 // Deduced as int
-const auto& ref = x;         // Deduced as const int& (avoids copying)
+auto x = 42;
+const auto& ref = x;
 
 // Universal / forwarding reference in generic contexts:
-auto&& item = x;             // Binds to lvalues or rvalues
+auto&& item = x; // Binds to lvalues or rvalues
 
 // decltype extracts declared type without evaluating expressions:
-decltype(x) y = 100;         // Exactly type int
+decltype(x) y = 100;
 ```
 Deduces variable types at compile time while preserving constness and reference qualifiers when explicitly requested.
 
@@ -22,14 +22,12 @@ Deduces variable types at compile time while preserving constness and reference 
 #include <utility>
 #include <vector>
 
-// Pass by const reference: avoids expensive vector copy
 void process(const std::vector<int>& items) {
-    // items is read-only
+    // Read-only access
 }
 
-// Pass by non-const reference: mutates caller arguments in-place
 void swapValues(int& a, int& b) {
-    std::swap(a, b); // Idiomatic standard swap
+    std::swap(a, b);
 }
 ```
 Eliminates expensive object copying when passing parameters to functions while enforcing read-only guarantees.
@@ -42,12 +40,10 @@ Eliminates expensive object copying when passing parameters to functions while e
 
 std::unordered_map<std::string, int> scores = {{"Alice", 95}, {"Bob", 88}};
 
-// Decompose key-value pairs cleanly:
 for (const auto& [name, score] : scores) {
     std::cout << name << ": " << score << '\n';
 }
 
-// In-place container mutation by reference:
 std::vector<int> numbers = {1, 2, 3};
 for (auto& x : numbers) {
     x *= 2;
@@ -63,11 +59,9 @@ Iterates over containers with modern C++17 structured bindings to cleanly decomp
 std::pair<int, std::string> p = {1, "apple"};
 auto t = std::make_tuple(10, 3.14, "point");
 
-// Unpack tuple into separate variables:
 int id; double val; std::string tag;
 std::tie(id, val, tag) = t;
 
-// Or via structured binding (C++17):
 auto [x, y, label] = t;
 ```
 Groups heterogeneous values into fixed-size composites with direct index access and multi-variable unpacking.
@@ -76,12 +70,10 @@ Groups heterogeneous values into fixed-size composites with direct index access 
 ```cpp
 int threshold = 50;
 
-// [capture](params) -> return_type { body }
 auto isAbove = [threshold](int val) -> bool {
     return val > threshold;
 };
 
-// Capture all local variables by reference:
 int count = 0;
 auto increment = [&]() { count++; };
 ```
@@ -92,13 +84,11 @@ Creates inline anonymous callable objects with flexible value or reference varia
 #include <algorithm>
 #include <cstddef>
 
-// Generic function template:
 template <typename T>
 T clamp(T val, T lo, T hi) {
     return std::max(lo, std::min(val, hi));
 }
 
-// Class template with non-type template parameter:
 template <typename T, std::size_t Capacity>
 struct FixedBuffer {
     T data[Capacity];
@@ -116,7 +106,7 @@ Enables type-independent generic programming instantiated at compile time with z
 std::vector<int> src = {1, 2, 3, 4};
 
 // std::move casts to rvalue reference (T&&), enabling ownership transfer:
-std::vector<int> dest = std::move(src); // O(1) pointer swap; src is left valid but empty
+std::vector<int> dest = std::move(src);
 
 void consume(std::string&& str) {
     std::string internal = std::move(str); // Steals buffer without deep copy
@@ -130,10 +120,7 @@ Transfers ownership of dynamically allocated internal resources in $O(1)$ time u
 
 struct Node { int val; Node(int v) : val(v) {} };
 
-// Exclusive ownership (zero runtime overhead over raw pointer):
 auto node = std::make_unique<Node>(42);
-
-// Shared reference-counted ownership:
 auto sharedNode = std::make_shared<Node>(100);
 ```
 RAII wrappers that automatically deallocate heap memory when scope ends, avoiding memory leaks and manual `delete` calls.
@@ -142,12 +129,10 @@ RAII wrappers that automatically deallocate heap memory when scope ends, avoidin
 ```cpp
 struct Node { int val; Node(int v) : val(v) {} };
 
-// Legacy/low-level manual allocation (prefer smart pointers in modern C++):
 Node* node = new Node(42);
-delete node;       // Free single object
-node = nullptr;    // Prevent dangling pointer
+delete node;
+node = nullptr;
 
-// Dynamic heap array (must pair new[] with delete[]):
 int* buffer = new int[100];
 delete[] buffer;
 buffer = nullptr;
@@ -162,7 +147,7 @@ Allocates raw heap memory manually, contrasting single-object `new`/`delete` wit
 constexpr int square(int n) {
     return n * n;
 }
-constexpr int VAL = square(5); // Evaluated at compile time (25)
+constexpr int VAL = square(5); // Evaluated at compile time
 
 // C++17 compile-time conditional branching:
 template <typename T>
@@ -197,18 +182,15 @@ Replaces unsafe C-style casts with explicit, compile-time-verified or runtime-ch
 
 std::string s = "hello world";
 
-// Substring extraction (start_index, length):
-std::string sub = s.substr(0, 5); // "hello"
+std::string sub = s.substr(0, 5);
 
-// Search substring or character:
 size_t pos = s.find("world");
 if (pos != std::string::npos) {
     // Found at offset pos
 }
 
-// C++20 prefix and suffix inspection:
-bool has_pre = s.starts_with("hello"); // true
-bool has_suf = s.ends_with("world");   // true
+bool has_pre = s.starts_with("hello");
+bool has_suf = s.ends_with("world");
 ```
 Provides rich string manipulation, searching with sentinel `std::string::npos`, and zero-allocation prefix/suffix checks.
 
@@ -217,9 +199,9 @@ Provides rich string manipulation, searching with sentinel `std::string::npos`, 
 #include <string>
 
 std::string s = "12345";
-int val = std::stoi(s);                 // string to int
-long long big = std::stoll(s);          // string to long long
-std::string back = std::to_string(val); // number to string
+int val = std::stoi(s);
+long long big = std::stoll(s);
+std::string back = std::to_string(val);
 ```
 Converts between numerical types and `std::string` with standard parsing and conversion utilities.
 
@@ -269,7 +251,7 @@ std::optional<int> findFirstEven(const std::vector<int>& items) {
     return std::nullopt;
 }
 
-int val = findFirstEven(data).value_or(-1); // Returns found value or -1 default
+int val = findFirstEven(data).value_or(-1);
 ```
 Represents nullable or optional return values explicitly without error-prone sentinel values.
 
@@ -291,15 +273,13 @@ Provides type-safe, architecture-independent query functions for numerical bound
 ```cpp
 #include <cstdint>
 
-// Plain Old Data (POD) struct with aggregate / designated initialization:
 struct Point {
     int x;
     int y;
 };
 Point p1 = {10, 20};
-Point p2{.x = 5, .y = 15}; // C++20 designated initializer
+Point p2{.x = 5, .y = 15};
 
-// Scoped enum (enum class): strongly typed, avoids name collisions:
 enum class Status : uint8_t {
     Pending,
     Active,
@@ -307,7 +287,6 @@ enum class Status : uint8_t {
 };
 
 Status state = Status::Active;
-// Requires explicit cast (no implicit int conversions):
 int code = static_cast<int>(state);
 ```
 Defines lightweight composite data structures with aggregate initialization, and type-safe scoped enumerations.

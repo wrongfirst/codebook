@@ -11,11 +11,10 @@ for (const x of nums) {
   counts.set(x, (counts.get(x) ?? 0) + 1);
 }
 
-// Graph adjacency list:
 const adj = new Map<number, number[]>();
 for (const [u, v] of edges) {
   if (!adj.has(u)) adj.set(u, []);
-  adj.get(u)!.push(v); // safe: adj.has(u) check + set on prior line
+  adj.get(u)!.push(v);
 }
 ```
 Hash map supporting arbitrary key types with average $O(1)$ insertions, lookups, and frequency updates.
@@ -24,11 +23,10 @@ Hash map supporting arbitrary key types with average $O(1)$ insertions, lookups,
 ```typescript
 const seen = new Set<number>([1, 2, 3]);
 seen.add(4);
-seen.delete(2); // O(1) removal, returns boolean
+seen.delete(2);
 const exists = seen.has(3);
 
-// Set conversions:
-const uniqueList = Array.from(seen); // or [...seen]
+const uniqueList = Array.from(seen);
 ```
 Maintains unique elements with average $O(1)$ membership tests and fast array deduplication.
 
@@ -36,23 +34,19 @@ Maintains unique elements with average $O(1)$ membership tests and fast array de
 ```typescript
 const R = 4, C = 5;
 
-// Correct: independent row references filled with initial value:
 const grid: number[][] = Array.from({ length: R }, () => new Array(C).fill(0));
 
-// Jagged row allocation:
 const jagged: number[][] = Array.from({ length: R }, (_, r) => new Array(rowSizes[r]).fill(0));
 ```
 Allocates 2D arrays safely without pointer duplication across rows (`new Array(R).fill(new Array(C))` shares the same row reference!).
 
 ## Pointer-Based Queue (Avoiding O(N) shift)
 ```typescript
-// Fast O(1) dequeue without shifting entire array:
 const queue: number[] = [startNode];
 let head = 0;
 
 while (head < queue.length) {
-  const current = queue[head++]; // O(1) dequeue
-  // Process current...
+  const current = queue[head++];
 }
 ```
 Avoids JavaScript's native `Array.prototype.shift()` $O(N)$ reallocation overhead during BFS and queue operations.
@@ -80,7 +74,7 @@ class MinHeap<T> {
   pop(): T | undefined {
     if (this.size === 0) return undefined;
     const top = this.data[0];
-    const bottom = this.data.pop()!; // safe: size > 0 checked above
+    const bottom = this.data.pop()!;
     if (this.size > 0) {
       this.data[0] = bottom;
       let i = 0;
@@ -102,11 +96,11 @@ A lightweight, self-contained generic binary heap supporting $O(\log N)$ push an
 ```typescript
 const n = nums.length;
 const result = new Array(n).fill(-1);
-const stack: number[] = []; // Indices of decreasing elements
+const stack: number[] = [];
 
 for (let i = 0; i < n; i++) {
   while (stack.length > 0 && nums[i] > nums[stack[stack.length - 1]]) {
-    const poppedIdx = stack.pop()!; // safe: stack.length > 0 checked in while condition
+    const poppedIdx = stack.pop()!;
     result[poppedIdx] = nums[i];
   }
   stack.push(i);
@@ -162,7 +156,7 @@ class Trie {
       if (!curr.children.has(ch)) {
         curr.children.set(ch, new TrieNode());
       }
-      curr = curr.children.get(ch)!; // safe: just set on prior line
+      curr = curr.children.get(ch)!;
     }
     curr.isEnd = true;
   }
@@ -171,7 +165,7 @@ class Trie {
     let curr = this.root;
     for (const ch of prefix) {
       if (!curr.children.has(ch)) return false;
-      curr = curr.children.get(ch)!; // safe: has(ch) checked above
+      curr = curr.children.get(ch)!;
     }
     return true;
   }

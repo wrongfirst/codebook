@@ -16,17 +16,10 @@ Transforms singly-linked immutable lists using higher-order functions from the s
 
 ## List Utilities & Generation
 ```ocaml
-(* Generate range [0; 1; 2; ...; n-1]: *)
 let range = List.init 5 Fun.id
-
-(* Map with index: *)
 let indexed = List.mapi (fun idx x -> (idx, x * 10)) [1; 2; 3]
-
-(* Partition list into two based on predicate: *)
 let (evens, odds) = List.partition (fun x -> x mod 2 = 0) [1; 2; 3; 4; 5]
-
-(* Combine two lists into list of pairs: *)
-let pairs = List.combine ["a"; "b"] [1; 2] (* [("a", 1); ("b", 2)] *)
+let pairs = List.combine ["a"; "b"] [1; 2]
 ```
 Constructs, partitions, and indexes lists using standard higher-order utility functions.
 
@@ -50,12 +43,10 @@ Maintains an immutable purely functional FIFO queue with amortized $O(1)$ operat
 
 ## Imperative Queue & Stack
 ```ocaml
-(* Imperative FIFO queue: *)
 let q = Queue.create ()
-Queue.add 42 q     (* Push back *)
-let front = Queue.take q (* Pop front (O(1)) *)
+Queue.add 42 q
+let front = Queue.take q
 
-(* Imperative LIFO stack: *)
 let st = Stack.create ()
 Stack.push 10 st
 let top = Stack.pop st
@@ -71,13 +62,12 @@ let s = IntSet.(empty |> add 10 |> add 20)
 let has_ten = IntSet.mem 10 s
 
 let m = IntMap.(empty |> add 1 "apple" |> add 2 "banana")
-let fruit = IntMap.find_opt 1 m (* Some "apple" *)
+let fruit = IntMap.find_opt 1 m
 ```
 Generates purely functional balanced red-black trees with $O(\log N)$ lookups and insertions using OCaml functors.
 
 ## Custom Types with Set and Map Functors
 ```ocaml
-(* Define module satisfying Set.OrderedType: *)
 module Point = struct
   type t = int * int
   let compare (x1, y1) (x2, y2) =
@@ -100,7 +90,7 @@ let table = Hashtbl.create 16
 Hashtbl.replace table "apple" 10
 Hashtbl.replace table "banana" 20
 
-let val_opt = Hashtbl.find_opt table "apple" (* Some 10 *)
+let val_opt = Hashtbl.find_opt table "apple"
 let exists = Hashtbl.mem table "apple"
 Hashtbl.remove table "apple"
 ```
@@ -111,7 +101,6 @@ Average $O(1)$ mutable associative hash table supporting lookups, replacements, 
 let rows = 4
 let cols = 5
 
-(* Allocates rows x cols matrix filled with initial value: *)
 let matrix = Array.make_matrix rows cols 0
 
 matrix.(0).(1) <- 42
@@ -146,26 +135,23 @@ let buf = Buffer.create 16
 Buffer.add_string buf "hello"
 Buffer.add_char buf ' '
 Buffer.add_string buf "world"
-let str = Buffer.contents buf (* "hello world" *)
+let str = Buffer.contents buf
 
-(* Common String operations: *)
 let tokens = String.split_on_char ',' "a,b,c"
-let joined = String.concat "-" tokens (* "a-b-c" *)
-let sub = String.sub "abcdef" 1 3      (* "bcd" (offset, length) *)
+let joined = String.concat "-" tokens
+let sub = String.sub "abcdef" 1 3 (* (offset, length) *)
 ```
 Constructs strings efficiently using mutable `Buffer` and performs splitting, joining, and slicing via the `String` module.
 
 ## Lazy Sequences (Seq)
 ```ocaml
-(* Infinite lazy generator sequence: *)
 let naturals = Seq.ints 0
 
-(* Lazily filter and materialize first N items: *)
 let first_five_evens =
   naturals
   |> Seq.filter (fun x -> x mod 2 = 0)
   |> Seq.take 5
-  |> List.of_seq (* [0; 2; 4; 6; 8] *)
+  |> List.of_seq
 ```
 Evaluates sequences on demand to represent potentially infinite series or avoid intermediate collections.
 

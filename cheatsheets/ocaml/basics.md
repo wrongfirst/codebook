@@ -6,18 +6,15 @@ aliases: [ocaml, ml]
 
 ## Expressions, Scoping & Semicolon Sequencing
 ```ocaml
-(* `let ... in` binds a local identifier within an expression: *)
 let area =
   let width = 10 in
   let height = 20 in
   width * height
 
-(* Semicolon `;` sequences imperative expressions (evaluates left, returns right): *)
 let () =
   print_endline "Step 1";
   print_endline "Step 2"
 
-(* Group sequenced expressions with `begin ... end` or parentheses: *)
 let result =
   begin
     print_string "Computing: ";
@@ -29,9 +26,8 @@ Treats variables and scopes as nested expressions returning values, sequencing s
 ## Functions, Currying & Pipeline Operator
 ```ocaml
 let add x y = x + y
-let add5 = add 5 (* Partial application / currying *)
+let add5 = add 5
 
-(* Pipeline operator (|>) passes output as last argument to next function: *)
 let result =
   [1; 2; 3; 4]
   |> List.filter (fun x -> x mod 2 = 0)
@@ -46,7 +42,6 @@ Composes functional transformations cleanly using automatic currying and reverse
 let greet ?(prefix = "Hello") ~name () =
   Printf.sprintf "%s, %s!" prefix name
 
-(* Caller supplies labels explicitly; trailing () triggers evaluation: *)
 let msg1 = greet ~name:"Alice" ()
 let msg2 = greet ~prefix:"Hi" ~name:"Bob" ()
 ```
@@ -54,14 +49,11 @@ Enables self-documenting call sites and optional parameter defaults, using a tra
 
 ## Type Annotations & Parametric Polymorphism
 ```ocaml
-(* Explicit type annotations on arguments and return type: *)
 let square (x : int) : int = x * x
 
-(* Parametric polymorphism with type variable 'a: *)
 let identity (x : 'a) : 'a = x
 let pair (first : 'a) (second : 'b) : 'a * 'b = (first, second)
 
-(* Type alias: *)
 type point = float * float
 let origin : point = (0.0, 0.0)
 ```
@@ -78,7 +70,6 @@ Destructures data structures and evaluates branches based on structural shape an
 
 ## Recursion & Tail Recursion
 ```ocaml
-(* Tail-recursive function with accumulator parameter: *)
 let length list =
   let rec aux acc = function
     | [] -> acc
@@ -98,10 +89,8 @@ let res =
   | Some v -> v
   | None -> 0
 
-(* Option.value with fallback default: *)
 let fallback = Option.value ~default:0 (safe_divide 10 0)
 
-(* Result type for operations that report error messages: *)
 let parse_positive n =
   if n > 0 then Ok n else Error "Number must be positive"
 ```
@@ -130,20 +119,18 @@ type user = {
 }
 
 let u = { id = 1; name = "Alice"; active = true }
-u.active <- false (* In-place field mutation *)
+u.active <- false
 ```
 Defines named-field product records, supporting immutable field assignment or explicit `mutable` fields.
 
 ## Mutable References and Arrays
 ```ocaml
-(* Single mutable reference cell: *)
 let count = ref 0
 count := !count + 1 (* Mutate with :=, dereference with ! *)
-incr count          (* Equivalent helper: increments ref cell by 1 *)
+incr count
 
-(* Mutable contiguous array: *)
 let arr = Array.make 5 0
-arr.(0) <- 42 (* Index lookup arr.(i) and mutation <- *)
+arr.(0) <- 42
 ```
 Allocates explicit mutable cells with `ref` and fixed-size mutable sequences with standard `Array`.
 
@@ -174,7 +161,6 @@ Defines and raises custom or standard exceptions, catching them with pattern mat
 
 ## Modules & Signatures
 ```ocaml
-(* Signature defines the public interface: *)
 module type StackSig = sig
   type 'a t
   val empty : 'a t
@@ -182,7 +168,6 @@ module type StackSig = sig
   val pop : 'a t -> ('a * 'a t) option
 end
 
-(* Structure implements the interface: *)
 module ListStack : StackSig = struct
   type 'a t = 'a list
   let empty = []
@@ -194,11 +179,9 @@ Encapsulates implementation details and enforces abstraction barriers using ML s
 
 ## Local Module Opens
 ```ocaml
-(* Open module locally within an expression: *)
 let open List in
 let sorted = sort compare [3; 1; 2]
 
-(* Compact local open syntax: *)
 let sum = List.(fold_left ( + ) 0 [1; 2; 3])
 ```
 Brings a module's functions and types into scope temporarily without polluting the enclosing namespace.

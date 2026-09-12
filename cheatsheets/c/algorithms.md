@@ -17,14 +17,12 @@ int cmp_ints(const void *a, const void *b) {
     return (x > y) - (x < y); // Returns -1, 0, or 1 safely without overflow
 }
 
-// In-place sort:
 qsort(arr, n, sizeof(int), cmp_ints);
 
-// Binary search with stdlib (array must be sorted with matching comparator):
 int key = 42;
 int *found = bsearch(&key, arr, n, sizeof(int), cmp_ints);
 if (found != NULL) {
-    int index = found - arr; // Pointer subtraction gives 0-based index
+    int index = found - arr;
 }
 ```
 Sorts and searches contiguous arrays using type-erased `const void *` comparators while avoiding arithmetic overflow.
@@ -36,23 +34,21 @@ int left = 0, right = n;
 while (left < right) {
     int mid = left + (right - left) / 2; // Avoids integer overflow (left + right)
     if (condition(mid)) {
-        right = mid;     // Target is at or to the left of mid
+        right = mid;
     } else {
-        left = mid + 1;  // Target is strictly to the right
+        left = mid + 1;
     }
 }
-return left; // First index where condition is true
+return left;
 ```
 Implements custom predicate search over sorted arrays or monotonic answer spaces without off-by-one errors.
 
 ## Two Pointers & Fast-Slow Pointers
 ```c
-// Opposite-end pointers (sorted two-sum):
 int left = 0, right = n - 1;
 while (left < right) {
     int sum = nums[left] + nums[right];
     if (sum == target) {
-        // Solution found: [left, right]
         break;
     } else if (sum < target) {
         left++;
@@ -61,12 +57,11 @@ while (left < right) {
     }
 }
 
-// Fast and slow pointers (Linked list cycle check):
 ListNode *slow = head, *fast = head;
 while (fast != NULL && fast->next != NULL) {
     slow = slow->next;
     fast = fast->next->next;
-    if (slow == fast) return 1; // Cycle detected
+    if (slow == fast) return 1;
 }
 ```
 Traverses sequential structures with two coordinated pointers in $O(N)$ time and $O(1)$ space.
@@ -79,7 +74,6 @@ int counts[256] = {0};
 for (int right = 0; s[right] != '\0'; right++) {
     counts[(unsigned char)s[right]]++;
 
-    // Contract window from left while invalid:
     while (!is_valid(counts)) {
         counts[(unsigned char)s[left]]--;
         left++;
@@ -108,7 +102,6 @@ Traverses orthogonal neighbors in 2D grid matrices safely with delta offsets and
 
 ## Breadth-First Search (BFS)
 ```c
-// Queue q of capacity V:
 q_push(q, start_node);
 dist[start_node] = 0;
 
@@ -132,13 +125,11 @@ Explores unweighted graphs level-by-level, computing shortest hop path distances
 int result_count = 0;
 
 void backtrack(int start_idx, int *nums, int n, int *current, int cur_len) {
-    // Process / record subset 'current' of length 'cur_len':
     process_solution(current, cur_len);
 
     for (int i = start_idx; i < n; i++) {
-        current[cur_len] = nums[i];               // Choose
-        backtrack(i + 1, nums, n, current, cur_len + 1); // Explore
-        // Undo: implicitly handled by overwriting current[cur_len]
+        current[cur_len] = nums[i];
+        backtrack(i + 1, nums, n, current, cur_len + 1);
     }
 }
 ```

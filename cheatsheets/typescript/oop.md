@@ -31,7 +31,6 @@ Built-in type transforms that produce new types by manipulating property optiona
 ## Classes & Parameter Properties
 ```typescript
 class Account {
-  // Concise constructor auto-declaring and assigning fields:
   constructor(
     public readonly id: string,
     private balance: number = 0
@@ -52,7 +51,7 @@ Defines classes with constructor parameter shorthand, access modifiers (`public`
 ## Inheritance & Abstract Classes
 ```typescript
 abstract class Shape {
-  abstract area(): number; // Must be implemented by subclasses
+  abstract area(): number;
 
   describe(): void {
     console.log(`Area is ${this.area()}`);
@@ -106,46 +105,39 @@ const Direction = {
   Down: "DOWN",
 } as const;
 
-type DirectionType = typeof Direction[keyof typeof Direction]; // "UP" | "DOWN"
+type DirectionType = typeof Direction[keyof typeof Direction];
 ```
 Compares TypeScript enums with tree-shakeable `as const` literal dictionary types.
 
 ## Template Literal Types
 ```typescript
-// String manipulation at the type level:
-type EventName = `on${Capitalize<string>}`;          // `on${Capitalize<string>}`
+type EventName = `on${Capitalize<string>}`;
 type Getter<K extends string> = `get${Capitalize<K>}`;
 
-// Mapped type with template literal key remapping:
 type Getters<T> = {
   [K in keyof T as `get${Capitalize<string & K>}`]: () => T[K];
 };
 
 interface Person { name: string; age: number }
 type PersonGetters = Getters<Person>;
-// { getName: () => string; getAge: () => number }
 ```
 Constructs string literal types by interpolating unions and applying intrinsic string type transforms (`Capitalize`, `Uppercase`, `Lowercase`, `Uncapitalize`).
 
 ## Mapped Types & Conditional Types
 ```typescript
-// Mapped type: transform every property of an existing type:
 type Nullable<T> = { [K in keyof T]: T[K] | null };
 type ReadonlyDeep<T> = { readonly [K in keyof T]: ReadonlyDeep<T[K]> };
 
-// Conditional type: type-level ternary expression:
 type IsString<T> = T extends string ? true : false;
-type A = IsString<"hello">;  // true
-type B = IsString<42>;       // false
+type A = IsString<"hello">;
+type B = IsString<42>;
 
-// Practical: extract non-nullable properties:
 type NonNullableProps<T> = {
   [K in keyof T]: NonNullable<T[K]>;
 };
 
-// `infer` keyword to extract types within conditional types:
 type ReturnOf<T> = T extends (...args: any[]) => infer R ? R : never;
-type Str = ReturnOf<() => string>; // string
+type Str = ReturnOf<() => string>;
 ```
 Mapped types iterate over property keys to construct new types; conditional types branch based on assignability checks with optional `infer` for type extraction.
 
@@ -157,17 +149,13 @@ interface Config {
   debug: boolean;
 }
 
-// keyof: produces a union of property name literals:
-type ConfigKey = keyof Config; // "host" | "port" | "debug"
+type ConfigKey = keyof Config;
 
-// Index access type: look up a property's type:
-type PortType = Config["port"]; // number
+type PortType = Config["port"];
 
-// typeof: extracts the type from a runtime value:
 const defaults = { host: "localhost", port: 3000 };
-type Defaults = typeof defaults; // { host: string; port: number }
+type Defaults = typeof defaults;
 
-// Combining keyof + typeof for type-safe lookups:
 function getConfig<K extends keyof Config>(key: K): Config[K] {
   return config[key];
 }
@@ -183,33 +171,25 @@ const palette = {
   blue: [0, 0, 255],
 } satisfies Record<string, string | number[]>;
 
-// Type is preserved — not widened to Record<string, string | number[]>:
-palette.green.toUpperCase();  // OK: TypeScript knows green is string
-palette.red.map(x => x / 255); // OK: TypeScript knows red is number[]
+palette.green.toUpperCase();
+palette.red.map(x => x / 255);
 
-// Without satisfies, you'd need `as const` or lose the narrow types.
 ```
 Validates that an expression matches a type at compile time while preserving the narrowest inferred type, avoiding the widening that type annotations cause.
 
 ## Tuple Types
 ```typescript
-// Basic tuple with fixed element types:
 type Point3D = [number, number, number];
 const origin: Point3D = [0, 0, 0];
 
-// Labeled tuples (improve readability in signatures):
 type HttpResponse = [status: number, body: string];
 type Range = [start: number, end: number];
 
-// Optional elements:
 type Color = [number, number, number, alpha?: number];
 
-// Rest elements for variadic tuples:
 type AtLeastOne<T> = [T, ...T[]];
 type StringPair = [string, string];
 
-// Destructuring preserves types:
 const [status, body]: HttpResponse = [200, "OK"];
-// status: number, body: string
 ```
 Fixed-length arrays with per-position types, supporting labels, optional elements, and rest patterns for precise function signatures and return types.

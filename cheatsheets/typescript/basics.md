@@ -13,13 +13,10 @@ Safely accesses deeply nested properties without runtime exceptions, falling bac
 
 ## Object & Array Destructuring
 ```typescript
-// Object destructuring with renaming and default:
 const { name: fullName, age = 18, ...restProps } = person;
 
-// Array destructuring with rest elements:
 const [first, second, ...remaining] = items;
 
-// Object and array spread merging:
 const merged = { ...defaults, ...overrides };
 const cloned = [...items, newItem];
 ```
@@ -44,9 +41,9 @@ function isUser(val: unknown): val is User {
 }
 
 if (typeof input === "string") {
-  input.toUpperCase(); // TypeScript knows input is string
+  input.toUpperCase();
 } else if (isUser(input)) {
-  console.log(input.id); // Narrowed to User
+  console.log(input.id);
 }
 ```
 Informs the TypeScript compiler to narrow down broad `unknown` or union types within conditional blocks.
@@ -57,32 +54,27 @@ function firstOrFallback<T>(items: T[], fallback: T): T {
   return items.length > 0 ? items[0] : fallback;
 }
 
-const num = firstOrFallback([10, 20], 0);    // inferred T = number
-const str = firstOrFallback([], "default");  // inferred T = string
+const num = firstOrFallback([10, 20], 0);
+const str = firstOrFallback([], "default");
 ```
 Parametric polymorphism enabling functions and classes to operate over arbitrary types while retaining type integrity.
 
 ## ASCII & Character Conversions
 ```typescript
-// Character to 0-25 alphabet index:
-const charCode = "c".charCodeAt(0);                          // 99
-const alphabetIdx = "c".charCodeAt(0) - "a".charCodeAt(0);   // 2
+const charCode = "c".charCodeAt(0);
+const alphabetIdx = "c".charCodeAt(0) - "a".charCodeAt(0);
 
-// Alphabet index back to character:
-const char = String.fromCharCode("a".charCodeAt(0) + alphabetIdx); // 'c'
+const char = String.fromCharCode("a".charCodeAt(0) + alphabetIdx);
 
-// Join array of characters into string:
-const str = ["a", "b", "c"].join(""); // "abc"
+const str = ["a", "b", "c"].join("");
 ```
 Translates characters to UTF-16 code units and back, and joins token sequences into strings.
 
 ## Shallow vs Deep Copy
 ```typescript
-// Shallow copy (nested objects/arrays still share references):
 const shallowArr = [...originalArr];
 const shallowObj = { ...originalObj };
 
-// Deep copy (modern built-in algorithm recursively copying nested state):
 const deepClone = structuredClone(complexState);
 ```
 Duplicates JavaScript objects and arrays safely, leveraging modern `structuredClone` for deep nested state replication.
@@ -96,10 +88,10 @@ try {
   if (err instanceof SyntaxError) {
     console.error("Invalid JSON format:", err.message);
   } else {
-    throw err; // Re-throw unhandled errors
+    throw err;
   }
 } finally {
-  cleanup(); // Always executes
+  cleanup();
 }
 ```
 Catches runtime exceptions with type-safe `unknown` error discrimination and guaranteed cleanup execution.
@@ -112,7 +104,6 @@ async function fetchUser(id: string): Promise<User> {
   return response.json();
 }
 
-// Error handling with async/await:
 async function loadData(): Promise<void> {
   try {
     const user = await fetchUser("42");
@@ -146,7 +137,6 @@ Four settlement strategies: `all` (fail-fast parallel), `allSettled` (graceful d
 
 ## Closures & Higher-Order Functions
 ```typescript
-// Closure: inner function captures outer scope variables:
 function createCounter(initial = 0) {
   let count = initial;
   return {
@@ -156,10 +146,9 @@ function createCounter(initial = 0) {
   };
 }
 const counter = createCounter(10);
-counter.increment(); // 11
-counter.getCount();  // 11
+counter.increment();
+counter.getCount();
 
-// Higher-order function: accepts or returns a function:
 function withLogging<T extends (...args: any[]) => any>(fn: T): T {
   return ((...args: any[]) => {
     console.log("Calling", fn.name, "with", args);
@@ -175,7 +164,6 @@ Closures capture variables from their enclosing lexical scope, enabling factory 
 class Timer {
   seconds = 0;
   start() {
-    // Arrow preserves `this` — refers to the Timer instance:
     setInterval(() => this.seconds++, 1000);
   }
 }
@@ -185,45 +173,35 @@ function greet(this: { name: string }) {
   console.log(`Hello, ${this.name}`);
 }
 const obj = { name: "Alice", greet };
-obj.greet();                // "Hello, Alice" — `this` is obj
+obj.greet(); // `this` is obj
 
 // Explicit binding:
 const boundGreet = greet.bind({ name: "Bob" });
-boundGreet();               // "Hello, Bob"
-greet.call({ name: "Eve" }); // "Hello, Eve"
+boundGreet();
+greet.call({ name: "Eve" });
 ```
 Arrow functions inherit `this` lexically (no own binding); regular functions resolve `this` dynamically via the call site, `.bind()`, `.call()`, or `.apply()`.
 
 ## Modules (`import` / `export`)
 ```typescript
-// Named exports:
 export function add(a: number, b: number): number { return a + b; }
 export const PI = 3.14159;
 
-// Default export (one per module):
 export default class Logger { /* ... */ }
 
-// Named imports:
 import { add, PI } from "./math";
-
-// Default import:
 import Logger from "./logger";
-
-// Rename on import:
 import { add as sum } from "./math";
 
-// Re-export barrel pattern:
 export { add, PI } from "./math";
 export { default as Logger } from "./logger";
 
-// Dynamic import (code-splitting / lazy loading):
 const { add } = await import("./math");
 ```
 ES module system for structuring code into self-contained files with explicit dependency declarations and tree-shakeable imports.
 
 ## Iterators & Generators
 ```typescript
-// Generator function (lazy sequence producer):
 function* range(start: number, end: number): Generator<number> {
   for (let i = start; i < end; i++) {
     yield i;
@@ -231,10 +209,9 @@ function* range(start: number, end: number): Generator<number> {
 }
 
 for (const n of range(0, 5)) {
-  console.log(n); // 0, 1, 2, 3, 4
+  console.log(n);
 }
 
-// Custom iterable via Symbol.iterator:
 class Countdown implements Iterable<number> {
   constructor(private from: number) {}
 
@@ -243,7 +220,7 @@ class Countdown implements Iterable<number> {
   }
 }
 
-const nums = [...new Countdown(3)]; // [3, 2, 1]
+const nums = [...new Countdown(3)];
 ```
 Generators produce values lazily on demand via `yield`, and `Symbol.iterator` makes any object usable with `for...of` and spread syntax.
 
@@ -251,26 +228,23 @@ Generators produce values lazily on demand via `yield`, and `Symbol.iterator` ma
 ```typescript
 const s = "  Hello, TypeScript!  ";
 
-s.trim();                     // "Hello, TypeScript!"
-s.includes("Type");           // true
-s.startsWith("  Hello");      // true
-s.endsWith("!  ");            // true
-s.replaceAll("!", "?");       // "  Hello, TypeScript?  "
-"abc".padStart(6, "0");       // "000abc"
-"abc".padEnd(6, ".");         // "abc..."
+s.trim();
+s.includes("Type");
+s.startsWith("  Hello");
+s.endsWith("!  ");
+s.replaceAll("!", "?");
+"abc".padStart(6, "0");
+"abc".padEnd(6, ".");
 
-// Template literal interpolation:
 const name = "world";
-const greeting = `Hello, ${name}!`;   // "Hello, world!"
+const greeting = `Hello, ${name}!`;
 
-// Multi-line strings:
 const html = `
   <div>
     <p>${greeting}</p>
   </div>
 `;
 
-// Tagged template literal:
 function sql(strings: TemplateStringsArray, ...values: unknown[]) {
   return { text: strings.join("?"), params: values };
 }
@@ -283,11 +257,11 @@ Built-in string methods for searching, padding, and replacing, plus template lit
 const arr = ["a", "b", "c"];
 
 // for...of — iterates VALUES (arrays, strings, Maps, Sets, generators):
-for (const val of arr) console.log(val);  // "a", "b", "c"
+for (const val of arr) console.log(val);
 
 // for...in — iterates enumerable PROPERTY KEYS (use on objects, not arrays):
 const obj = { x: 1, y: 2 };
-for (const key in obj) console.log(key);  // "x", "y"
+for (const key in obj) console.log(key);
 
 // .forEach() — array method, no break/continue, no await support:
 arr.forEach((val, idx) => console.log(idx, val));
@@ -299,13 +273,13 @@ arr.forEach((val, idx) => console.log(idx, val));
 let config: { timeout?: number; retries?: number; verbose?: boolean } = {};
 
 // ??= assigns only if current value is null or undefined:
-config.timeout ??= 5000;   // sets to 5000 (was undefined)
-config.timeout ??= 9999;   // keeps 5000 (already set)
+config.timeout ??= 5000;
+config.timeout ??= 9999;
 
 // ||= assigns if current value is falsy (0, "", false, null, undefined):
 config.retries ||= 3;
 
 // &&= assigns only if current value is truthy:
-config.verbose &&= false;  // no-op (verbose was undefined → falsy)
+config.verbose &&= false;
 ```
 Shorthand assignment operators combining nullish coalescing (`??`), logical OR (`||`), and logical AND (`&&`) with assignment.

@@ -26,18 +26,13 @@ Executes single-cycle hardware CPU bit operations using portable C++20 `<bit>` p
 
 ## Bit Manipulation Tricks & Submask Iteration
 ```cpp
-// Check if power of two:
 bool is_pow2 = (x > 0) && !(x & (x - 1));
-
-// Isolate lowest set bit:
 int lowest_bit = x & -x;
-
-// Clear lowest set bit:
 int cleared = x & (x - 1);
 
 // Iterate through all submasks of mask (O(3^N) across all masks):
 for (int sub = mask; sub > 0; sub = (sub - 1) & mask) {
-    // Process submask
+    process(sub);
 }
 ```
 Executes elementary bitwise operations in $O(1)$ time for state compression and bitmask dynamic programming.
@@ -46,8 +41,8 @@ Executes elementary bitwise operations in $O(1)$ time for state compression and 
 ```cpp
 #include <numeric>
 
-long long g = std::gcd(48LL, 18LL); // 6
-long long l = std::lcm(12LL, 15LL); // 60
+long long g = std::gcd(48LL, 18LL);
+long long l = std::lcm(12LL, 15LL);
 ```
 Built-in Euclidean algorithm in `<numeric>` computing greatest common divisor and least common multiple in $O(\log(\min(a, b)))$ time.
 
@@ -79,13 +74,11 @@ Computes large powers and modular division in logarithmic time via binary expone
 #include <utility>
 #include <vector>
 
-// Concise type aliases:
 using ll = long long;
 using pii = std::pair<int, int>;
 using vi = std::vector<int>;
 using vll = std::vector<long long>;
 
-// Range and size convenience macros:
 #define all(x) (x).begin(), (x).end()
 #define sz(x) (static_cast<int>((x).size()))
 ```

@@ -8,20 +8,13 @@ aliases: [go, golang]
 ```go
 import "math/bits"
 
-// Count set bits:
 count := bits.OnesCount(uint(x))
 
-// Count leading and trailing zeros:
 lz := bits.LeadingZeros(uint(x))
 tz := bits.TrailingZeros(uint(x))
 
-// Check if power of two:
 isPow2 := x > 0 && (x&(x-1)) == 0
-
-// Isolate lowest set bit:
 lowest := x & -x
-
-// Clear lowest set bit:
 cleared := x & (x - 1)
 ```
 Executes hardware-accelerated bitwise operations and bitmask inspections using standard library primitives.
@@ -39,7 +32,6 @@ func lcm(a, b int) int {
     return (a / gcd(a, b)) * b
 }
 
-// Fast modular exponentiation (base^exp % mod):
 func modPow(base, exp, mod int64) int64 {
     var res int64 = 1
     base %= mod
@@ -63,7 +55,6 @@ import (
 )
 
 func main() {
-    // High-throughput line scanner:
     scanner := bufio.NewScanner(os.Stdin)
     // Enlarge buffer if lines can exceed default 64KB:
     scanner.Buffer(make([]byte, 1024*1024), 1024*1024)

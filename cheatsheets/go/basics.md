@@ -6,10 +6,10 @@ aliases: [go, golang]
 
 ## Slice Operations (Make, Append, Sub-Slice)
 ```go
-nums := make([]int, 0, 10)  // len: 0, cap: 10
+nums := make([]int, 0, 10)
 nums = append(nums, 1, 2, 3)
-sub := nums[1:3]            // sub-slice [low:high]
-nums = append(nums, sub...) // spread append
+sub := nums[1:3]
+nums = append(nums, sub...)
 ```
 Constructs dynamically sized array views with preallocated capacity, appending elements and slicing without memory reallocation.
 
@@ -19,8 +19,8 @@ counts := make(map[string]int)
 counts["apple"] = 5
 
 // Comma-ok test distinguishes missing keys from zero-values:
-val, ok := counts["apple"] // ok is true if key is present
-delete(counts, "apple")     // safe removal (no error if absent)
+val, ok := counts["apple"]
+delete(counts, "apple")
 ```
 Initializes hash tables and validates key existence safely without sentinel zero-value ambiguity.
 
@@ -51,23 +51,20 @@ file, err := os.Open("data.txt")
 if err != nil {
     return err
 }
-defer file.Close() // Guaranteed to run when surrounding function returns (LIFO order)
+defer file.Close()
 ```
 Defers execution of a function call until the surrounding function exits, ensuring reliable cleanup.
 
 ## Range Loops with Blank Identifier
 ```go
-// Both index and value:
 for idx, val := range items {
     fmt.Printf("%d: %v\n", idx, val)
 }
 
-// Value only (discard index with blank identifier):
 for _, val := range items {
     process(val)
 }
 
-// Key and value over map:
 for k, v := range counts {
     fmt.Println(k, v)
 }
@@ -77,11 +74,10 @@ Iterates over slices, arrays, maps, strings, and channels using the blank identi
 ## Pointers & Memory Allocation
 ```go
 x := 42
-p := &x         // p is *int (pointer to x)
-*p = 100        // Dereference and mutate x
+p := &x
+*p = 100
 
-// Allocate zero-initialized memory on heap:
-ptr := new(int) // returns *int initialized to 0
+ptr := new(int)
 ```
 Manipulates memory addresses directly and passes pointers to functions to avoid copying large structures and allow in-place mutations.
 
@@ -110,7 +106,6 @@ type BaseEntity struct {
     CreatedAt time.Time
 }
 
-// User embeds BaseEntity (inheriting its fields and methods directly):
 type User struct {
     BaseEntity
     Username string
@@ -120,7 +115,7 @@ u := User{
     BaseEntity: BaseEntity{ID: "usr_123"},
     Username:   "alice",
 }
-fmt.Println(u.ID) // Direct field access on outer struct
+fmt.Println(u.ID)
 ```
 Implements object composition by embedding inner structs directly, promoting code reuse without class hierarchies.
 
@@ -134,7 +129,6 @@ type Point struct {
     X, Y int
 }
 
-// Point automatically satisfies Stringer without an explicit 'implements' keyword:
 func (p Point) String() string {
     return fmt.Sprintf("(%d, %d)", p.X, p.Y)
 }
@@ -145,12 +139,10 @@ Defines behavioral contracts satisfied implicitly by any type implementing the r
 ```go
 var val any = "hello"
 
-// Single assertion with comma-ok guard:
 if str, ok := val.(string); ok {
     fmt.Println("String:", str)
 }
 
-// Type switch over concrete types:
 switch v := val.(type) {
 case int:
     fmt.Println("Integer:", v)
@@ -165,10 +157,10 @@ Inspects dynamic concrete types stored inside `any` (or `interface{}`) safely us
 type Status int
 
 const (
-    Pending Status = iota // 0
-    Active                // 1
-    Complete              // 2
-    Failed                // 3
+    Pending Status = iota
+    Active
+    Complete
+    Failed
 )
 ```
 Creates strongly typed enumerations using Go's `iota` sequential constant generator.
@@ -180,21 +172,19 @@ import (
     "strings"
 )
 
-// Zero-allocation string concatenation:
 var b strings.Builder
 b.WriteString("hello ")
 b.WriteString("world")
 res := b.String()
 
-// String and integer parsing:
-num, err := strconv.Atoi("42") // string to int
-str := strconv.Itoa(100)       // int to string
+num, err := strconv.Atoi("42")
+str := strconv.Itoa(100)
 ```
 Concatenates strings efficiently through byte buffers and converts between numbers and strings.
 
 ## Goroutines, Channels & Select
 ```go
-ch := make(chan int, 2) // buffered channel with capacity 2
+ch := make(chan int, 2)
 
 go func() {
     ch <- 42
@@ -214,12 +204,10 @@ Executes concurrent lightweight goroutines and coordinates synchronization with 
 
 ## Generics & Type Constraints
 ```go
-// Type constraint interface using union and type approximation (~):
 type Number interface {
     ~int | ~int64 | ~float64
 }
 
-// Generic function with custom constraint:
 func Min[T Number](a, b T) T {
     if a < b {
         return a
@@ -227,7 +215,6 @@ func Min[T Number](a, b T) T {
     return b
 }
 
-// Generic function with comparable and any constraints:
 func Keys[K comparable, V any](m map[K]V) []K {
     keys := make([]K, 0, len(m))
     for k := range m {
@@ -242,7 +229,6 @@ Defines parameterized types and functions (Go 1.18+) using `any`, `comparable`, 
 ```go
 import "sync"
 
-// WaitGroup coordinates multiple goroutines:
 var wg sync.WaitGroup
 for _, id := range []int{1, 2, 3} {
     wg.Add(1)
@@ -253,19 +239,17 @@ for _, id := range []int{1, 2, 3} {
 }
 wg.Wait()
 
-// Mutex & RWMutex protect shared mutable state:
 var mu sync.RWMutex
 var cache = make(map[string]int)
 
-mu.Lock()         // Exclusive write lock
+mu.Lock()
 cache["k"] = 42
 mu.Unlock()
 
-mu.RLock()        // Shared concurrent read lock
+mu.RLock()
 val := cache["k"]
 mu.RUnlock()
 
-// Once guarantees thread-safe one-time initialization:
 var once sync.Once
 once.Do(func() { initResource() })
 ```
@@ -278,18 +262,15 @@ import (
     "time"
 )
 
-// Create context with deadline timeout:
 ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-defer cancel() // Release timer resources
+defer cancel()
 
-// Worker listening for cancellation:
 go func(ctx context.Context) {
     select {
     case <-time.After(500 * time.Millisecond):
-        // Work completed within deadline
+        // Work completed
     case <-ctx.Done():
-        // Aborted due to timeout or explicit cancel:
-        err := ctx.Err() // context.Canceled or context.DeadlineExceeded
+        err := ctx.Err()
         _ = err
         return
     }
@@ -308,15 +289,12 @@ import (
 
 var ErrNotFound = errors.New("resource not found")
 
-// Wrap error with contextual detail using %w:
 wrappedErr := fmt.Errorf("database query failed: %w", ErrNotFound)
 
-// errors.Is matches sentinel errors anywhere in the wrapped chain:
 if errors.Is(wrappedErr, ErrNotFound) {
     fmt.Println("Target sentinel error found in chain")
 }
 
-// errors.As extracts concrete error types from the wrapped chain:
 var pathErr *fs.PathError
 if errors.As(wrappedErr, &pathErr) {
     fmt.Println("Path that failed:", pathErr.Path)
@@ -328,25 +306,21 @@ Inspects wrapped error hierarchies using `errors.Is` for sentinel matching and `
 ```go
 package service
 
-// Exported (Public): Uppercase identifier is visible outside package:
 type Config struct {
     Port    int    // Exported field
-    secret  string // Unexported (package-private) field
+    secret  string // Unexported field
 }
 
-// Unexported (Private): lowercase identifier is accessible only inside package:
 func internalSetup() {}
 
-// init() runs automatically once per package before main():
 func init() {
-    // Executes package setup; can appear multiple times per file/package
+    // Executes package setup
 }
 ```
 Governs symbol visibility through identifier capitalization (Uppercase exports, lowercase keeps package-private) and runs initialization before `main()` via `init()`.
 
 ## Closures & Variable Capture
 ```go
-// Function returning closure that captures 'count' by reference:
 func makeCounter() func() int {
     count := 0
     return func() int {
@@ -355,7 +329,6 @@ func makeCounter() func() int {
     }
 }
 
-// Loop variable capture semantics:
 for i := 0; i < 3; i++ {
     // Go 1.22+: 'i' is scoped per iteration (goroutines see intended value).
     // Go < 1.22: 'i' was shared across iterations, requiring explicit 'i := i' shadowing!
@@ -373,12 +346,10 @@ import "log"
 func safeOperation() {
     defer func() {
         if r := recover(); r != nil {
-            // Intercepts panic during unwinding and prevents crash:
             log.Printf("recovered from panic: %v", r)
         }
     }()
 
-    // Explicit panic or nil-pointer dereference:
     panic("unexpected fatal condition")
 }
 ```
@@ -391,15 +362,15 @@ import "fmt"
 type Point struct{ X, Y int }
 pt := Point{1, 2}
 
-fmt.Printf("%v\n", pt)   // Default format: {1 2}
-fmt.Printf("%+v\n", pt)  // Includes struct field names: {X:1 Y:2}
-fmt.Printf("%#v\n", pt)  // Go-syntax representation: main.Point{X:1, Y:2}
-fmt.Printf("%T\n", pt)   // Type name: main.Point
+fmt.Printf("%v\n", pt)   // Default format
+fmt.Printf("%+v\n", pt)  // Includes struct field names
+fmt.Printf("%#v\n", pt)  // Go-syntax representation
+fmt.Printf("%T\n", pt)   // Type name
 
 fmt.Printf("%d\n", 42)     // Decimal integer
-fmt.Printf("%b\n", 42)     // Binary representation: 101010
+fmt.Printf("%b\n", 42)     // Binary representation
 fmt.Printf("%s\n", "text") // Raw string
-fmt.Printf("%q\n", "text") // Quoted string: "text"
+fmt.Printf("%q\n", "text") // Quoted string
 fmt.Printf("%.2f\n", 3.14) // Float with precision
 ```
 Controls string interpolation and type inspection using `fmt.Sprintf` and `fmt.Printf` format specifiers.
@@ -410,14 +381,14 @@ import "strings"
 
 s := "  apple,banana,orange  "
 
-trimmed := strings.TrimSpace(s)                   // "apple,banana,orange"
-parts := strings.Split(trimmed, ",")              // []string{"apple", "banana", "orange"}
-joined := strings.Join(parts, "; ")               // "apple; banana; orange"
+trimmed := strings.TrimSpace(s)
+parts := strings.Split(trimmed, ",")
+joined := strings.Join(parts, "; ")
 
-has := strings.Contains(trimmed, "banana")        // true
-pre := strings.HasPrefix(trimmed, "app")          // true
-suf := strings.HasSuffix(trimmed, "ge")           // true
-replaced := strings.ReplaceAll(trimmed, ",", "|") // "apple|banana|orange"
+has := strings.Contains(trimmed, "banana")
+pre := strings.HasPrefix(trimmed, "app")
+suf := strings.HasSuffix(trimmed, "ge")
+replaced := strings.ReplaceAll(trimmed, ",", "|")
 ```
 Performs common string manipulation, trimming, tokenization, substring querying, and replacements via standard library helpers.
 
@@ -425,15 +396,14 @@ Performs common string manipulation, trimming, tokenization, substring querying,
 ```go
 orig := []int{1, 2, 3, 4, 5}
 
-// Standard slice shares orig's backing array:
-sub := orig[1:3] // [2, 3], len: 2, cap: 4
+sub := orig[1:3]
 
 // HAZARD: append within capacity overwrites orig[3]!
-sub = append(sub, 99) // orig becomes [1, 2, 3, 99, 5]
+sub = append(sub, 99)
 
 // Full slice expression [low:high:max] restricts capacity:
-safeSub := orig[1:3:3] // len: 2, cap: 2
-safeSub = append(safeSub, 100) // Forces new backing array allocation; orig is untouched
+safeSub := orig[1:3:3]
+safeSub = append(safeSub, 100) // Forces new backing array allocation
 ```
 Prevents unintended mutations to shared backing arrays by constraining slice capacity with 3-index slicing `[low:high:max]`.
 
@@ -445,9 +415,9 @@ import (
 )
 
 // Types are guaranteed to initialize to their zero values:
-var num int           // 0
-var flag bool         // false
-var str string        // ""
+var num int
+var flag bool
+var str string
 var slice []int       // nil (valid for len, cap, and append)
 var m map[string]int  // nil (reads return 0; writes require make)
 
@@ -465,20 +435,17 @@ import (
     "strings"
 )
 
-// Read all data from an io.Reader:
 r := strings.NewReader("stream payload")
-data, err := io.ReadAll(r) // Reads until EOF into []byte
+data, err := io.ReadAll(r)
 
-// io.Copy streams chunks from Reader to Writer without buffering everything in memory:
 src := strings.NewReader("piped input")
 var dst bytes.Buffer
-written, err := io.Copy(&dst, src) // Returns bytes written
+written, err := io.Copy(&dst, src)
 ```
 Composes input/output pipelines through foundational `io.Reader` and `io.Writer` streaming abstractions.
 
 ## Testing & Table-Driven Tests (testing Package)
 ```go
-// In math_test.go (executed via: go test ./...)
 package mypkg
 
 import "testing"

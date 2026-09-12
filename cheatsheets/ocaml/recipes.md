@@ -44,12 +44,11 @@ Computes standard number-theoretic algorithms in logarithmic time via tail-recur
 
 ## Array and List Sorting with Custom Comparators
 ```ocaml
-(* In-place array sort (O(N log N)): *)
 let arr = [| 5; 2; 8; 1 |]
-Array.sort compare arr (* Ascending *)
-Array.sort (fun a b -> compare b a) arr (* Descending *)
+Array.sort compare arr
+Array.sort (fun a b -> compare b a) arr
 
-(* Immutable list sort with multi-key comparator (length first, then alphabetical): *)
+(* Sort: length first, then alphabetical: *)
 let words = ["banana"; "pie"; "apple"; "fig"]
 let sorted_words =
   List.sort (fun a b ->
@@ -62,25 +61,21 @@ Sorts mutable arrays in-place or produces new sorted lists using standard or mul
 
 ## Fast Input Parsing with Scanf
 ```ocaml
-(* Read space-delimited values directly from standard input: *)
 let n = Scanf.scanf " %d" Fun.id
 let (name, score) = Scanf.scanf " %s %d" (fun s d -> (s, d))
 
-(* Read N integers into a newly initialized array: *)
 let arr = Array.init n (fun _ -> Scanf.scanf " %d" Fun.id)
 ```
 Reads structured tokens and primitive values from standard input without loading entire lines into memory.
 
 ## Safe Conversions & Character Utilities
 ```ocaml
-(* Safe conversions returning option to prevent runtime exceptions: *)
-let i_opt = int_of_string_opt "123"      (* Some 123 *)
-let f_opt = float_of_string_opt "3.14"   (* Some 3.14 *)
-let bad   = int_of_string_opt "abc"      (* None *)
+let i_opt = int_of_string_opt "123"
+let f_opt = float_of_string_opt "3.14"
+let bad   = int_of_string_opt "abc"
 
-(* ASCII code and digit extraction: *)
-let ascii_code = Char.code 'A'                 (* 65 *)
-let char_val   = Char.chr 65                   (* 'A' *)
-let digit_val  = Char.code '7' - Char.code '0' (* 7 *)
+let ascii_code = Char.code 'A'
+let char_val   = Char.chr 65
+let digit_val  = Char.code '7' - Char.code '0'
 ```
 Parses strings safely into numeric primitives and performs bidirectional character-to-ASCII conversions.

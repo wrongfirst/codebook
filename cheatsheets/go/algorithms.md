@@ -11,13 +11,11 @@ import (
     "sort"
 )
 
-// In sorted slice (Go 1.21+):
 idx, found := slices.BinarySearch(nums, target)
 
-// Custom monotonic predicate template:
 // Returns the smallest index i in [0, n) where f(i) is true:
 firstIdx := sort.Search(len(nums), func(i int) bool {
-    return condition(nums[i]) // Monotonic condition
+    return condition(nums[i])
 })
 ```
 Finds boundaries and insertion indices in sorted slices or monotonic solution spaces in $O(\log N)$ time.
@@ -55,7 +53,6 @@ Sorts custom structs using modern generic 3-way comparators (`slices.SortFunc`) 
 
 ## Two Pointers & Fast-Slow Pointers
 ```go
-// Opposite-end pointers (Sorted Two-Sum / Palindrome):
 left, right := 0, len(nums)-1
 for left < right {
     sum := nums[left] + nums[right]
@@ -68,7 +65,6 @@ for left < right {
     }
 }
 
-// Fast & slow pointers (Linked list cycle detection):
 type ListNode struct {
     Val  int
     Next *ListNode
@@ -79,7 +75,7 @@ for fast != nil && fast.Next != nil {
     slow = slow.Next
     fast = fast.Next.Next
     if slow == fast {
-        return true // Cycle detected
+        return true
     }
 }
 ```
@@ -94,7 +90,6 @@ counts := make(map[byte]int)
 for right := 0; right < len(s); right++ {
     counts[s[right]]++
 
-    // Contract invalid window from left:
     for !isValid(counts) {
         counts[s[left]]--
         if counts[s[left]] == 0 {
@@ -112,7 +107,7 @@ Maintains dynamic valid substrings or subarrays with two pointers in amortized $
 
 ## Graph BFS & Shortest Path
 ```go
-adj := make(map[int][]int) // Adjacency list
+adj := make(map[int][]int)
 dist := make(map[int]int)
 queue := []int{start}
 head := 0
@@ -168,9 +163,9 @@ func subsets(nums []int) [][]int {
         results = append(results, snapshot)
 
         for i := start; i < len(nums); i++ {
-            path = append(path, nums[i]) // Choose
-            backtrack(i + 1)             // Explore
-            path = path[:len(path)-1]    // Undo
+            path = append(path, nums[i])
+            backtrack(i + 1)
+            path = path[:len(path)-1]
         }
     }
 

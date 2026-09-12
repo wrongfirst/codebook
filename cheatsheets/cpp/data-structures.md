@@ -9,12 +9,11 @@ aliases: [cpp, c++, cplusplus]
 #include <array>
 #include <utility>
 
-// Zero-overhead stack-allocated fixed array:
 std::array<int, 4> arr = {10, 20, 30, 40};
 
-size_t len = arr.size();     // Compile-time known length
+size_t len = arr.size();
 int first = arr.front();
-int safe = arr.at(2);        // Bounds-checked access (throws std::out_of_range)
+int safe = arr.at(2);
 
 // constexpr array (ideal for lookup tables & grid directions):
 constexpr std::array<std::pair<int, int>, 4> DIRS = {{{0, 1}, {1, 0}, {0, -1}, {-1, 0}}};
@@ -30,15 +29,12 @@ Safe, zero-overhead fixed-capacity sequence container stored directly on the sta
 std::vector<std::pair<int, std::string>> items;
 items.reserve(100); // Pre-allocates buffer to prevent reallocation overhead
 
-// push_back copies or moves an existing object:
 items.push_back({1, "apple"});
-
-// emplace_back forwards constructor arguments, constructing element in-place:
 items.emplace_back(2, "banana");
 
 bool empty = items.empty();
 size_t size = items.size();
-items.pop_back(); // O(1) amortized removal
+items.pop_back();
 ```
 Dynamically resizable contiguous array with $O(1)$ amortized insertions, contrasting copy/move-based `push_back` with in-place `emplace_back`.
 
@@ -47,11 +43,9 @@ Dynamically resizable contiguous array with $O(1)$ amortized insertions, contras
 #include <vector>
 
 int R = 4, C = 5;
-// Initialize R rows of C columns filled with 0:
 std::vector<std::vector<int>> grid(R, std::vector<int>(C, 0));
 
-// Jagged/custom row sizes:
-std::vector<std::vector<int>> adj(n); // Empty vectors for graph adjacency list
+std::vector<std::vector<int>> adj(n);
 ```
 Allocates contiguous 2D vector arrays safely with specified dimensions and initial default values.
 
@@ -62,14 +56,12 @@ Allocates contiguous 2D vector arrays safely with specified dimensions and initi
 
 std::vector<int> nums = {10, 20, 30, 40, 50};
 
-// Forward and reverse iterator endpoints:
-auto it = nums.begin();              // Points to first element (10)
-auto rit = nums.rbegin();            // Points to last element (50)
+auto it = nums.begin();
+auto rit = nums.rbegin();
 
-// Safe iterator movement without raw pointer arithmetic:
-auto second = std::next(it);         // Advances 1 step (points to 20)
-auto prior = std::prev(nums.end());  // Points to last element (50)
-std::advance(it, 3);                 // Advances 'it' in-place by 3 steps
+auto second = std::next(it);
+auto prior = std::prev(nums.end());
+std::advance(it, 3);
 ```
 Provides uniform traversal abstractions across STL containers with forward, bidirectional, and random-access iterator operations.
 
@@ -84,16 +76,14 @@ std::unordered_map<std::string, int> counts;
 counts["apple"] = 5;
 counts.insert_or_assign("banana", 2);
 
-// Check presence without inserting default (C++20 .contains or .find):
 if (counts.contains("apple")) {
     std::cout << counts["apple"] << '\n';
 }
 
 std::unordered_set<int> seen;
 seen.insert(42);
-if (seen.contains(42)) { /* exists (C++20) */ }
-// Pre-C++20 fallback:
-if (seen.count(42)) { /* exists */ }
+if (seen.contains(42)) {}
+if (seen.count(42)) {}
 ```
 Average $O(1)$ key-value associations and uniqueness tracking backed by hash tables, using modern C++20 `.contains()` for expressive membership tests.
 
@@ -104,11 +94,9 @@ Average $O(1)$ key-value associations and uniqueness tracking backed by hash tab
 
 std::set<int> s = {10, 20, 30, 40};
 
-// C++20 presence check:
 bool exists = s.contains(20);
 
-// O(log N) container lower_bound / upper_bound:
-auto it = s.lower_bound(25); // Points to 30 (first element >= 25)
+auto it = s.lower_bound(25); // First element >= 25
 if (it != s.end()) {
     int val = *it;
 }
@@ -128,10 +116,10 @@ std::queue<int> q;
 q.push(1); int front = q.front(); q.pop();
 
 std::deque<int> dq;
-dq.push_front(0); // O(1) push left
-dq.push_back(1);  // O(1) push right
-dq.pop_front();   // O(1) pop left
-dq.pop_back();    // O(1) pop right
+dq.push_front(0);
+dq.push_back(1);
+dq.pop_front();
+dq.pop_back();
 ```
 Sequential container adapters providing LIFO (stack), FIFO (queue), and double-ended (deque) operations in $O(1)$ time.
 

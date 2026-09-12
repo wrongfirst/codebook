@@ -6,18 +6,16 @@ aliases: [go, golang]
 
 ## Stack and Queue with Slices
 ```go
-// Stack (LIFO):
 var stack []int
-stack = append(stack, val)           // Push
-top := stack[len(stack)-1]           // Peek
-stack = stack[:len(stack)-1]         // Pop
+stack = append(stack, val)
+top := stack[len(stack)-1]
+stack = stack[:len(stack)-1]
 
-// Queue (FIFO - Head Index Pattern):
 var queue []int
 head := 0
-queue = append(queue, val)           // Enqueue
-front := queue[head]                 // Peek
-head++                               // Dequeue (O(1))
+queue = append(queue, val)
+front := queue[head]
+head++
 
 // Reslice with copy to release backing array memory when head grows large:
 if head > len(queue)/2 && head > 128 {
@@ -33,7 +31,6 @@ Implements lightweight stacks and FIFO queues using slices, utilizing a head ind
 ```go
 R, C := 4, 5
 
-// Correct: allocate R independent row slices:
 grid := make([][]int, R)
 for i := range grid {
     grid[i] = make([]int, C)
@@ -65,7 +62,7 @@ func (h *IntHeap) Pop() any {
 h := &IntHeap{2, 1, 5}
 heap.Init(h)
 heap.Push(h, 3)
-minVal := heap.Pop(h).(int) // 1 (runtime type assertion from any)
+minVal := heap.Pop(h).(int) // Runtime type assertion from any
 ```
 Satisfies Go's standard `heap.Interface` with 5 methods to maintain binary min/max heaps in $O(\log N)$ time (predates generics and requires `any` assertions).
 
@@ -74,7 +71,7 @@ Satisfies Go's standard `heap.Interface` with 5 methods to maintain binary min/m
 n := len(nums)
 result := make([]int, n)
 for i := range result { result[i] = -1 }
-stack := []int{} // Stack of indices
+stack := []int{}
 
 for i := 0; i < n; i++ {
     for len(stack) > 0 && nums[i] > nums[stack[len(stack)-1]] {

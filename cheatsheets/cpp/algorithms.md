@@ -9,19 +9,17 @@ aliases: [cpp, c++, cplusplus]
 #include <algorithm>
 #include <vector>
 
-// STL functions on sorted vectors:
 auto it1 = std::lower_bound(nums.begin(), nums.end(), target); // first element >= target
 auto it2 = std::upper_bound(nums.begin(), nums.end(), target); // first element > target
 int idx = it1 - nums.begin();
 
-// Monotonic predicate template [left, right):
 int left = 0, right = n;
 while (left < right) {
     int mid = left + (right - left) / 2;
     if (check(mid)) {
-        right = mid;     // Solution in left half including mid
+        right = mid;
     } else {
-        left = mid + 1;  // Solution strictly to the right
+        left = mid + 1;
     }
 }
 return left;
@@ -33,7 +31,6 @@ Finds threshold boundaries and target indices in sorted ranges in $O(\log N)$ ti
 #include <utility>
 #include <vector>
 
-// Opposite-end pointers (sorted two-sum / palindrome):
 int left = 0, right = nums.size() - 1;
 while (left < right) {
     int sum = nums[left] + nums[right];
@@ -42,7 +39,6 @@ while (left < right) {
     else --right;
 }
 
-// Fast & slow pointers (Linked List cycle detection):
 struct ListNode {
     int val;
     ListNode* next;
@@ -52,7 +48,7 @@ ListNode *slow = head, *fast = head;
 while (fast && fast->next) {
     slow = slow->next;
     fast = fast->next->next;
-    if (slow == fast) return true; // Cycle detected
+    if (slow == fast) return true;
 }
 ```
 Traverses sequential structures with two coordinating indices in $O(N)$ time and $O(1)$ space.
@@ -68,7 +64,6 @@ std::unordered_map<int, int> window_freq;
 for (int right = 0; right < nums.size(); ++right) {
     window_freq[nums[right]]++;
 
-    // Contract window from left while invalid:
     while (!isValid(window_freq)) {
         if (--window_freq[nums[left]] == 0) {
             window_freq.erase(nums[left]);
@@ -90,10 +85,8 @@ Expands and contracts a contiguous subarray window to satisfy dynamic constraint
 std::sort(nums.begin(), nums.end());
 std::reverse(nums.begin(), nums.end());
 
-// Sum of elements:
 long long total = std::accumulate(nums.begin(), nums.end(), 0LL);
 
-// Min and Max element iterators:
 auto min_it = std::min_element(nums.begin(), nums.end());
 auto max_it = std::max_element(nums.begin(), nums.end());
 ```
@@ -104,13 +97,9 @@ Canonical generic STL algorithms operating over iterator ranges with optimal alg
 #include <algorithm>
 #include <vector>
 
-// Find first element satisfying predicate:
 auto it = std::find_if(nums.begin(), nums.end(), [](int x) { return x % 2 == 0; });
-
-// Count elements matching condition:
 int evens = std::count_if(nums.begin(), nums.end(), [](int x) { return x % 2 == 0; });
 
-// Range quantification checks:
 bool all_pos = std::all_of(nums.begin(), nums.end(), [](int x) { return x > 0; });
 bool has_neg = std::any_of(nums.begin(), nums.end(), [](int x) { return x < 0; });
 ```
@@ -125,7 +114,6 @@ Performs declarative linear scans and boolean range validations with inline lamb
 std::sort(nums.begin(), nums.end());
 nums.erase(std::unique(nums.begin(), nums.end()), nums.end());
 
-// In-place transformation:
 std::transform(nums.begin(), nums.end(), nums.begin(), [](int x) { return x * 2; });
 
 // Lexicographical next permutation (returns false when reset to smallest):
@@ -253,12 +241,12 @@ std::vector<std::vector<int>> results;
 std::vector<int> current;
 
 void backtrack(int start_idx, const std::vector<int>& candidates) {
-    results.push_back(current); // Record current subset/path
+    results.push_back(current);
 
     for (int i = start_idx; i < candidates.size(); ++i) {
-        current.push_back(candidates[i]); // Make choice
-        backtrack(i + 1, candidates);     // Explore
-        current.pop_back();               // Undo choice
+        current.push_back(candidates[i]);
+        backtrack(i + 1, candidates);
+        current.pop_back();
     }
 }
 ```

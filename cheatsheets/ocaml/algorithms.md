@@ -12,9 +12,9 @@ let binary_search arr target =
     else
       let mid = left + (right - left) / 2 in
       if arr.(mid) >= target then
-        loop left mid        (* Solution in left half including mid *)
+        loop left mid
       else
-        loop (mid + 1) right (* Solution strictly to right *)
+        loop (mid + 1) right
   in
   loop 0 (Array.length arr)
 ```
@@ -105,7 +105,6 @@ let subsets list =
   let rec backtrack acc curr = function
     | [] -> curr :: acc
     | x :: xs ->
-        (* Branch without x, then branch with x: *)
         let acc_without = backtrack acc curr xs in
         backtrack acc_without (x :: curr) xs
   in

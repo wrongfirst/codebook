@@ -6,7 +6,6 @@ aliases: [py, python]
 
 ## Generators & yield
 ```python
-# Generator function: yields values lazily instead of building a full list
 def fibonacci():
     a, b = 0, 1
     while True:
@@ -14,17 +13,15 @@ def fibonacci():
         a, b = b, a + b
 
 fib = fibonacci()
-print(next(fib), next(fib), next(fib))  # 0 1 1
+print(next(fib), next(fib), next(fib))
 
-# Generator expression (like a list comprehension, but lazy):
 even_squares = (x**2 for x in range(100) if x % 2 == 0)
 
-# yield from: delegate to a sub-generator
 def flatten(nested):
     for sublist in nested:
         yield from sublist
 
-list(flatten([[1, 2], [3, 4]]))  # [1, 2, 3, 4]
+list(flatten([[1, 2], [3, 4]]))
 ```
 Generators produce values lazily, one at a time, without materializing the full sequence in memory. Use generator expressions in place of list comprehensions whenever you only need to iterate once or feed another function (e.g., `sum`, `any`, `all`).
 
@@ -32,23 +29,18 @@ Generators produce values lazily, one at a time, without materializing the full 
 ```python
 import itertools
 
-# Cartesian product (nested loops):
 for r, c in itertools.product(range(3), range(3)):
     pass
 
-# Combinations and permutations:
-list(itertools.combinations([1, 2, 3], 2))   # [(1,2),(1,3),(2,3)]
-list(itertools.permutations([1, 2, 3], 2))   # [(1,2),(1,3),(2,1),...]
+list(itertools.combinations([1, 2, 3], 2))
+list(itertools.permutations([1, 2, 3], 2))
 
-# Chain multiple iterables into one:
-all_items = list(itertools.chain([1, 2], [3, 4], [5]))  # [1,2,3,4,5]
+all_items = list(itertools.chain([1, 2], [3, 4], [5]))
 
-# Running totals (prefix sums):
-prefix = list(itertools.accumulate([1, 2, 3, 4]))       # [1, 3, 6, 10]
+prefix = list(itertools.accumulate([1, 2, 3, 4]))
 
-# Group consecutive equal elements:
 for key, group in itertools.groupby("AAABBC"):
-    print(key, list(group))   # A ['A','A','A'], B ['B','B'], C ['C']
+    print(key, list(group))
 ```
 `itertools` provides fast, memory-efficient combinatorial and sequence utilities implemented in C. Prefer `itertools.combinations`/`product` over manual bitmask enumeration for Pythonic subset iteration.
 
@@ -57,25 +49,22 @@ for key, group in itertools.groupby("AAABBC"):
 ```python
 import bisect
 
-# Standard library binary search on sorted sequences:
 idx_ge = bisect.bisect_left(nums, target)   # First index where num >= target
 idx_gt = bisect.bisect_right(nums, target)  # First index where num > target
 
-# Custom monotonic predicate template [left, right):
 left, right = 0, len(nums)
 while left < right:
     mid = left + (right - left) // 2
     if condition(mid):
-        right = mid      # Target is at or to the left of mid
+        right = mid
     else:
-        left = mid + 1   # Target is strictly to the right
+        left = mid + 1
 return left
 ```
 Finds boundaries and insertion points in monotonic spaces in $O(\log N)$ time.
 
 ## Two Pointers & Fast-Slow Pointers
 ```python
-# Opposite-end pointers (sorted arrays, palindromes):
 left, right = 0, len(nums) - 1
 while left < right:
     curr_sum = nums[left] + nums[right]
@@ -86,19 +75,17 @@ while left < right:
     else:
         right -= 1
 
-# Fast & slow pointers (Linked List cycle detection / middle node):
 slow = fast = head
 while fast and fast.next:
     slow = slow.next
     fast = fast.next.next
     if slow == fast:
-        return True # Cycle detected
+        return True
 ```
 Traverses sequences with two coordinating indices in $O(N)$ time and $O(1)$ auxiliary memory.
 
 ## Sliding Window (Dynamic & Fixed Length)
 ```python
-# Dynamic-length window:
 left = 0
 window_state = Counter()
 best = 0
@@ -205,9 +192,9 @@ def backtrack(start_idx, current_path):
     for i in range(start_idx, len(candidates)):
         if not is_promising(candidates[i]):
             continue
-        current_path.append(candidates[i]) # Choose
-        backtrack(i + 1, current_path)     # Explore
-        current_path.pop()                 # Unchoose
+        current_path.append(candidates[i])
+        backtrack(i + 1, current_path)
+        current_path.pop()
 ```
 Explores combinatorial state spaces (subsets, combinations, permutations) with choice exploration and state rollback.
 
@@ -219,9 +206,7 @@ from functools import cache
 def dp(i, rem_weight):
     if i == len(items) or rem_weight <= 0:
         return 0
-    # Choice 1: Skip item
     ans = dp(i + 1, rem_weight)
-    # Choice 2: Take item (if capacity permits)
     val, wt = items[i]
     if rem_weight >= wt:
         ans = max(ans, val + dp(i + 1, rem_weight - wt))

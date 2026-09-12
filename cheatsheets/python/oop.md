@@ -26,7 +26,7 @@ class Animal:
 
 class Dog(Animal):
     def __init__(self, name: str, breed: str):
-        super().__init__(name) # Call parent constructor
+        super().__init__(name)
         self.breed = breed
 ```
 Inherits attributes and methods from base classes and delegates initialization using `super()`.
@@ -40,7 +40,6 @@ class Item:
     priority: int
     name: str = field(compare=False) # Excluded from comparisons
 
-# Automatically generates __init__, __repr__, and comparison methods
 item = Item(priority=1, name="task")
 ```
 Synthesizes boilerplate constructor, string representation, and comparison methods for record types.
@@ -58,7 +57,6 @@ class Point:
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Point) and (self.x, self.y) == (other.x, other.y)
 
-# Usable directly in sorted(), min(), max(), and heapq
 ```
 Overloads comparison operators so custom objects can be sorted or stored directly in `heapq` without crashes.
 
@@ -89,7 +87,7 @@ class Date:
     @classmethod
     def from_iso(cls, iso_str: str) -> "Date":
         y, m, d = map(int, iso_str.split("-"))
-        return cls(y, m, d) # Factory constructor
+        return cls(y, m, d)
 
     @staticmethod
     def is_valid_month(m: int) -> bool:
@@ -109,7 +107,6 @@ class CustomDeck:
     def __getitem__(self, idx: int):
         return self._cards[idx]
 
-# Enables len(deck), deck[0], slicing, and 'for card in deck:'
 ```
 Enables custom classes to support `len()`, bracket indexing `obj[i]`, slicing, and iteration protocols.
 
@@ -127,26 +124,23 @@ Enforces interface contracts, preventing instantiation if declared abstract meth
 
 ## Context Managers (with statement)
 ```python
-# File I/O — the most common usage:
+
 with open("data.txt") as f:
     content = f.read()
-# File is automatically closed when the block exits, even on exception.
 
-# Custom context manager using contextlib:
 from contextlib import contextmanager
 
 @contextmanager
 def timer(label: str):
     import time
     start = time.perf_counter()
-    yield                              # Code inside 'with' block runs here
+    yield
     elapsed = time.perf_counter() - start
     print(f"{label}: {elapsed:.4f}s")
 
 with timer("processing"):
     result = expensive_operation()
 
-# Custom context manager using __enter__ / __exit__:
 class ManagedResource:
     def __enter__(self):
         self.resource = acquire()
@@ -162,7 +156,6 @@ The `with` statement ensures setup and teardown always run as a pair, even if an
 ```python
 import functools, time
 
-# A decorator is a function that wraps another function:
 def timer(func):
     @functools.wraps(func)   # Preserves __name__, __doc__, etc.
     def wrapper(*args, **kwargs):
@@ -176,9 +169,6 @@ def timer(func):
 def slow_sort(nums):
     return sorted(nums)
 
-# Equivalent to: slow_sort = timer(slow_sort)
-
-# Decorator with arguments (factory pattern):
 def repeat(n: int):
     def decorator(func):
         @functools.wraps(func)
@@ -199,21 +189,19 @@ A decorator is a callable that takes a function and returns a replacement. Alway
 ```python
 from typing import NamedTuple
 
-# Preferred modern form (class-based, supports type hints):
 class Point(NamedTuple):
     x: float
     y: float
     z: float = 0.0  # Default values supported
 
 p = Point(1.0, 2.0)
-print(p.x, p.y, p.z)   # 1.0 2.0 0.0
-print(p[0], p[1])       # 1.0 2.0  — still indexable like a tuple
-x, y, z = p             # Unpackable
+print(p.x, p.y, p.z)
+print(p[0], p[1])
+x, y, z = p
 
 # Also hashable → usable as dict key or set element:
 visited = {Point(0, 0), Point(1, 1)}
 
-# Classic functional form (collections.namedtuple):
 from collections import namedtuple
 Color = namedtuple("Color", ["r", "g", "b"])
 red = Color(255, 0, 0)

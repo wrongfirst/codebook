@@ -6,15 +6,12 @@ aliases: [cpp, c++, cplusplus]
 
 ## Struct vs Class & Member Initialization
 ```cpp
-// Struct members are public by default (ideal for POD / nodes):
 struct Node {
     int val;
     Node* next;
-    // Member initializer list (avoids double initialization):
     Node(int v, Node* n = nullptr) : val(v), next(n) {}
 };
 
-// Class members are private by default:
 class Counter {
 private:
     int count;
@@ -33,7 +30,6 @@ private:
 public:
     Account(double b) : balance(b) {}
 
-    // const guarantees method will NOT mutate any member variables:
     double getBalance() const {
         return balance;
     }
@@ -48,7 +44,7 @@ struct Edge {
 
     // Strict weak ordering for std::sort and std::priority_queue:
     bool operator<(const Edge& other) const {
-        return weight < other.weight; // Ascending order
+        return weight < other.weight;
     }
 
     bool operator==(const Edge& other) const {
@@ -103,12 +99,9 @@ Declares abstract interfaces that cannot be instantiated directly, enforcing con
 std::mutex mtx;
 
 void safeOperation() {
-    // Acquired in constructor, guaranteed released in destructor:
     std::lock_guard<std::mutex> lock(mtx);
-    // Released automatically upon exiting scope or on thrown exceptions
 }
 
-// Custom RAII wrapper:
 class FileHandle {
     std::FILE* fp;
 public:
@@ -129,7 +122,6 @@ Ties resource acquisition and release directly to object lifetime, ensuring dete
 class Graph {
     std::vector<std::vector<int>> adj;
     std::unique_ptr<int> metadata;
-    // Default copy/move/destructor generated automatically and correctly
 };
 
 // Rule of Five: If managing raw resources manually, declare all five:

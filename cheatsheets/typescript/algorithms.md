@@ -9,10 +9,9 @@ aliases: [ts, typescript, js, javascript]
 const nums = [10, 2, 5, 1];
 
 // Explicit numeric comparator is REQUIRED (default sorts as strings!):
-nums.sort((a, b) => a - b); // Ascending
-nums.sort((a, b) => b - a); // Descending
+nums.sort((a, b) => a - b);
+nums.sort((a, b) => b - a);
 
-// Multi-attribute object sorting:
 tasks.sort((a, b) => a.priority - b.priority || a.id - b.id);
 ```
 Performs in-place stable $O(N \log N)$ sorting using a signed numeric subtraction comparator.
@@ -25,9 +24,9 @@ let right = nums.length;
 while (left < right) {
   const mid = left + Math.floor((right - left) / 2);
   if (condition(mid)) {
-    right = mid;     // Target in left half including mid
+    right = mid;
   } else {
-    left = mid + 1;  // Target strictly to the right
+    left = mid + 1;
   }
 }
 return left;
@@ -36,7 +35,6 @@ Finds threshold boundary points and insertion indices in sorted arrays in $O(\lo
 
 ## Two Pointers & Fast-Slow Pointers
 ```typescript
-// Opposite-end pointers (Sorted Two-Sum / Palindrome):
 let left = 0, right = nums.length - 1;
 while (left < right) {
   const sum = nums[left] + nums[right];
@@ -45,14 +43,13 @@ while (left < right) {
   else right--;
 }
 
-// Fast & Slow pointers (Linked list cycle detection):
 // Note: JS/TS has no native linked-list; assumes a custom
 // ListNode<T> { val: T; next: ListNode<T> | null } structure.
 let slow = head, fast = head;
 while (fast !== null && fast.next !== null) {
   slow = slow.next!;
   fast = fast.next.next;
-  if (slow === fast) return true; // Cycle detected
+  if (slow === fast) return true;
 }
 ```
 Traverses sequential structures with two coordinated pointers in $O(N)$ time and $O(1)$ auxiliary space.
@@ -67,7 +64,6 @@ for (let right = 0; right < s.length; right++) {
   const char = s[right];
   counts.set(char, (counts.get(char) ?? 0) + 1);
 
-  // Contract invalid window from left:
   while (!isValid(counts)) {
     const leftChar = s[left];
     counts.set(leftChar, counts.get(leftChar)! - 1);
@@ -152,12 +148,12 @@ function subsets(nums: number[]): number[][] {
   const current: number[] = [];
 
   function backtrack(startIdx: number): void {
-    results.push([...current]); // Snapshot shallow clone
+    results.push([...current]);
 
     for (let i = startIdx; i < nums.length; i++) {
-      current.push(nums[i]); // Choose
-      backtrack(i + 1);      // Explore
-      current.pop();         // Undo
+      current.push(nums[i]);
+      backtrack(i + 1);
+      current.pop();
     }
   }
 

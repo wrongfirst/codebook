@@ -44,10 +44,9 @@ int arr[10];
 
 // Idiomatic C post-decrement pattern (safe for unsigned types):
 for (size_t i = n; i-- > 0; ) {
-    arr[i] = (int)i; // Visits indices n-1 down to 0 safely
+    arr[i] = (int)i;
 }
 
-// Alternative: signed ptrdiff_t index:
 for (ptrdiff_t i = (ptrdiff_t)n - 1; i >= 0; i--) {
     arr[i] = (int)i;
 }
@@ -56,18 +55,12 @@ Iterates backwards over unsigned collections safely without triggering unsigned 
 
 ## Bit Manipulation Tricks & Submasks
 ```c
-// Check if power of two:
 int is_pow2 = (x > 0) && !(x & (x - 1));
-
-// Isolate lowest set bit:
 int lowest_bit = x & -x;
-
-// Clear lowest set bit:
 int cleared = x & (x - 1);
 
-// Iterate through all non-empty submasks of mask:
 for (int sub = mask; sub > 0; sub = (sub - 1) & mask) {
-    // Process submask
+    process(sub);
 }
 ```
 Executes elementary bitwise operations in $O(1)$ time for state compression and bitmask dynamic programming.
@@ -87,7 +80,6 @@ long long lcm(long long a, long long b) {
     return (a / gcd(a, b)) * b;
 }
 
-// Fast modular exponentiation (base^exp % mod):
 long long mod_pow(long long base, long long exp, long long mod) {
     long long res = 1;
     base %= mod;

@@ -19,7 +19,7 @@ void vec_push(IntVector *v, int val) {
     if (v->size == v->cap) {
         size_t new_cap = v->cap == 0 ? 8 : v->cap * 2;
         int *tmp = realloc(v->data, new_cap * sizeof(int));
-        if (tmp == NULL) return; // Allocation failed; retain existing buffer
+        if (tmp == NULL) return;
         v->data = tmp;
         v->cap = new_cap;
     }
@@ -28,7 +28,7 @@ void vec_push(IntVector *v, int val) {
 
 int vec_pop(IntVector *v) {
     assert(v->size > 0);
-    return v->data[--v->size]; // Stack pop (LIFO)
+    return v->data[--v->size];
 }
 ```
 Constructs a dynamically growing contiguous buffer providing $O(1)$ amortized append and stack pop operations.
@@ -52,14 +52,14 @@ Queue* q_create(int capacity) {
 }
 
 void q_push(Queue *q, int val) {
-    assert(q->count < q->cap); // Guard against overflow
+    assert(q->count < q->cap);
     q->rear = (q->rear + 1) % q->cap;
     q->data[q->rear] = val;
     q->count++;
 }
 
 int q_pop(Queue *q) {
-    assert(q->count > 0); // Guard against underflow
+    assert(q->count > 0);
     int val = q->data[q->front];
     q->front = (q->front + 1) % q->cap;
     q->count--;
@@ -86,7 +86,7 @@ ListNode* reverse_list(ListNode *head) {
         prev = curr;
         curr = next;
     }
-    return prev; // New head pointer
+    return prev;
 }
 ```
 Reverses a singly linked list iteratively in $O(N)$ time and $O(1)$ space using three pointers.
@@ -97,13 +97,11 @@ Reverses a singly linked list iteratively in $O(N)$ time and $O(1)$ space using 
 
 int R = 4, C = 5;
 
-// Allocate array of row pointers:
 int **matrix = malloc(R * sizeof(int*));
 for (int i = 0; i < R; i++) {
-    matrix[i] = calloc(C, sizeof(int)); // Zero-initialized row
+    matrix[i] = calloc(C, sizeof(int));
 }
 
-// Cleanup:
 for (int i = 0; i < R; i++) free(matrix[i]);
 free(matrix);
 ```
