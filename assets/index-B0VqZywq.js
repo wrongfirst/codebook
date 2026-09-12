@@ -951,24 +951,24 @@ aliases: [c]
 \`\`\`c
 #include <stdlib.h>
 
-// PITFALL: Avoid (x - y) which causes signed integer overflow on INT_MIN / INT_MAX!
+// Generic comparator: stdlib passes elements via generic const void * pointers.
+// Explicitly cast to the concrete type before dereferencing.
+// PITFALL: Avoid (x - y) subtraction which causes signed overflow on INT_MIN / INT_MAX!
 int cmp_ints(const void *a, const void *b) {
     int x = *(const int *)a;
     int y = *(const int *)b;
-    return (x > y) - (x < y); // Returns -1, 0, or 1 safely
+    return (x > y) - (x < y); // Returns -1, 0, or 1 safely without overflow
 }
 
-// In-place sort:
 qsort(arr, n, sizeof(int), cmp_ints);
 
-// Binary search with stdlib:
 int key = 42;
 int *found = bsearch(&key, arr, n, sizeof(int), cmp_ints);
 if (found != NULL) {
-    int index = found - arr; // Pointer subtraction gives 0-based index
+    int index = found - arr;
 }
 \`\`\`
-Sorts and searches contiguous arrays with standard library functions while preventing integer overflow in comparator functions.
+Sorts and searches contiguous arrays using type-erased \`const void *\` comparators while avoiding arithmetic overflow.
 
 ## Binary Search Template [left, right)
 \`\`\`c
@@ -977,23 +977,21 @@ int left = 0, right = n;
 while (left < right) {
     int mid = left + (right - left) / 2; // Avoids integer overflow (left + right)
     if (condition(mid)) {
-        right = mid;     // Target is at or to the left of mid
+        right = mid;
     } else {
-        left = mid + 1;  // Target is strictly to the right
+        left = mid + 1;
     }
 }
-return left; // First index where condition is true
+return left;
 \`\`\`
 Implements custom predicate search over sorted arrays or monotonic answer spaces without off-by-one errors.
 
 ## Two Pointers & Fast-Slow Pointers
 \`\`\`c
-// Opposite-end pointers (sorted two-sum):
 int left = 0, right = n - 1;
 while (left < right) {
     int sum = nums[left] + nums[right];
     if (sum == target) {
-        // Solution found: [left, right]
         break;
     } else if (sum < target) {
         left++;
@@ -1002,12 +1000,11 @@ while (left < right) {
     }
 }
 
-// Fast and slow pointers (Linked list cycle check):
 ListNode *slow = head, *fast = head;
 while (fast != NULL && fast->next != NULL) {
     slow = slow->next;
     fast = fast->next->next;
-    if (slow == fast) return 1; // Cycle detected
+    if (slow == fast) return 1;
 }
 \`\`\`
 Traverses sequential structures with two coordinated pointers in $O(N)$ time and $O(1)$ space.
@@ -1020,7 +1017,6 @@ int counts[256] = {0};
 for (int right = 0; s[right] != '\\0'; right++) {
     counts[(unsigned char)s[right]]++;
 
-    // Contract window from left while invalid:
     while (!is_valid(counts)) {
         counts[(unsigned char)s[left]]--;
         left++;
@@ -1049,7 +1045,6 @@ Traverses orthogonal neighbors in 2D grid matrices safely with delta offsets and
 
 ## Breadth-First Search (BFS)
 \`\`\`c
-// Queue q of capacity V:
 q_push(q, start_node);
 dist[start_node] = 0;
 
@@ -1073,13 +1068,11 @@ Explores unweighted graphs level-by-level, computing shortest hop path distances
 int result_count = 0;
 
 void backtrack(int start_idx, int *nums, int n, int *current, int cur_len) {
-    // Process / record subset 'current' of length 'cur_len':
     process_solution(current, cur_len);
 
     for (int i = start_idx; i < n; i++) {
-        current[cur_len] = nums[i];               // Choose
-        backtrack(i + 1, nums, n, current, cur_len + 1); // Explore
-        // Undo: implicitly handled by overwriting current[cur_len]
+        current[cur_len] = nums[i];
+        backtrack(i + 1, nums, n, current, cur_len + 1);
     }
 }
 \`\`\`
@@ -1093,33 +1086,81 @@ aliases: [c]
 ## Pointers & Dereferencing
 \`\`\`c
 int val = 42;
-int *ptr = &val; // Address-of operator (&): ptr holds memory address
-*ptr = 100;      // Dereference operator (*): mutates val directly
+int *ptr = &val;
+*ptr = 100;
 
 int arr[3] = {10, 20, 30};
-int *next = arr + 1; // Pointer arithmetic: advances by sizeof(int) bytes (*next == 20)
+int *next = arr + 1;
 \`\`\`
 Manipulates raw memory addresses directly using address-of \`&\`, dereference \`*\`, and type-scaled pointer arithmetic.
+
+## Const Correctness & Pointer Semantics
+\`\`\`c
+int x = 10, y = 20;
+
+// Pointer to const int (data is immutable; pointer can rebind):
+const int *p1 = &x;
+// *p1 = 30;     // Error: assignment of read-only location
+p1 = &y;         // OK
+
+// Const pointer to int (data is mutable; pointer address is immutable):
+int *const p2 = &x;
+*p2 = 30;        // OK
+// p2 = &y;      // Error: assignment of read-only variable
+
+// Const pointer to const int (both pointer and pointee are immutable):
+const int *const p3 = &x;
+\`\`\`
+Enforces immutability constraints at compile time by distinguishing between read-only pointee data and read-only pointer addresses.
 
 ## Dynamic Memory Allocation (malloc, calloc, realloc, free)
 \`\`\`c
 #include <stdlib.h>
 
-// malloc: allocates uninitialized bytes
 int *arr = malloc(n * sizeof(int));
-if (arr == NULL) return -1; // Always check for allocation failure
+if (arr == NULL) return -1;
 
-// calloc: allocates zero-initialized memory
 int *zeroed = calloc(n, sizeof(int));
 
-// realloc: resizes dynamic heap buffer
 int *tmp = realloc(arr, new_cap * sizeof(int));
 if (tmp != NULL) arr = tmp;
 
 free(arr);
-arr = NULL; // Prevent dangling pointer
+arr = NULL;
 \`\`\`
 Manages heap allocations manually; always check for \`NULL\` returns and pair allocations with \`free()\` to prevent resource leaks.
+
+## Memory Manipulation (memset, memcpy, memmove)
+\`\`\`c
+#include <string.h>
+
+int arr[5];
+memset(arr, 0, sizeof(arr));
+memset(arr, -1, sizeof(arr));
+
+int dest[5];
+memcpy(dest, arr, sizeof(arr));
+
+memmove(arr + 1, arr, 4 * sizeof(int));
+\`\`\`
+Manipulates raw byte sequences directly in memory; use \`memcpy\` for non-overlapping buffers and \`memmove\` when source and destination buffers may overlap.
+
+## Generic Pointers (void *) & Casting
+\`\`\`c
+#include <stdio.h>
+
+void print_value(const void *ptr, char type) {
+    if (type == 'i') {
+        printf("%d\\n", *(const int *)ptr);
+    } else if (type == 'f') {
+        printf("%.2f\\n", *(const float *)ptr);
+    }
+}
+
+int num = 42;
+print_value(&num, 'i');
+\`\`\`
+Enables type-agnostic APIs and generic data structures by representing untyped memory addresses that implicitly convert to and from any object pointer.
 
 ## Structs, Typedefs & Designated Initializers
 \`\`\`c
@@ -1128,27 +1169,63 @@ typedef struct {
     int y;
 } Point;
 
-// Designated initializer (C99+):
 Point p = { .x = 10, .y = 20 };
 
 Point *ptr = &p;
-ptr->x = 15; // Arrow operator (->) accesses fields via pointer
+ptr->x = 15;
 \`\`\`
 Defines composite data structures with \`typedef\` aliases and accesses members directly with \`.\` or via pointers with \`->\`.
+
+## Compound Literals & Flexible Array Members (C99)
+\`\`\`c
+#include <stdlib.h>
+
+typedef struct {
+    int x, y;
+} Point;
+
+Point p = (Point){ .x = 10, .y = 20 };
+
+// Flexible array member: trailing unsized array in dynamic struct:
+typedef struct {
+    size_t len;
+    int data[]; // Flexible array member (must be the last member)
+} Buffer;
+
+Buffer *buf = malloc(sizeof(Buffer) + 10 * sizeof(int));
+buf->len = 10;
+buf->data[0] = 42;
+free(buf);
+\`\`\`
+Constructs anonymous objects in-place with compound literals and enables variable-sized heap allocations via C99 flexible array members.
 
 ## Enums & Bitwise Flags
 \`\`\`c
 typedef enum {
-    READ    = 1 << 0, // 0001
-    WRITE   = 1 << 1, // 0010
-    EXECUTE = 1 << 2  // 0100
+    READ    = 1 << 0,
+    WRITE   = 1 << 1,
+    EXECUTE = 1 << 2
 } Permission;
 
-int perms = READ | WRITE;        // Set bits
-int has_read = (perms & READ);   // Test bit
-perms &= ~WRITE;                 // Clear bit
+int perms = READ | WRITE;
+int has_read = (perms & READ);
+perms &= ~WRITE;
 \`\`\`
 Combines and inspects orthogonal binary flags using strongly-named \`enum\` constants and bitwise masking.
+
+## Fixed-Width Integers (<stdint.h>, <inttypes.h>)
+\`\`\`c
+#include <stdint.h>
+#include <inttypes.h>
+#include <stdio.h>
+
+int32_t count = -42;
+uint64_t large_val = UINT64_MAX;
+uint8_t byte = 0xFF;
+
+printf("Count: %" PRId32 ", Big: %" PRIu64 "\\n", count, large_val);
+\`\`\`
+Guarantees exact bit widths across architectures and provides portable format specifiers for printing fixed-width types.
 
 ## Safe String Operations (snprintf, strncpy)
 \`\`\`c
@@ -1156,21 +1233,18 @@ Combines and inspects orthogonal binary flags using strongly-named \`enum\` cons
 #include <string.h>
 
 char buffer[64];
-// snprintf guarantees null-termination if buffer size > 0:
 snprintf(buffer, sizeof(buffer), "User: %s (id: %d)", name, uid);
 
 char dest[32];
 strncpy(dest, src, sizeof(dest) - 1);
-dest[sizeof(dest) - 1] = '\\0'; // Ensure trailing null byte
+dest[sizeof(dest) - 1] = '\\0';
 \`\`\`
 Formats and copies bounded character strings to prevent buffer overflow vulnerabilities.
 
 ## Array Decay to Pointers in Functions
 \`\`\`c
-// In scope where declared:
 size_t count = sizeof(arr) / sizeof(arr[0]);
 
-// In functions, arrays decay to pointers, so always pass length:
 void process(const int *arr, size_t len) {
     for (size_t i = 0; i < len; i++) {
         // ...
@@ -1179,6 +1253,17 @@ void process(const int *arr, size_t len) {
 \`\`\`
 Computes static array element count with \`sizeof\`; arrays decay to raw pointers across function call boundaries.
 
+## Pointer Aliasing & restrict Qualifier (C99)
+\`\`\`c
+// 'restrict' promises the compiler that dest, a, and b do NOT overlap in memory:
+void vec_add(int *restrict dest, const int *restrict a, const int *restrict b, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        dest[i] = a[i] + b[i]; // Enables compiler loop vectorization (SIMD)
+    }
+}
+\`\`\`
+Informs the compiler that pointers reference disjoint memory regions, enabling aggressive optimizations such as loop vectorization and register caching.
+
 ## Function Pointers
 \`\`\`c
 int add(int a, int b) { return a + b; }
@@ -1186,9 +1271,66 @@ int sub(int a, int b) { return a - b; }
 
 // Function pointer declaration: return_type (*name)(param_types)
 int (*operation)(int, int) = add;
-int result = operation(10, 5); // 15
+int result = operation(10, 5);
 \`\`\`
 Stores addresses of executable functions in pointer variables, enabling dynamic callbacks and comparator passing.
+
+## The static Keyword (Linkage, Lifetime & Hints)
+\`\`\`c
+// 1. File-scope: internal linkage (private to this translation unit)
+static int file_private_var = 100;
+static void helper(void) { /* hidden from linker */ }
+
+// 2. Function-scope: static storage duration (persists across calls)
+int next_id(void) {
+    static int counter = 0; // Initialized once before program startup
+    return ++counter;
+}
+
+// 3. Array parameter hint (C99): guarantees array has at least 4 elements
+void process_quad(const int values[static 4]) {
+    // Compiler can assume values != NULL and contains >= 4 elements
+}
+\`\`\`
+Controls symbol visibility with internal linkage, preserves local state across function invocations, and specifies minimum array sizes to the optimizer.
+
+## Preprocessor Directives & Macro Pitfalls
+\`\`\`c
+// Header guard / conditional compilation:
+#ifndef CONFIG_H
+#define CONFIG_H
+#define BUFFER_SIZE 1024
+#endif
+
+// Function-like macro: ALWAYS wrap parameters and body in parentheses
+#define SQUARE(x) ((x) * (x))
+
+// PITFALL: Macro arguments with side-effects evaluate multiple times!
+int a = 5;
+int bad = SQUARE(a++); // Expands to: ((a++) * (a++)) -> UB / double increment!
+
+// Stringification (#) and token pasting (##):
+#define STRINGIFY(x) #x
+#define CONCAT(a, b) a##b
+\`\`\`
+Performs text-level substitution and conditional compilation before parsing; requires disciplined parenthesization to prevent operator precedence and double-evaluation bugs.
+
+## Header Files, Declarations & Linkage
+\`\`\`c
+// math_utils.h (Interface):
+#pragma once // Modern include guard
+extern int g_call_count;             // Variable declaration (defined in .c)
+int add(int a, int b);               // Function prototype (declaration)
+
+// math_utils.c (Implementation):
+#include "math_utils.h"
+int g_call_count = 0;                // Variable definition (allocates storage)
+int add(int a, int b) {              // Function definition
+    g_call_count++;
+    return a + b;
+}
+\`\`\`
+Separates declarations from definitions across compilation units, using \`extern\` for shared symbols and include guards to prevent redefinition errors.
 
 ## Formatted I/O (printf, scanf)
 \`\`\`c
@@ -1198,10 +1340,82 @@ printf("Int: %d, Size: %zu, Hex: 0x%X, Ptr: %p\\n", num, sz, hex, ptr);
 
 int val;
 if (scanf("%d", &val) == 1) {
-    // Successfully parsed an integer
+    // ...
 }
 \`\`\`
 Reads and writes formatted input and output using standard specifiers like \`%d\` (int), \`%zu\` (\`size_t\`), and \`%p\` (pointer).
+
+## File I/O (fopen, fread, fwrite, fclose)
+\`\`\`c
+#include <stdio.h>
+
+FILE *fp = fopen("output.txt", "w");
+if (fp == NULL) return -1;
+fprintf(fp, "Score: %d\\n", 100);
+fclose(fp);
+
+FILE *bin = fopen("data.bin", "rb");
+if (bin != NULL) {
+    int buffer[10];
+    size_t items_read = fread(buffer, sizeof(int), 10, bin);
+    fclose(bin);
+}
+\`\`\`
+Manages buffered stream I/O for text and binary data, verifying file pointer handles and tracking the number of items transferred.
+
+## Defensive Assertions (<assert.h>)
+\`\`\`c
+#include <assert.h>
+
+int divide(int a, int b) {
+    assert(b != 0 && "Divisor must not be zero");
+    return a / b;
+}
+
+// In production builds, define NDEBUG before <assert.h> or via -DNDEBUG
+// to strip all assert() statements without runtime overhead:
+// #define NDEBUG
+\`\`\`
+Verifies internal invariants and preconditions during development, aborting with file and line diagnostics when violated, and can be disabled globally via \`NDEBUG\`.
+
+## Error Handling Patterns (errno, perror, strerror)
+\`\`\`c
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
+
+FILE *f = fopen("nonexistent.txt", "r");
+if (f == NULL) {
+    // errno holds the error code set by the failed standard library call:
+    perror("fopen failed");
+    fprintf(stderr, "Error %d: %s\\n", errno, strerror(errno));
+    return -1;
+}
+fclose(f);
+\`\`\`
+Propagates and inspects standard runtime errors via return codes and the thread-local \`errno\` global, producing human-readable error descriptions.
+
+## Variadic Functions (<stdarg.h>)
+\`\`\`c
+#include <stdio.h>
+#include <stdarg.h>
+
+int sum_all(int count, ...) {
+    va_list args;
+    va_start(args, count);
+
+    int total = 0;
+    for (int i = 0; i < count; i++) {
+        total += va_arg(args, int);
+    }
+
+    va_end(args);
+    return total;
+}
+
+int result = sum_all(3, 10, 20, 30);
+\`\`\`
+Accepts a variable number of arguments at runtime using \`va_list\` traversal macros.
 `,Lse=`---
 language: c
 badge: c
@@ -1211,6 +1425,7 @@ aliases: [c]
 ## Dynamic Resizable Vector
 \`\`\`c
 #include <stdlib.h>
+#include <assert.h>
 
 typedef struct {
     int *data;
@@ -1220,14 +1435,18 @@ typedef struct {
 
 void vec_push(IntVector *v, int val) {
     if (v->size == v->cap) {
-        v->cap = v->cap == 0 ? 8 : v->cap * 2;
-        v->data = realloc(v->data, v->cap * sizeof(int));
+        size_t new_cap = v->cap == 0 ? 8 : v->cap * 2;
+        int *tmp = realloc(v->data, new_cap * sizeof(int));
+        if (tmp == NULL) return;
+        v->data = tmp;
+        v->cap = new_cap;
     }
     v->data[v->size++] = val;
 }
 
 int vec_pop(IntVector *v) {
-    return v->data[--v->size]; // Stack pop (LIFO)
+    assert(v->size > 0);
+    return v->data[--v->size];
 }
 \`\`\`
 Constructs a dynamically growing contiguous buffer providing $O(1)$ amortized append and stack pop operations.
@@ -1235,6 +1454,7 @@ Constructs a dynamically growing contiguous buffer providing $O(1)$ amortized ap
 ## Circular Queue (Ring Buffer for BFS)
 \`\`\`c
 #include <stdlib.h>
+#include <assert.h>
 
 typedef struct {
     int *data;
@@ -1250,12 +1470,14 @@ Queue* q_create(int capacity) {
 }
 
 void q_push(Queue *q, int val) {
+    assert(q->count < q->cap);
     q->rear = (q->rear + 1) % q->cap;
     q->data[q->rear] = val;
     q->count++;
 }
 
 int q_pop(Queue *q) {
+    assert(q->count > 0);
     int val = q->data[q->front];
     q->front = (q->front + 1) % q->cap;
     q->count--;
@@ -1282,7 +1504,7 @@ ListNode* reverse_list(ListNode *head) {
         prev = curr;
         curr = next;
     }
-    return prev; // New head pointer
+    return prev;
 }
 \`\`\`
 Reverses a singly linked list iteratively in $O(N)$ time and $O(1)$ space using three pointers.
@@ -1293,13 +1515,11 @@ Reverses a singly linked list iteratively in $O(N)$ time and $O(1)$ space using 
 
 int R = 4, C = 5;
 
-// Allocate array of row pointers:
 int **matrix = malloc(R * sizeof(int*));
 for (int i = 0; i < R; i++) {
-    matrix[i] = calloc(C, sizeof(int)); // Zero-initialized row
+    matrix[i] = calloc(C, sizeof(int));
 }
 
-// Cleanup:
 for (int i = 0; i < R; i++) free(matrix[i]);
 free(matrix);
 \`\`\`
@@ -1385,37 +1605,63 @@ badge: c
 aliases: [c]
 ---
 
-## Builtin Bit Intrinsics
+## Bit Intrinsics (GCC/Clang & C23 <stdbit.h>)
 \`\`\`c
-int x = 42;
+unsigned int x = 42;
 unsigned long long big = 1ULL << 40;
 
-// Number of set bits (popcount):
-int count = __builtin_popcount(x);
+// GCC/Clang built-in intrinsics (non-standard compiler extensions):
+int count    = __builtin_popcount(x);
 int count_ll = __builtin_popcountll(big);
+int lz       = __builtin_clz(x); // Note: undefined behavior if x == 0!
+int tz       = __builtin_ctz(x); // Note: undefined behavior if x == 0!
 
-// Count leading zeros:
-int lz = __builtin_clz(x);
+// C23 standard alternatives (<stdbit.h> - safe for all values):
+#if __STDC_VERSION__ >= 202311L
+#include <stdbit.h>
+unsigned int c = stdc_count_ones(x);
+unsigned int l = stdc_leading_zeros(x);
+unsigned int t = stdc_trailing_zeros(x);
+#endif
 
-// Count trailing zeros:
-int tz = __builtin_ctz(x);
+// Portable software popcount fallback (Kernighan's algorithm):
+int popcount_portable(unsigned int v) {
+    int c = 0;
+    for (; v; c++) v &= (v - 1);
+    return c;
+}
 \`\`\`
-Compiler intrinsic instructions mapping directly to single hardware CPU instructions.
+Executes hardware-accelerated bit operations via compiler intrinsics or standard C23 \`<stdbit.h>\`, with fallback portable bit counting.
+
+## Reverse Iteration & Unsigned Underflow Pitfall
+\`\`\`c
+#include <stddef.h>
+
+size_t n = 10;
+int arr[10];
+
+// PITFALL: Infinite loop because size_t is unsigned (i >= 0 is always true):
+// for (size_t i = n - 1; i >= 0; i--) { ... } // BUG: underflows to SIZE_MAX!
+
+// Idiomatic C post-decrement pattern (safe for unsigned types):
+for (size_t i = n; i-- > 0; ) {
+    arr[i] = (int)i;
+}
+
+for (ptrdiff_t i = (ptrdiff_t)n - 1; i >= 0; i--) {
+    arr[i] = (int)i;
+}
+\`\`\`
+Iterates backwards over unsigned collections safely without triggering unsigned integer underflow into infinite loops.
 
 ## Bit Manipulation Tricks & Submasks
 \`\`\`c
-// Check if power of two:
 int is_pow2 = (x > 0) && !(x & (x - 1));
-
-// Isolate lowest set bit:
 int lowest_bit = x & -x;
-
-// Clear lowest set bit:
 int cleared = x & (x - 1);
 
-// Iterate through all non-empty submasks of mask:
 for (int sub = mask; sub > 0; sub = (sub - 1) & mask) {
-    // Process submask
+    process(sub);
 }
 \`\`\`
 Executes elementary bitwise operations in $O(1)$ time for state compression and bitmask dynamic programming.
@@ -1435,7 +1681,6 @@ long long lcm(long long a, long long b) {
     return (a / gcd(a, b)) * b;
 }
 
-// Fast modular exponentiation (base^exp % mod):
 long long mod_pow(long long base, long long exp, long long mod) {
     long long res = 1;
     base %= mod;
@@ -1447,7 +1692,8 @@ long long mod_pow(long long base, long long exp, long long mod) {
     return res;
 }
 \`\`\`
-Computes number-theoretic primitives in logarithmic time via Euclidean algorithm and binary exponentiation.`,zse=`---
+Computes number-theoretic primitives in logarithmic time via Euclidean algorithm and binary exponentiation.
+`,zse=`---
 language: cpp
 badge: cpp
 aliases: [cpp, c++, cplusplus]
@@ -1458,19 +1704,17 @@ aliases: [cpp, c++, cplusplus]
 #include <algorithm>
 #include <vector>
 
-// STL functions on sorted vectors:
 auto it1 = std::lower_bound(nums.begin(), nums.end(), target); // first element >= target
 auto it2 = std::upper_bound(nums.begin(), nums.end(), target); // first element > target
 int idx = it1 - nums.begin();
 
-// Monotonic predicate template [left, right):
 int left = 0, right = n;
 while (left < right) {
     int mid = left + (right - left) / 2;
     if (check(mid)) {
-        right = mid;     // Solution in left half including mid
+        right = mid;
     } else {
-        left = mid + 1;  // Solution strictly to the right
+        left = mid + 1;
     }
 }
 return left;
@@ -1479,7 +1723,9 @@ Finds threshold boundaries and target indices in sorted ranges in $O(\\log N)$ t
 
 ## Two Pointers & Fast-Slow Pointers
 \`\`\`cpp
-// Opposite-end pointers (sorted two-sum / palindrome):
+#include <utility>
+#include <vector>
+
 int left = 0, right = nums.size() - 1;
 while (left < right) {
     int sum = nums[left] + nums[right];
@@ -1488,12 +1734,16 @@ while (left < right) {
     else --right;
 }
 
-// Fast & slow pointers (Linked List cycle detection):
+struct ListNode {
+    int val;
+    ListNode* next;
+};
+
 ListNode *slow = head, *fast = head;
 while (fast && fast->next) {
     slow = slow->next;
     fast = fast->next->next;
-    if (slow == fast) return true; // Cycle detected
+    if (slow == fast) return true;
 }
 \`\`\`
 Traverses sequential structures with two coordinating indices in $O(N)$ time and $O(1)$ space.
@@ -1509,7 +1759,6 @@ std::unordered_map<int, int> window_freq;
 for (int right = 0; right < nums.size(); ++right) {
     window_freq[nums[right]]++;
 
-    // Contract window from left while invalid:
     while (!isValid(window_freq)) {
         if (--window_freq[nums[left]] == 0) {
             window_freq.erase(nums[left]);
@@ -1531,14 +1780,41 @@ Expands and contracts a contiguous subarray window to satisfy dynamic constraint
 std::sort(nums.begin(), nums.end());
 std::reverse(nums.begin(), nums.end());
 
-// Sum of elements:
 long long total = std::accumulate(nums.begin(), nums.end(), 0LL);
 
-// Min and Max element iterators:
 auto min_it = std::min_element(nums.begin(), nums.end());
 auto max_it = std::max_element(nums.begin(), nums.end());
 \`\`\`
 Canonical generic STL algorithms operating over iterator ranges with optimal algorithmic complexity.
+
+## STL Search, Count & Predicates (find_if, count_if, all_of)
+\`\`\`cpp
+#include <algorithm>
+#include <vector>
+
+auto it = std::find_if(nums.begin(), nums.end(), [](int x) { return x % 2 == 0; });
+int evens = std::count_if(nums.begin(), nums.end(), [](int x) { return x % 2 == 0; });
+
+bool all_pos = std::all_of(nums.begin(), nums.end(), [](int x) { return x > 0; });
+bool has_neg = std::any_of(nums.begin(), nums.end(), [](int x) { return x < 0; });
+\`\`\`
+Performs declarative linear scans and boolean range validations with inline lambda predicates.
+
+## STL Transformations & Permutations (unique, next_permutation)
+\`\`\`cpp
+#include <algorithm>
+#include <vector>
+
+// Remove consecutive duplicates (must be sorted first; returns new logical end):
+std::sort(nums.begin(), nums.end());
+nums.erase(std::unique(nums.begin(), nums.end()), nums.end());
+
+std::transform(nums.begin(), nums.end(), nums.begin(), [](int x) { return x * 2; });
+
+// Lexicographical next permutation (returns false when reset to smallest):
+bool has_next = std::next_permutation(nums.begin(), nums.end());
+\`\`\`
+Modifies ranges in-place and generates combinatorial permutations directly in lexicographical order.
 
 ## Custom Sorting Comparators
 \`\`\`cpp
@@ -1581,6 +1857,8 @@ Traverses unweighted graphs level-by-level, finding shortest hop paths in $O(V +
 
 ## 2D Grid Directions & Boundary Traversal
 \`\`\`cpp
+#include <vector>
+
 int R = grid.size(), C = grid[0].size();
 const int dr[] = {0, 1, 0, -1}; // Right, Down, Left, Up
 const int dc[] = {1, 0, -1, 0};
@@ -1603,8 +1881,8 @@ Navigates orthogonal 2D matrix cells cleanly with delta coordinate offsets and b
 #include <queue>
 #include <vector>
 
-constexpr int INF = 1e9 + 7;
-using pii = std::pair<int, int>; // {dist, u}
+constexpr int INF = 1'000'000'000; // Distinct large sentinel safe from arithmetic overflow
+using pii = std::pair<int, int>;   // {dist, u}
 
 std::vector<int> dist(n, INF);
 std::priority_queue<pii, std::vector<pii>, std::greater<pii>> pq;
@@ -1658,12 +1936,12 @@ std::vector<std::vector<int>> results;
 std::vector<int> current;
 
 void backtrack(int start_idx, const std::vector<int>& candidates) {
-    results.push_back(current); // Record current subset/path
+    results.push_back(current);
 
     for (int i = start_idx; i < candidates.size(); ++i) {
-        current.push_back(candidates[i]); // Make choice
-        backtrack(i + 1, candidates);     // Explore
-        current.pop_back();               // Undo choice
+        current.push_back(candidates[i]);
+        backtrack(i + 1, candidates);
+        current.pop_back();
     }
 }
 \`\`\`
@@ -1674,16 +1952,47 @@ badge: cpp
 aliases: [cpp, c++, cplusplus]
 ---
 
+## auto Type Deduction & decltype
+\`\`\`cpp
+auto x = 42;
+const auto& ref = x;
+
+// Universal / forwarding reference in generic contexts:
+auto&& item = x; // Binds to lvalues or rvalues
+
+// decltype extracts declared type without evaluating expressions:
+decltype(x) y = 100;
+\`\`\`
+Deduces variable types at compile time while preserving constness and reference qualifiers when explicitly requested.
+
+## References & Const Correctness
+\`\`\`cpp
+#include <utility>
+#include <vector>
+
+void process(const std::vector<int>& items) {
+    // Read-only access
+}
+
+void swapValues(int& a, int& b) {
+    std::swap(a, b);
+}
+\`\`\`
+Eliminates expensive object copying when passing parameters to functions while enforcing read-only guarantees.
+
 ## Range-Based For Loop & Structured Binding
 \`\`\`cpp
+#include <iostream>
+#include <unordered_map>
+#include <vector>
+
 std::unordered_map<std::string, int> scores = {{"Alice", 95}, {"Bob", 88}};
 
-// Decompose key-value pairs cleanly:
 for (const auto& [name, score] : scores) {
     std::cout << name << ": " << score << '\\n';
 }
 
-// In-place container mutation by reference:
+std::vector<int> numbers = {1, 2, 3};
 for (auto& x : numbers) {
     x *= 2;
 }
@@ -1698,11 +2007,9 @@ Iterates over containers with modern C++17 structured bindings to cleanly decomp
 std::pair<int, std::string> p = {1, "apple"};
 auto t = std::make_tuple(10, 3.14, "point");
 
-// Unpack tuple into separate variables:
 int id; double val; std::string tag;
 std::tie(id, val, tag) = t;
 
-// Or via structured binding (C++17):
 auto [x, y, label] = t;
 \`\`\`
 Groups heterogeneous values into fixed-size composites with direct index access and multi-variable unpacking.
@@ -1711,59 +2018,144 @@ Groups heterogeneous values into fixed-size composites with direct index access 
 \`\`\`cpp
 int threshold = 50;
 
-// [capture](params) -> return_type { body }
 auto isAbove = [threshold](int val) -> bool {
     return val > threshold;
 };
 
-// Capture all by reference:
 int count = 0;
 auto increment = [&]() { count++; };
 \`\`\`
 Creates inline anonymous callable objects with flexible value or reference variable captures.
 
+## Function & Class Templates
+\`\`\`cpp
+#include <algorithm>
+#include <cstddef>
+
+template <typename T>
+T clamp(T val, T lo, T hi) {
+    return std::max(lo, std::min(val, hi));
+}
+
+template <typename T, std::size_t Capacity>
+struct FixedBuffer {
+    T data[Capacity];
+    std::size_t size = 0;
+};
+\`\`\`
+Enables type-independent generic programming instantiated at compile time with zero runtime abstraction overhead.
+
+## Move Semantics & std::move
+\`\`\`cpp
+#include <string>
+#include <utility>
+#include <vector>
+
+std::vector<int> src = {1, 2, 3, 4};
+
+// std::move casts to rvalue reference (T&&), enabling ownership transfer:
+std::vector<int> dest = std::move(src);
+
+void consume(std::string&& str) {
+    std::string internal = std::move(str); // Steals buffer without deep copy
+}
+\`\`\`
+Transfers ownership of dynamically allocated internal resources in $O(1)$ time using rvalue references rather than expensive deep copies.
+
 ## Smart Pointers (unique_ptr & shared_ptr)
 \`\`\`cpp
 #include <memory>
 
-// Exclusive ownership (zero runtime overhead over raw pointer):
-auto node = std::make_unique<Node>(42);
+struct Node { int val; Node(int v) : val(v) {} };
 
-// Shared reference-counted ownership:
+auto node = std::make_unique<Node>(42);
 auto sharedNode = std::make_shared<Node>(100);
 \`\`\`
 RAII wrappers that automatically deallocate heap memory when scope ends, avoiding memory leaks and manual \`delete\` calls.
 
-## Dynamic Memory Allocation (new & delete)
+## Low-Level Dynamic Allocation (new & delete)
 \`\`\`cpp
-// Single heap object:
-Node* node = new Node(42);
-delete node;       // Free single object
-node = nullptr;    // Prevent dangling pointer
+struct Node { int val; Node(int v) : val(v) {} };
 
-// Dynamic heap array (requires delete[]):
-int* buffer = new int[n];
-delete[] buffer;   // Must use delete[] (not delete) for heap arrays
+Node* node = new Node(42);
+delete node;
+node = nullptr;
+
+int* buffer = new int[100];
+delete[] buffer;
 buffer = nullptr;
 \`\`\`
-Allocates raw heap memory manually, pairing single object \`new\` with \`delete\` and array \`new[]\` with \`delete[]\`.
+Allocates raw heap memory manually, contrasting single-object \`new\`/\`delete\` with array \`new[]\`/\`delete[]\`.
 
-## References & Const Correctness
+## constexpr & Compile-Time Evaluation
 \`\`\`cpp
-// Pass by const reference: avoids expensive vector copy
-void process(const std::vector<int>& items) {
-    // items is read-only
-}
+#include <type_traits>
 
-// Pass by reference: mutates original argument
-void swapValues(int& a, int& b) {
-    int tmp = a; a = b; b = tmp;
+// Executed at compile time when given constant expressions:
+constexpr int square(int n) {
+    return n * n;
+}
+constexpr int VAL = square(5); // Evaluated at compile time
+
+// C++17 compile-time conditional branching:
+template <typename T>
+auto getZero() {
+    if constexpr (std::is_pointer_v<T>) return nullptr;
+    else return T{0};
 }
 \`\`\`
-Eliminates expensive object copying when passing parameters to functions while enforcing read-only guarantees.
+Executes code and discards dead branches at compile time, eliminating runtime overhead and enabling generic metaprogramming.
+
+## Type Casting (static_cast, dynamic_cast)
+\`\`\`cpp
+// Compile-time checked conversion (numeric, upcasts):
+double pi = 3.14159;
+int truncated = static_cast<int>(pi);
+
+// Safe polymorphic downcasting (requires virtual table; returns nullptr on failure):
+struct Base { virtual ~Base() = default; };
+struct Derived : Base {};
+Base* b = new Derived();
+Derived* d = dynamic_cast<Derived*>(b);
+
+// Reinterpret bit patterns (low-level):
+uintptr_t raw = reinterpret_cast<uintptr_t>(b);
+delete b;
+\`\`\`
+Replaces unsafe C-style casts with explicit, compile-time-verified or runtime-checked type conversions.
+
+## std::string Operations
+\`\`\`cpp
+#include <string>
+
+std::string s = "hello world";
+
+std::string sub = s.substr(0, 5);
+
+size_t pos = s.find("world");
+if (pos != std::string::npos) {
+    // Found at offset pos
+}
+
+bool has_pre = s.starts_with("hello");
+bool has_suf = s.ends_with("world");
+\`\`\`
+Provides rich string manipulation, searching with sentinel \`std::string::npos\`, and zero-allocation prefix/suffix checks.
+
+## String Conversions (stoi, to_string)
+\`\`\`cpp
+#include <string>
+
+std::string s = "12345";
+int val = std::stoi(s);
+long long big = std::stoll(s);
+std::string back = std::to_string(val);
+\`\`\`
+Converts between numerical types and \`std::string\` with standard parsing and conversion utilities.
 
 ## String Views for Zero-Allocation Slices
 \`\`\`cpp
+#include <iostream>
 #include <string_view>
 
 void printPrefix(std::string_view sv) {
@@ -1775,20 +2167,30 @@ printPrefix("hello world");
 \`\`\`
 Lightweight non-owning view over contiguous character sequences that avoids string allocations during slicing.
 
-## String Conversions (stoi, to_string)
+## std::span for Contiguous Sequences (C++20)
 \`\`\`cpp
-#include <string>
+#include <algorithm>
+#include <iostream>
+#include <span>
+#include <vector>
 
-std::string s = "12345";
-int val = std::stoi(s);            // string to int
-long long big = std::stoll(s);     // string to long long
-std::string back = std::to_string(val); // number to string
+void printFirstThree(std::span<const int> view) {
+    for (int x : view.subspan(0, std::min<size_t>(3, view.size()))) {
+        std::cout << x << ' ';
+    }
+}
+
+int raw[] = {1, 2, 3, 4, 5};
+std::vector<int> vec = {10, 20, 30};
+printFirstThree(raw); // Interoperates with raw C-arrays, std::vector, or std::array
+printFirstThree(vec);
 \`\`\`
-Converts between numerical types and \`std::string\` with standard parsing and conversion utilities.
+Zero-overhead non-owning view over any contiguous memory buffer, acting as a general-purpose array counterpart to \`std::string_view\`.
 
 ## std::optional & Fallback Value
 \`\`\`cpp
 #include <optional>
+#include <vector>
 
 std::optional<int> findFirstEven(const std::vector<int>& items) {
     for (int x : items) {
@@ -1797,21 +2199,35 @@ std::optional<int> findFirstEven(const std::vector<int>& items) {
     return std::nullopt;
 }
 
-int val = findFirstEven(data).value_or(-1); // Returns found value or -1 default
+int val = findFirstEven(data).value_or(-1);
 \`\`\`
 Represents nullable or optional return values explicitly without error-prone sentinel values.
 
+## std::numeric_limits
+\`\`\`cpp
+#include <limits>
+
+int max_int = std::numeric_limits<int>::max();
+int min_int = std::numeric_limits<int>::min(); // Most negative integer
+long long max_ll = std::numeric_limits<long long>::max();
+
+// Floating-point infinity and lowest:
+double inf = std::numeric_limits<double>::infinity();
+double lowest_d = std::numeric_limits<double>::lowest(); // Most negative double
+\`\`\`
+Provides type-safe, architecture-independent query functions for numerical boundaries and floating-point infinity sentinels.
+
 ## Structs & Scoped Enums (enum class)
 \`\`\`cpp
-// Plain Old Data (POD) struct with aggregate / designated initialization:
+#include <cstdint>
+
 struct Point {
     int x;
     int y;
 };
 Point p1 = {10, 20};
-Point p2{.x = 5, .y = 15}; // C++20 designated initializer
+Point p2{.x = 5, .y = 15};
 
-// Scoped enum (enum class): strongly typed, avoids name collisions:
 enum class Status : uint8_t {
     Pending,
     Active,
@@ -1819,47 +2235,101 @@ enum class Status : uint8_t {
 };
 
 Status state = Status::Active;
-// Requires explicit cast (no implicit int conversions):
 int code = static_cast<int>(state);
 \`\`\`
 Defines lightweight composite data structures with aggregate initialization, and type-safe scoped enumerations.
 
+## Exception Handling (try, catch, throw)
+\`\`\`cpp
+#include <iostream>
+#include <stdexcept>
+
+void validateAge(int age) {
+    if (age < 0) {
+        throw std::invalid_argument("Age cannot be negative");
+    }
+}
+
+try {
+    validateAge(-5);
+} catch (const std::invalid_argument& e) {
+    std::cerr << "Invalid argument: " << e.what() << '\\n';
+} catch (const std::exception& e) {
+    std::cerr << "Standard error: " << e.what() << '\\n';
+}
+\`\`\`
+Separates error detection from recovery using strongly-typed exception objects caught by \`const\` reference.
 `,Vse=`---
 language: cpp
 badge: cpp
 aliases: [cpp, c++, cplusplus]
 ---
 
+## std::array (Fixed-Size Stack Array)
+\`\`\`cpp
+#include <array>
+#include <utility>
+
+std::array<int, 4> arr = {10, 20, 30, 40};
+
+size_t len = arr.size();
+int first = arr.front();
+int safe = arr.at(2);
+
+// constexpr array (ideal for lookup tables & grid directions):
+constexpr std::array<std::pair<int, int>, 4> DIRS = {{{0, 1}, {1, 0}, {0, -1}, {-1, 0}}};
+\`\`\`
+Safe, zero-overhead fixed-capacity sequence container stored directly on the stack with standard STL container member interfaces.
+
 ## Vector & Dynamic Sizing
 \`\`\`cpp
+#include <string>
+#include <utility>
 #include <vector>
 
-std::vector<int> nums;
-nums.reserve(100);       // Pre-allocates capacity to avoid repeated reallocations
-nums.push_back(10);
-nums.emplace_back(20);   // Constructs element in-place
+std::vector<std::pair<int, std::string>> items;
+items.reserve(100); // Pre-allocates buffer to prevent reallocation overhead
 
-bool empty = nums.empty();
-size_t size = nums.size();
-nums.pop_back();         // O(1) remove last
+items.push_back({1, "apple"});
+items.emplace_back(2, "banana");
+
+bool empty = items.empty();
+size_t size = items.size();
+items.pop_back();
 \`\`\`
-Dynamically resizable contiguous array with $O(1)$ amortized insertions and random access.
+Dynamically resizable contiguous array with $O(1)$ amortized insertions, contrasting copy/move-based \`push_back\` with in-place \`emplace_back\`.
 
 ## 2D Matrix Allocation
 \`\`\`cpp
 #include <vector>
 
 int R = 4, C = 5;
-// Initialize R rows of C columns filled with 0:
 std::vector<std::vector<int>> grid(R, std::vector<int>(C, 0));
 
-// Jagged/custom row sizes:
-std::vector<std::vector<int>> adj(n); // Empty vectors for graph adjacency list
+std::vector<std::vector<int>> adj(n);
 \`\`\`
 Allocates contiguous 2D vector arrays safely with specified dimensions and initial default values.
 
+## Iterators & Range Navigation
+\`\`\`cpp
+#include <iterator>
+#include <vector>
+
+std::vector<int> nums = {10, 20, 30, 40, 50};
+
+auto it = nums.begin();
+auto rit = nums.rbegin();
+
+auto second = std::next(it);
+auto prior = std::prev(nums.end());
+std::advance(it, 3);
+\`\`\`
+Provides uniform traversal abstractions across STL containers with forward, bidirectional, and random-access iterator operations.
+
 ## Hash Maps & Sets (unordered_map, unordered_set)
 \`\`\`cpp
+#include <iostream>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -1867,17 +2337,16 @@ std::unordered_map<std::string, int> counts;
 counts["apple"] = 5;
 counts.insert_or_assign("banana", 2);
 
-// Check presence without inserting default:
-auto it = counts.find("apple");
-if (it != counts.end()) {
-    std::cout << it->first << ": " << it->second << '\\n';
+if (counts.contains("apple")) {
+    std::cout << counts["apple"] << '\\n';
 }
 
 std::unordered_set<int> seen;
 seen.insert(42);
-if (seen.count(42)) { /* exists */ }
+if (seen.contains(42)) {}
+if (seen.count(42)) {}
 \`\`\`
-Average $O(1)$ key-value associations and uniqueness tracking backed by dynamic hash tables.
+Average $O(1)$ key-value associations and uniqueness tracking backed by hash tables, using modern C++20 \`.contains()\` for expressive membership tests.
 
 ## Ordered Maps & Sets (map, set)
 \`\`\`cpp
@@ -1886,8 +2355,9 @@ Average $O(1)$ key-value associations and uniqueness tracking backed by dynamic 
 
 std::set<int> s = {10, 20, 30, 40};
 
-// O(log N) container lower_bound / upper_bound:
-auto it = s.lower_bound(25); // Points to 30 (first element >= 25)
+bool exists = s.contains(20);
+
+auto it = s.lower_bound(25); // First element >= 25
 if (it != s.end()) {
     int val = *it;
 }
@@ -1907,10 +2377,10 @@ std::queue<int> q;
 q.push(1); int front = q.front(); q.pop();
 
 std::deque<int> dq;
-dq.push_front(0); // O(1) push left
-dq.push_back(1);  // O(1) push right
-dq.pop_front();   // O(1) pop left
-dq.pop_back();    // O(1) pop right
+dq.push_front(0);
+dq.push_back(1);
+dq.pop_front();
+dq.pop_back();
 \`\`\`
 Sequential container adapters providing LIFO (stack), FIFO (queue), and double-ended (deque) operations in $O(1)$ time.
 
@@ -1979,26 +2449,29 @@ struct DSU {
 \`\`\`
 Tracks partitioned subsets with near $O(1)$ operations using path compression and union by rank.
 
-## Trie (Prefix Tree)
+## Trie (Prefix Tree with Smart Pointers)
 \`\`\`cpp
+#include <memory>
 #include <string>
 
 struct TrieNode {
-    TrieNode* children[26] = {};
+    std::unique_ptr<TrieNode> children[26];
     bool is_end = false;
 };
 
-void insert(TrieNode* root, const std::string& word) {
-    TrieNode* curr = root;
+void insert(TrieNode& root, const std::string& word) {
+    TrieNode* curr = &root;
     for (char ch : word) {
         int idx = ch - 'a';
-        if (!curr->children[idx]) curr->children[idx] = new TrieNode();
-        curr = curr->children[idx];
+        if (!curr->children[idx]) {
+            curr->children[idx] = std::make_unique<TrieNode>();
+        }
+        curr = curr->children[idx].get();
     }
     curr->is_end = true;
 }
 \`\`\`
-Stores strings in a tree structure for $O(L)$ prefix lookups and word validation.
+Stores strings in a tree structure for $O(L)$ prefix lookups, using \`std::unique_ptr\` for automatic leak-free memory reclamation.
 `,Hse=`---
 language: cpp
 badge: cpp
@@ -2007,15 +2480,12 @@ aliases: [cpp, c++, cplusplus]
 
 ## Struct vs Class & Member Initialization
 \`\`\`cpp
-// Struct members are public by default (ideal for POD / nodes):
 struct Node {
     int val;
     Node* next;
-    // Member initializer list (avoids double initialization):
     Node(int v, Node* n = nullptr) : val(v), next(n) {}
 };
 
-// Class members are private by default:
 class Counter {
 private:
     int count;
@@ -2026,6 +2496,21 @@ public:
 \`\`\`
 Defines object blueprints, contrasting default access specifiers and using initializer lists for optimal member construction.
 
+## Const Member Functions
+\`\`\`cpp
+class Account {
+private:
+    double balance;
+public:
+    Account(double b) : balance(b) {}
+
+    double getBalance() const {
+        return balance;
+    }
+};
+\`\`\`
+Enforces const correctness, permitting methods to be invoked on \`const\` references and objects.
+
 ## Operator Overloading (operator< for Sorting & Heaps)
 \`\`\`cpp
 struct Edge {
@@ -2033,7 +2518,7 @@ struct Edge {
 
     // Strict weak ordering for std::sort and std::priority_queue:
     bool operator<(const Edge& other) const {
-        return weight < other.weight; // Ascending order
+        return weight < other.weight;
     }
 
     bool operator==(const Edge& other) const {
@@ -2068,6 +2553,8 @@ Derives child classes with polymorphic method overrides and virtual destructor s
 
 ## Pure Virtual Interface (Abstract Base Class)
 \`\`\`cpp
+#include <vector>
+
 class ISolver {
 public:
     virtual ~ISolver() = default;
@@ -2078,70 +2565,89 @@ public:
 \`\`\`
 Declares abstract interfaces that cannot be instantiated directly, enforcing contract implementation in derived types.
 
-## Const Member Functions
+## RAII & Scope-Based Resource Management
 \`\`\`cpp
-class Account {
-private:
-    double balance;
-public:
-    Account(double b) : balance(b) {}
+#include <cstdio>
+#include <mutex>
 
-    // const guarantees method will NOT mutate any member variables:
-    double getBalance() const {
-        return balance;
-    }
+std::mutex mtx;
+
+void safeOperation() {
+    std::lock_guard<std::mutex> lock(mtx);
+}
+
+class FileHandle {
+    std::FILE* fp;
+public:
+    explicit FileHandle(const char* path) : fp(std::fopen(path, "r")) {}
+    ~FileHandle() { if (fp) std::fclose(fp); }
+    std::FILE* get() const { return fp; }
 };
 \`\`\`
-Enforces const correctness, permitting methods to be invoked on \`const\` references and objects.
+Ties resource acquisition and release directly to object lifetime, ensuring deterministic cleanup even when exceptions occur.
 
-## Rule of Zero / Rule of Five
+## Rule of Zero & Rule of Five
 \`\`\`cpp
-// Rule of Zero: Prefer using smart pointers and STL containers,
-// eliminating the need for manual copy/move/destructor implementations:
+#include <memory>
+#include <vector>
+
+// Rule of Zero: When members manage their own resources (STL / smart ptrs),
+// declare none of the 5 special member functions:
 class Graph {
     std::vector<std::vector<int>> adj;
-    std::unique_ptr<Node> root;
-    // Default copy/move constructors & destructor generated automatically
+    std::unique_ptr<int> metadata;
+};
+
+// Rule of Five: If managing raw resources manually, declare all five:
+class Buffer {
+    int* ptr;
+    size_t size;
+public:
+    ~Buffer() { delete[] ptr; }                                  // 1. Destructor
+    Buffer(const Buffer& o);                                     // 2. Copy Constructor
+    Buffer& operator=(const Buffer& o);                          // 3. Copy Assignment
+    Buffer(Buffer&& o) noexcept : ptr(o.ptr), size(o.size) {     // 4. Move Constructor
+        o.ptr = nullptr; o.size = 0;
+    }
+    Buffer& operator=(Buffer&& o) noexcept;                      // 5. Move Assignment
 };
 \`\`\`
-Promotes RAII idioms where standard resource-managing wrappers remove the necessity for manual memory management routines.
+Defines resource-management contracts: prefer Rule of Zero with standard wrappers; implement the Rule of Five when managing raw resources directly.
 `,Use=`---
 language: cpp
 badge: cpp
 aliases: [cpp, c++, cplusplus]
 ---
 
-## Builtin Bit Intrinsics
+## Bit Intrinsics: Standard <bit> & Compiler Builtins
 \`\`\`cpp
-int x = 42;
-long long big = 1LL << 40;
+#include <bit>
 
-// Number of set bits:
-int count = __builtin_popcount(x);
-int count_ll = __builtin_popcountll(big);
+unsigned int x = 42;
+unsigned long long big = 1ULL << 40;
 
-// Count leading zeros:
-int lz = __builtin_clz(x);
+// Standard C++20 portable intrinsics (<bit>):
+int count = std::popcount(x);          // Number of set bits
+int lz = std::countl_zero(x);          // Leading zeros count
+int tz = std::countr_zero(x);          // Trailing zeros count
+bool pow2 = std::has_single_bit(x);    // Power of two check
 
-// Count trailing zeros:
-int tz = __builtin_ctz(x);
+// GCC / Clang compiler intrinsics (pre-C++20):
+int c_gcc = __builtin_popcount(x);
+int lz_gcc = __builtin_clz(x);
+int tz_gcc = __builtin_ctz(x);
 \`\`\`
-Compiler intrinsic instructions compiled down directly to hardware CPU bitwise instructions.
+Executes single-cycle hardware CPU bit operations using portable C++20 \`<bit>\` primitives or GCC/Clang built-in intrinsics.
 
 ## Bit Manipulation Tricks & Submask Iteration
 \`\`\`cpp
-// Check if power of two:
 bool is_pow2 = (x > 0) && !(x & (x - 1));
-
-// Isolate lowest set bit:
 int lowest_bit = x & -x;
-
-// Clear lowest set bit:
 int cleared = x & (x - 1);
 
 // Iterate through all submasks of mask (O(3^N) across all masks):
 for (int sub = mask; sub > 0; sub = (sub - 1) & mask) {
-    // Process submask
+    process(sub);
 }
 \`\`\`
 Executes elementary bitwise operations in $O(1)$ time for state compression and bitmask dynamic programming.
@@ -2150,14 +2656,14 @@ Executes elementary bitwise operations in $O(1)$ time for state compression and 
 \`\`\`cpp
 #include <numeric>
 
-long long g = std::gcd(48LL, 18LL); // 6
-long long l = std::lcm(12LL, 15LL); // 60
+long long g = std::gcd(48LL, 18LL);
+long long l = std::lcm(12LL, 15LL);
 \`\`\`
 Built-in Euclidean algorithm in \`<numeric>\` computing greatest common divisor and least common multiple in $O(\\log(\\min(a, b)))$ time.
 
 ## Fast Modular Exponentiation & Inverse
 \`\`\`cpp
-constexpr long long MOD = 1e9 + 7;
+constexpr long long MOD = 1'000'000'007LL;
 
 // (base^exp) % MOD in O(log exp) time:
 long long power(long long base, long long exp) {
@@ -2178,20 +2684,37 @@ long long modInverse(long long n) {
 \`\`\`
 Computes large powers and modular division in logarithmic time via binary exponentiation.
 
-## Fast Competitive I/O Template
+## Competitive Programming Type Aliases & Helpers
+\`\`\`cpp
+#include <utility>
+#include <vector>
+
+using ll = long long;
+using pii = std::pair<int, int>;
+using vi = std::vector<int>;
+using vll = std::vector<long long>;
+
+#define all(x) (x).begin(), (x).end()
+#define sz(x) (static_cast<int>((x).size()))
+\`\`\`
+Provides standard shorthand aliases and macros to streamline repetitive type definitions in competitive programming contexts.
+
+## Fast I/O & Stream Synchronization
 \`\`\`cpp
 #include <iostream>
 
 int main() {
-    // Untie C++ streams from C stdio for fast competitive I/O:
+    // 1. Disable synchronization between C and C++ standard streams:
     std::ios_base::sync_with_stdio(false);
+
+    // 2. Untie std::cin from std::cout (prevents auto-flushing before reading):
     std::cin.tie(nullptr);
 
-    // Prefer '\\n' over std::endl (std::endl forces an expensive buffer flush)
+    // 3. Prefer '\\n' over std::endl (std::endl forces an explicit buffer flush)
     return 0;
 }
 \`\`\`
-Optimizes standard stream throughput for high-volume competitive programming test inputs.
+Maximizes stream I/O throughput by decoupling standard C I/O buffers and suppressing automatic output flushing on input.
 `,Wse=`---
 language: go
 badge: go
@@ -2205,22 +2728,21 @@ import (
     "sort"
 )
 
-// In sorted slice (Go 1.21+):
 idx, found := slices.BinarySearch(nums, target)
 
-// Custom monotonic predicate template:
 // Returns the smallest index i in [0, n) where f(i) is true:
 firstIdx := sort.Search(len(nums), func(i int) bool {
-    return condition(nums[i]) // Monotonic condition
+    return condition(nums[i])
 })
 \`\`\`
 Finds boundaries and insertion indices in sorted slices or monotonic solution spaces in $O(\\log N)$ time.
 
-## Custom Struct Sorting (slices.SortFunc)
+## Custom Struct Sorting (slices.SortFunc & sort.Slice)
 \`\`\`go
 import (
     "cmp"
     "slices"
+    "sort"
 )
 
 type Item struct {
@@ -2228,19 +2750,26 @@ type Item struct {
     Priority int
 }
 
-// Sort by Priority ascending, then Val descending:
+// Modern (Go 1.21+): generic 3-way comparator (-1, 0, 1)
 slices.SortFunc(items, func(a, b Item) int {
     if diff := cmp.Compare(a.Priority, b.Priority); diff != 0 {
         return diff
     }
     return cmp.Compare(b.Val, a.Val) // Inverted for descending
 })
+
+// Classic sort.Slice / sort.SliceStable: boolean less-function
+sort.Slice(items, func(i, j int) bool {
+    if items[i].Priority != items[j].Priority {
+        return items[i].Priority < items[j].Priority
+    }
+    return items[i].Val > items[j].Val
+})
 \`\`\`
-Sorts custom structs with generic comparator functions and multi-field tie-breaking in $O(N \\log N)$ time.
+Sorts custom structs using modern generic 3-way comparators (\`slices.SortFunc\`) or classic boolean predicate functions (\`sort.Slice\` / \`sort.SliceStable\`) in $O(N \\log N)$ time.
 
 ## Two Pointers & Fast-Slow Pointers
 \`\`\`go
-// Opposite-end pointers (Sorted Two-Sum / Palindrome):
 left, right := 0, len(nums)-1
 for left < right {
     sum := nums[left] + nums[right]
@@ -2253,17 +2782,21 @@ for left < right {
     }
 }
 
-// Fast & slow pointers (Linked list cycle detection):
+type ListNode struct {
+    Val  int
+    Next *ListNode
+}
+
 slow, fast := head, head
 for fast != nil && fast.Next != nil {
     slow = slow.Next
     fast = fast.Next.Next
     if slow == fast {
-        return true // Cycle detected
+        return true
     }
 }
 \`\`\`
-Traverses sequential structures with two coordinating indices in $O(N)$ time and $O(1)$ space.
+Traverses sequential structures and linked lists with coordinating pointers in $O(N)$ time and $O(1)$ space.
 
 ## Sliding Window Pattern
 \`\`\`go
@@ -2274,7 +2807,6 @@ counts := make(map[byte]int)
 for right := 0; right < len(s); right++ {
     counts[s[right]]++
 
-    // Contract invalid window from left:
     for !isValid(counts) {
         counts[s[left]]--
         if counts[s[left]] == 0 {
@@ -2292,14 +2824,15 @@ Maintains dynamic valid substrings or subarrays with two pointers in amortized $
 
 ## Graph BFS & Shortest Path
 \`\`\`go
-adj := make(map[int][]int) // Adjacency list
+adj := make(map[int][]int)
 dist := make(map[int]int)
 queue := []int{start}
+head := 0
 dist[start] = 0
 
-for len(queue) > 0 {
-    u := queue[0]
-    queue = queue[1:]
+for head < len(queue) {
+    u := queue[head]
+    head++
 
     if u == target {
         break
@@ -2313,7 +2846,7 @@ for len(queue) > 0 {
     }
 }
 \`\`\`
-Explores unweighted graphs level-by-level, computing shortest hop distances in $O(V + E)$ time.
+Explores unweighted graphs level-by-level, computing shortest hop distances in $O(V + E)$ time using head-pointer queue indexing.
 
 ## 2D Grid Directions & Boundary Traversal
 \`\`\`go
@@ -2347,9 +2880,9 @@ func subsets(nums []int) [][]int {
         results = append(results, snapshot)
 
         for i := start; i < len(nums); i++ {
-            path = append(path, nums[i]) // Choose
-            backtrack(i + 1)             // Explore
-            path = path[:len(path)-1]    // Undo
+            path = append(path, nums[i])
+            backtrack(i + 1)
+            path = path[:len(path)-1]
         }
     }
 
@@ -2376,9 +2909,10 @@ for i := 0; i < n; i++ {
 }
 
 var topoOrder []int
-for len(queue) > 0 {
-    u := queue[0]
-    queue = queue[1:]
+head := 0
+for head < len(queue) {
+    u := queue[head]
+    head++
     topoOrder = append(topoOrder, u)
 
     for _, v := range adj[u] {
@@ -2390,7 +2924,7 @@ for len(queue) > 0 {
 }
 // If len(topoOrder) < n, graph contains a cycle!
 \`\`\`
-Generates a valid topological sequence of vertices in a DAG and detects cycles in $O(V + E)$ time.
+Generates a valid topological sequence of vertices in a DAG and detects cycles in $O(V + E)$ time using head-pointer queue traversal.
 `,Gse=`---
 language: go
 badge: go
@@ -2399,10 +2933,10 @@ aliases: [go, golang]
 
 ## Slice Operations (Make, Append, Sub-Slice)
 \`\`\`go
-nums := make([]int, 0, 10)  // len: 0, cap: 10
+nums := make([]int, 0, 10)
 nums = append(nums, 1, 2, 3)
-sub := nums[1:3]            // sub-slice [low:high]
-nums = append(nums, sub...) // spread append
+sub := nums[1:3]
+nums = append(nums, sub...)
 \`\`\`
 Constructs dynamically sized array views with preallocated capacity, appending elements and slicing without memory reallocation.
 
@@ -2412,8 +2946,8 @@ counts := make(map[string]int)
 counts["apple"] = 5
 
 // Comma-ok test distinguishes missing keys from zero-values:
-val, ok := counts["apple"] // ok is true if key is present
-delete(counts, "apple")     // safe removal (no error if absent)
+val, ok := counts["apple"]
+delete(counts, "apple")
 \`\`\`
 Initializes hash tables and validates key existence safely without sentinel zero-value ambiguity.
 
@@ -2444,23 +2978,20 @@ file, err := os.Open("data.txt")
 if err != nil {
     return err
 }
-defer file.Close() // Guaranteed to run when surrounding function returns (LIFO order)
+defer file.Close()
 \`\`\`
 Defers execution of a function call until the surrounding function exits, ensuring reliable cleanup.
 
 ## Range Loops with Blank Identifier
 \`\`\`go
-// Both index and value:
 for idx, val := range items {
     fmt.Printf("%d: %v\\n", idx, val)
 }
 
-// Value only (discard index with blank identifier):
 for _, val := range items {
     process(val)
 }
 
-// Key and value over map:
 for k, v := range counts {
     fmt.Println(k, v)
 }
@@ -2470,11 +3001,10 @@ Iterates over slices, arrays, maps, strings, and channels using the blank identi
 ## Pointers & Memory Allocation
 \`\`\`go
 x := 42
-p := &x         // p is *int (pointer to x)
-*p = 100        // Dereference and mutate x
+p := &x
+*p = 100
 
-// Allocate zero-initialized memory on heap:
-ptr := new(int) // returns *int initialized to 0
+ptr := new(int)
 \`\`\`
 Manipulates memory addresses directly and passes pointers to functions to avoid copying large structures and allow in-place mutations.
 
@@ -2503,7 +3033,6 @@ type BaseEntity struct {
     CreatedAt time.Time
 }
 
-// User embeds BaseEntity (inheriting its fields and methods directly):
 type User struct {
     BaseEntity
     Username string
@@ -2513,7 +3042,7 @@ u := User{
     BaseEntity: BaseEntity{ID: "usr_123"},
     Username:   "alice",
 }
-fmt.Println(u.ID) // Direct field access on outer struct
+fmt.Println(u.ID)
 \`\`\`
 Implements object composition by embedding inner structs directly, promoting code reuse without class hierarchies.
 
@@ -2527,7 +3056,6 @@ type Point struct {
     X, Y int
 }
 
-// Point automatically satisfies Stringer without an explicit 'implements' keyword:
 func (p Point) String() string {
     return fmt.Sprintf("(%d, %d)", p.X, p.Y)
 }
@@ -2538,12 +3066,10 @@ Defines behavioral contracts satisfied implicitly by any type implementing the r
 \`\`\`go
 var val any = "hello"
 
-// Single assertion with comma-ok guard:
 if str, ok := val.(string); ok {
     fmt.Println("String:", str)
 }
 
-// Type switch over concrete types:
 switch v := val.(type) {
 case int:
     fmt.Println("Integer:", v)
@@ -2558,10 +3084,10 @@ Inspects dynamic concrete types stored inside \`any\` (or \`interface{}\`) safel
 type Status int
 
 const (
-    Pending Status = iota // 0
-    Active                // 1
-    Complete              // 2
-    Failed                // 3
+    Pending Status = iota
+    Active
+    Complete
+    Failed
 )
 \`\`\`
 Creates strongly typed enumerations using Go's \`iota\` sequential constant generator.
@@ -2573,21 +3099,19 @@ import (
     "strings"
 )
 
-// Zero-allocation string concatenation:
 var b strings.Builder
 b.WriteString("hello ")
 b.WriteString("world")
 res := b.String()
 
-// String and integer parsing:
-num, err := strconv.Atoi("42") // string to int
-str := strconv.Itoa(100)       // int to string
+num, err := strconv.Atoi("42")
+str := strconv.Itoa(100)
 \`\`\`
 Concatenates strings efficiently through byte buffers and converts between numbers and strings.
 
 ## Goroutines, Channels & Select
 \`\`\`go
-ch := make(chan int, 2) // buffered channel with capacity 2
+ch := make(chan int, 2)
 
 go func() {
     ch <- 42
@@ -2604,6 +3128,277 @@ case <-time.After(1 * time.Second):
 }
 \`\`\`
 Executes concurrent lightweight goroutines and coordinates synchronization with channels and multiplexed \`select\` blocks.
+
+## Generics & Type Constraints
+\`\`\`go
+type Number interface {
+    ~int | ~int64 | ~float64
+}
+
+func Min[T Number](a, b T) T {
+    if a < b {
+        return a
+    }
+    return b
+}
+
+func Keys[K comparable, V any](m map[K]V) []K {
+    keys := make([]K, 0, len(m))
+    for k := range m {
+        keys = append(keys, k)
+    }
+    return keys
+}
+\`\`\`
+Defines parameterized types and functions (Go 1.18+) using \`any\`, \`comparable\`, or union constraints with the \`~\` underlying type operator.
+
+## Concurrency Synchronization (sync Package)
+\`\`\`go
+import "sync"
+
+var wg sync.WaitGroup
+for _, id := range []int{1, 2, 3} {
+    wg.Add(1)
+    go func(i int) {
+        defer wg.Done()
+        process(i)
+    }(id)
+}
+wg.Wait()
+
+var mu sync.RWMutex
+var cache = make(map[string]int)
+
+mu.Lock()
+cache["k"] = 42
+mu.Unlock()
+
+mu.RLock()
+val := cache["k"]
+mu.RUnlock()
+
+var once sync.Once
+once.Do(func() { initResource() })
+\`\`\`
+Coordinates goroutine completion with \`sync.WaitGroup\`, guards concurrent state with \`Mutex\`/\`RWMutex\`, and ensures single-execution setup with \`sync.Once\`.
+
+## Context & Cancellation (context Package)
+\`\`\`go
+import (
+    "context"
+    "time"
+)
+
+ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+defer cancel()
+
+go func(ctx context.Context) {
+    select {
+    case <-time.After(500 * time.Millisecond):
+        // Work completed
+    case <-ctx.Done():
+        err := ctx.Err()
+        _ = err
+        return
+    }
+}(ctx)
+\`\`\`
+Propagates deadlines, cancellation signals, and request-scoped metadata across goroutine call trees.
+
+## Error Wrapping & Inspection (errors Package)
+\`\`\`go
+import (
+    "errors"
+    "fmt"
+    "io/fs"
+    "os"
+)
+
+var ErrNotFound = errors.New("resource not found")
+
+wrappedErr := fmt.Errorf("database query failed: %w", ErrNotFound)
+
+if errors.Is(wrappedErr, ErrNotFound) {
+    fmt.Println("Target sentinel error found in chain")
+}
+
+var pathErr *fs.PathError
+if errors.As(wrappedErr, &pathErr) {
+    fmt.Println("Path that failed:", pathErr.Path)
+}
+\`\`\`
+Inspects wrapped error hierarchies using \`errors.Is\` for sentinel matching and \`errors.As\` for typed error extraction.
+
+## Package Visibility & init() Lifecycle
+\`\`\`go
+package service
+
+type Config struct {
+    Port    int    // Exported field
+    secret  string // Unexported field
+}
+
+func internalSetup() {}
+
+func init() {
+    // Executes package setup
+}
+\`\`\`
+Governs symbol visibility through identifier capitalization (Uppercase exports, lowercase keeps package-private) and runs initialization before \`main()\` via \`init()\`.
+
+## Closures & Variable Capture
+\`\`\`go
+func makeCounter() func() int {
+    count := 0
+    return func() int {
+        count++
+        return count
+    }
+}
+
+for i := 0; i < 3; i++ {
+    // Go 1.22+: 'i' is scoped per iteration (goroutines see intended value).
+    // Go < 1.22: 'i' was shared across iterations, requiring explicit 'i := i' shadowing!
+    go func() {
+        fmt.Println(i)
+    }()
+}
+\`\`\`
+Captures outer variables by reference in closures, with Go 1.22+ guaranteeing per-iteration loop variable scoping to eliminate concurrent capture traps.
+
+## Panic & Recover
+\`\`\`go
+import "log"
+
+func safeOperation() {
+    defer func() {
+        if r := recover(); r != nil {
+            log.Printf("recovered from panic: %v", r)
+        }
+    }()
+
+    panic("unexpected fatal condition")
+}
+\`\`\`
+Catches runtime panics and fatal exceptions gracefully during deferred stack unwinding to prevent process crashes.
+
+## String Formatting Verbs (fmt Package)
+\`\`\`go
+import "fmt"
+
+type Point struct{ X, Y int }
+pt := Point{1, 2}
+
+fmt.Printf("%v\\n", pt)   // Default format
+fmt.Printf("%+v\\n", pt)  // Includes struct field names
+fmt.Printf("%#v\\n", pt)  // Go-syntax representation
+fmt.Printf("%T\\n", pt)   // Type name
+
+fmt.Printf("%d\\n", 42)     // Decimal integer
+fmt.Printf("%b\\n", 42)     // Binary representation
+fmt.Printf("%s\\n", "text") // Raw string
+fmt.Printf("%q\\n", "text") // Quoted string
+fmt.Printf("%.2f\\n", 3.14) // Float with precision
+\`\`\`
+Controls string interpolation and type inspection using \`fmt.Sprintf\` and \`fmt.Printf\` format specifiers.
+
+## Common String Utilities (strings Package)
+\`\`\`go
+import "strings"
+
+s := "  apple,banana,orange  "
+
+trimmed := strings.TrimSpace(s)
+parts := strings.Split(trimmed, ",")
+joined := strings.Join(parts, "; ")
+
+has := strings.Contains(trimmed, "banana")
+pre := strings.HasPrefix(trimmed, "app")
+suf := strings.HasSuffix(trimmed, "ge")
+replaced := strings.ReplaceAll(trimmed, ",", "|")
+\`\`\`
+Performs common string manipulation, trimming, tokenization, substring querying, and replacements via standard library helpers.
+
+## Slice Backing Arrays & Full Slice Expressions
+\`\`\`go
+orig := []int{1, 2, 3, 4, 5}
+
+sub := orig[1:3]
+
+// HAZARD: append within capacity overwrites orig[3]!
+sub = append(sub, 99)
+
+// Full slice expression [low:high:max] restricts capacity:
+safeSub := orig[1:3:3]
+safeSub = append(safeSub, 100) // Forces new backing array allocation
+\`\`\`
+Prevents unintended mutations to shared backing arrays by constraining slice capacity with 3-index slicing \`[low:high:max]\`.
+
+## Zero Values & Useful Defaults
+\`\`\`go
+import (
+    "bytes"
+    "sync"
+)
+
+// Types are guaranteed to initialize to their zero values:
+var num int
+var flag bool
+var str string
+var slice []int       // nil (valid for len, cap, and append)
+var m map[string]int  // nil (reads return 0; writes require make)
+
+// Idiomatic types are ready-to-use in their zero state:
+var buf bytes.Buffer  // Ready for buf.WriteString() without constructor
+var mu sync.Mutex     // Ready for mu.Lock() without initialization
+\`\`\`
+Leverages guaranteed zero-value initialization, writing types whose zero state is valid and directly usable without explicit constructors.
+
+## Streaming I/O (io.Reader & io.Writer)
+\`\`\`go
+import (
+    "bytes"
+    "io"
+    "strings"
+)
+
+r := strings.NewReader("stream payload")
+data, err := io.ReadAll(r)
+
+src := strings.NewReader("piped input")
+var dst bytes.Buffer
+written, err := io.Copy(&dst, src)
+\`\`\`
+Composes input/output pipelines through foundational \`io.Reader\` and \`io.Writer\` streaming abstractions.
+
+## Testing & Table-Driven Tests (testing Package)
+\`\`\`go
+package mypkg
+
+import "testing"
+
+func TestAdd(t *testing.T) {
+    tests := []struct {
+        name     string
+        a, b     int
+        expected int
+    }{
+        {"positive numbers", 2, 3, 5},
+        {"zero identity", 2, 0, 2},
+        {"negative numbers", 2, -3, -1},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            got := Add(tt.a, tt.b)
+            if got != tt.expected {
+                t.Errorf("Add(%d, %d) = %d; want %d", tt.a, tt.b, got, tt.expected)
+            }
+        })
+    }
+}
+\`\`\`
+Structures unit tests using Go's built-in \`testing\` runner with idiomatic table-driven test cases and \`t.Run\` subtests.
 `,Kse=`---
 language: go
 badge: go
@@ -2612,25 +3407,31 @@ aliases: [go, golang]
 
 ## Stack and Queue with Slices
 \`\`\`go
-// Stack (LIFO):
 var stack []int
-stack = append(stack, val)           // Push
-top := stack[len(stack)-1]           // Peek
-stack = stack[:len(stack)-1]         // Pop
+stack = append(stack, val)
+top := stack[len(stack)-1]
+stack = stack[:len(stack)-1]
 
-// Queue (FIFO):
 var queue []int
-queue = append(queue, val)           // Enqueue
-front := queue[0]                    // Peek
-queue = queue[1:]                    // Dequeue (O(1) amortized slice reslicing)
+head := 0
+queue = append(queue, val)
+front := queue[head]
+head++
+
+// Reslice with copy to release backing array memory when head grows large:
+if head > len(queue)/2 && head > 128 {
+    queue = append([]int(nil), queue[head:]...)
+    head = 0
+}
+// CAUTION: Naive 'queue = queue[1:]' advances slice header but retains references
+// in the backing array, preventing garbage collection in long-lived queues.
 \`\`\`
-Implements lightweight stacks and FIFO queues using slice slicing and appends without extra package imports.
+Implements lightweight stacks and FIFO queues using slices, utilizing a head index to prevent memory retention leaks.
 
 ## 2D Matrix Allocation
 \`\`\`go
 R, C := 4, 5
 
-// Correct: allocate R independent row slices:
 grid := make([][]int, R)
 for i := range grid {
     grid[i] = make([]int, C)
@@ -2647,7 +3448,9 @@ type IntHeap []int
 func (h IntHeap) Len() int           { return len(h) }
 func (h IntHeap) Less(i, j int) bool { return h[i] < h[j] } // Min-heap (<), Max-heap (>)
 func (h IntHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
-func (h *IntHeap) Push(x any)        { *h = append(*h, x.(int)) }
+
+// container/heap predates Go 1.18 generics; methods must accept and return 'any':
+func (h *IntHeap) Push(x any) { *h = append(*h, x.(int)) }
 func (h *IntHeap) Pop() any {
     old := *h
     n := len(old)
@@ -2660,16 +3463,16 @@ func (h *IntHeap) Pop() any {
 h := &IntHeap{2, 1, 5}
 heap.Init(h)
 heap.Push(h, 3)
-minVal := heap.Pop(h).(int) // 1
+minVal := heap.Pop(h).(int) // Runtime type assertion from any
 \`\`\`
-Satisfies Go's standard \`heap.Interface\` with 5 methods to maintain binary min/max heaps in $O(\\log N)$ time.
+Satisfies Go's standard \`heap.Interface\` with 5 methods to maintain binary min/max heaps in $O(\\log N)$ time (predates generics and requires \`any\` assertions).
 
 ## Monotonic Stack (Next Greater Element)
 \`\`\`go
 n := len(nums)
 result := make([]int, n)
 for i := range result { result[i] = -1 }
-stack := []int{} // Stack of indices
+stack := []int{}
 
 for i := 0; i < n; i++ {
     for len(stack) > 0 && nums[i] > nums[stack[len(stack)-1]] {
@@ -2753,20 +3556,13 @@ aliases: [go, golang]
 \`\`\`go
 import "math/bits"
 
-// Count set bits:
 count := bits.OnesCount(uint(x))
 
-// Count leading and trailing zeros:
 lz := bits.LeadingZeros(uint(x))
 tz := bits.TrailingZeros(uint(x))
 
-// Check if power of two:
 isPow2 := x > 0 && (x&(x-1)) == 0
-
-// Isolate lowest set bit:
 lowest := x & -x
-
-// Clear lowest set bit:
 cleared := x & (x - 1)
 \`\`\`
 Executes hardware-accelerated bitwise operations and bitmask inspections using standard library primitives.
@@ -2784,7 +3580,6 @@ func lcm(a, b int) int {
     return (a / gcd(a, b)) * b
 }
 
-// Fast modular exponentiation (base^exp % mod):
 func modPow(base, exp, mod int64) int64 {
     var res int64 = 1
     base %= mod
@@ -2800,7 +3595,7 @@ func modPow(base, exp, mod int64) int64 {
 \`\`\`
 Computes number-theoretic primitives in logarithmic time via Euclidean algorithm and binary exponentiation.
 
-## Fast Competitive I/O (bufio)
+## High-Throughput Buffered I/O (bufio)
 \`\`\`go
 import (
     "bufio"
@@ -2808,12 +3603,11 @@ import (
 )
 
 func main() {
-    // Fast line scanner:
     scanner := bufio.NewScanner(os.Stdin)
-    // Enlarge default token buffer if lines can exceed 64KB:
+    // Enlarge buffer if lines can exceed default 64KB:
     scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
 
-    // Buffered writer (remember to Flush!):
+    // Buffered writer to minimize syscall overhead (remember to Flush!):
     writer := bufio.NewWriter(os.Stdout)
     defer writer.Flush()
 
@@ -2823,7 +3617,7 @@ func main() {
     }
 }
 \`\`\`
-Replaces unbuffered \`fmt.Scan\` and \`fmt.Print\` with high-throughput buffered streaming for competitive programming.
+Replaces unbuffered \`fmt.Scan\` and \`fmt.Print\` syscalls with high-throughput buffered streaming for files, network streams, and large dataset processing.
 `,Jse=`---
 language: ocaml
 badge: ml
@@ -2838,9 +3632,9 @@ let binary_search arr target =
     else
       let mid = left + (right - left) / 2 in
       if arr.(mid) >= target then
-        loop left mid        (* Solution in left half including mid *)
+        loop left mid
       else
-        loop (mid + 1) right (* Solution strictly to right *)
+        loop (mid + 1) right
   in
   loop 0 (Array.length arr)
 \`\`\`
@@ -2861,11 +3655,47 @@ let two_sum sorted_arr target =
 \`\`\`
 Traverses sequential structures with two coordinating indices in $O(N)$ time and $O(1)$ auxiliary space.
 
+## Sliding Window (Variable-Size Subarray)
+\`\`\`ocaml
+let min_sub_array_len target nums =
+  let n = Array.length nums in
+  let min_len = ref (n + 1) in
+  let left = ref 0 in
+  let sum = ref 0 in
+  for right = 0 to n - 1 do
+    sum := !sum + nums.(right);
+    while !sum >= target do
+      min_len := min !min_len (right - !left + 1);
+      sum := !sum - nums.(!left);
+      incr left
+    done
+  done;
+  if !min_len > n then 0 else !min_len
+\`\`\`
+Maintains a dynamic subarray window with two pointers to find optimal contiguous ranges in $O(N)$ time.
+
+## Monotonic Stack (Next Greater Element)
+\`\`\`ocaml
+let next_greater_elements arr =
+  let n = Array.length arr in
+  let res = Array.make n (-1) in
+  let st = Stack.create () in
+  for i = 0 to n - 1 do
+    while not (Stack.is_empty st) && arr.(Stack.top st) < arr.(i) do
+      let prev_idx = Stack.pop st in
+      res.(prev_idx) <- arr.(i)
+    done;
+    Stack.push i st
+  done;
+  res
+\`\`\`
+Maintains indices in a monotonic stack to resolve the next greater element for each item in $O(N)$ total time.
+
 ## Graph BFS & Shortest Path
 \`\`\`ocaml
 let bfs adj_tbl start_node target =
   let visited = Hashtbl.create 16 in
-  Hashtbl.add visited start_node true;
+  Hashtbl.replace visited start_node true;
 
   let q = Queue.create () in
   Queue.add (start_node, 0) q;
@@ -2878,7 +3708,7 @@ let bfs adj_tbl start_node target =
       else begin
         List.iter (fun v ->
           if not (Hashtbl.mem visited v) then begin
-            Hashtbl.add visited v true;
+            Hashtbl.replace visited v true;
             Queue.add (v, dist + 1) q
           end
         ) (Hashtbl.find_opt adj_tbl u |> Option.value ~default:[]);
@@ -2887,7 +3717,82 @@ let bfs adj_tbl start_node target =
   in
   loop ()
 \`\`\`
-Traverses unweighted graphs level-by-level to calculate shortest hop distances in $O(V + E)$ time.
+Traverses unweighted graphs level-by-level using \`Hashtbl.replace\` and a FIFO queue to calculate shortest hop distances in $O(V + E)$ time.
+
+## Graph DFS & Backtracking (Subsets)
+\`\`\`ocaml
+let subsets list =
+  let rec backtrack acc curr = function
+    | [] -> curr :: acc
+    | x :: xs ->
+        let acc_without = backtrack acc curr xs in
+        backtrack acc_without (x :: curr) xs
+  in
+  backtrack [] [] (List.rev list)
+\`\`\`
+Generates all $2^N$ combinatorial subsets recursively using immutable accumulator consing without mutable state rollback.
+
+## Disjoint Set Union (DSU / Union-Find)
+\`\`\`ocaml
+type dsu = {
+  parent : int array;
+  rank : int array;
+}
+
+let create_dsu n =
+  { parent = Array.init n Fun.id; rank = Array.make n 0 }
+
+let rec find dsu i =
+  if dsu.parent.(i) = i then i
+  else begin
+    dsu.parent.(i) <- find dsu dsu.parent.(i); (* Path compression *)
+    dsu.parent.(i)
+  end
+
+let union dsu i j =
+  let root_i = find dsu i in
+  let root_j = find dsu j in
+  if root_i <> root_j then
+    if dsu.rank.(root_i) < dsu.rank.(root_j) then
+      dsu.parent.(root_i) <- root_j
+    else if dsu.rank.(root_i) > dsu.rank.(root_j) then
+      dsu.parent.(root_j) <- root_i
+    else begin
+      dsu.parent.(root_j) <- root_i;
+      dsu.rank.(root_i) <- dsu.rank.(root_i) + 1
+    end
+\`\`\`
+Tracks disjoint sets with near $O(1)$ amortized time per operation via path compression and union by rank.
+
+## Dijkstra's Shortest Path
+\`\`\`ocaml
+module NodeDist = struct
+  type t = int * int (* (dist, node) *)
+  let compare (d1, u1) (d2, u2) =
+    match compare d1 d2 with
+    | 0 -> compare u1 u2
+    | c -> c
+end
+module PQ = Set.Make(NodeDist)
+
+let dijkstra n adj start =
+  let dist = Array.make n max_int in
+  dist.(start) <- 0;
+  let pq = ref (PQ.singleton (0, start)) in
+  while not (PQ.is_empty !pq) do
+    let (d, u) = PQ.min_elt !pq in
+    pq := PQ.remove (d, u) !pq;
+    if d = dist.(u) then
+      List.iter (fun (v, weight) ->
+        if dist.(u) + weight < dist.(v) then begin
+          dist.(v) <- dist.(u) + weight;
+          pq := PQ.add (dist.(v), v) !pq
+        end
+      ) adj.(u)
+  done;
+  dist
+\`\`\`
+Finds single-source shortest paths on non-negative weighted graphs in $O(E \\log V)$ time using a functional balanced search tree as a priority queue.
 
 ## 2D Grid Directions & Boundary Traversal
 \`\`\`ocaml
@@ -2919,7 +3824,7 @@ let fib_memo n =
       | Some res -> res
       | None ->
           let res = dp (i - 1) + dp (i - 2) in
-          Hashtbl.add memo i res;
+          Hashtbl.replace memo i res;
           res
   in
   dp n
@@ -2943,6 +3848,61 @@ badge: ml
 aliases: [ocaml, ml]
 ---
 
+## Expressions, Scoping & Semicolon Sequencing
+\`\`\`ocaml
+let area =
+  let width = 10 in
+  let height = 20 in
+  width * height
+
+let () =
+  print_endline "Step 1";
+  print_endline "Step 2"
+
+let result =
+  begin
+    print_string "Computing: ";
+    40 + 2
+  end
+\`\`\`
+Treats variables and scopes as nested expressions returning values, sequencing side effects explicitly with semicolons and grouping blocks.
+
+## Functions, Currying & Pipeline Operator
+\`\`\`ocaml
+let add x y = x + y
+let add5 = add 5
+
+let result =
+  [1; 2; 3; 4]
+  |> List.filter (fun x -> x mod 2 = 0)
+  |> List.map (fun x -> x * 10)
+  |> List.fold_left ( + ) 0
+\`\`\`
+Composes functional transformations cleanly using automatic currying and reverse application \`|>\`.
+
+## Labeled and Optional Arguments
+\`\`\`ocaml
+(* Labeled argument (~name) and optional argument (?prefix with default): *)
+let greet ?(prefix = "Hello") ~name () =
+  Printf.sprintf "%s, %s!" prefix name
+
+let msg1 = greet ~name:"Alice" ()
+let msg2 = greet ~prefix:"Hi" ~name:"Bob" ()
+\`\`\`
+Enables self-documenting call sites and optional parameter defaults, using a trailing unit \`()\` to trigger evaluation when trailing optionals are omitted.
+
+## Type Annotations & Parametric Polymorphism
+\`\`\`ocaml
+let square (x : int) : int = x * x
+
+let identity (x : 'a) : 'a = x
+let pair (first : 'a) (second : 'b) : 'a * 'b = (first, second)
+
+type point = float * float
+let origin : point = (0.0, 0.0)
+\`\`\`
+Employs Hindley-Milner type inference by default while supporting explicit type annotations and universal type variables \`'a\`.
+
 ## Pattern Matching & Match Expressions
 \`\`\`ocaml
 match items with
@@ -2952,23 +3912,8 @@ match items with
 \`\`\`
 Destructures data structures and evaluates branches based on structural shape and values with compiler-checked exhaustiveness.
 
-## Functions, Currying & Pipeline Operator
-\`\`\`ocaml
-let add x y = x + y
-let add5 = add 5 (* Partial application / currying *)
-
-(* Pipeline operator (|>) passes output as last argument to next function: *)
-let result =
-  [1; 2; 3; 4]
-  |> List.filter (fun x -> x mod 2 = 0)
-  |> List.map (fun x -> x * 10)
-  |> List.fold_left ( + ) 0
-\`\`\`
-Composes functional transformations cleanly using automatic currying and reverse application \`|>\`.
-
 ## Recursion & Tail Recursion
 \`\`\`ocaml
-(* Tail-recursive function with accumulator parameter: *)
 let length list =
   let rec aux acc = function
     | [] -> acc
@@ -2988,8 +3933,10 @@ let res =
   | Some v -> v
   | None -> 0
 
-(* Option.value with fallback default: *)
 let fallback = Option.value ~default:0 (safe_divide 10 0)
+
+let parse_positive n =
+  if n > 0 then Ok n else Error "Number must be positive"
 \`\`\`
 Models the absence of values or error outcomes explicitly without runtime null pointer exceptions.
 
@@ -3016,19 +3963,18 @@ type user = {
 }
 
 let u = { id = 1; name = "Alice"; active = true }
-u.active <- false (* In-place field mutation *)
+u.active <- false
 \`\`\`
 Defines named-field product records, supporting immutable field assignment or explicit \`mutable\` fields.
 
 ## Mutable References and Arrays
 \`\`\`ocaml
-(* Single mutable reference cell: *)
 let count = ref 0
 count := !count + 1 (* Mutate with :=, dereference with ! *)
+incr count
 
-(* Mutable contiguous array: *)
 let arr = Array.make 5 0
-arr.(0) <- 42 (* Index lookup arr.(i) and mutation <- *)
+arr.(0) <- 42
 \`\`\`
 Allocates explicit mutable cells with \`ref\` and fixed-size mutable sequences with standard \`Array\`.
 
@@ -3041,13 +3987,45 @@ let swap (a, b) = (b, a)
 \`\`\`
 Groups heterogeneous values into fixed-size composites with direct positional destructuring.
 
+## Exception Handling (raise, try ... with)
+\`\`\`ocaml
+exception Item_not_found of string
+
+let find_item key map =
+  match Hashtbl.find_opt map key with
+  | Some v -> v
+  | None -> raise (Item_not_found key)
+
+let safe_lookup key map =
+  try find_item key map with
+  | Item_not_found k -> Printf.sprintf "Missing key: %s" k
+  | Failure msg -> Printf.sprintf "General failure: %s" msg
+\`\`\`
+Defines and raises custom or standard exceptions, catching them with pattern matching inside \`try ... with\` blocks.
+
+## Modules & Signatures
+\`\`\`ocaml
+module type StackSig = sig
+  type 'a t
+  val empty : 'a t
+  val push : 'a -> 'a t -> 'a t
+  val pop : 'a t -> ('a * 'a t) option
+end
+
+module ListStack : StackSig = struct
+  type 'a t = 'a list
+  let empty = []
+  let push x s = x :: s
+  let pop = function [] -> None | x :: xs -> Some (x, xs)
+end
+\`\`\`
+Encapsulates implementation details and enforces abstraction barriers using ML structures and signature constraints.
+
 ## Local Module Opens
 \`\`\`ocaml
-(* Open module locally within an expression: *)
 let open List in
 let sorted = sort compare [3; 1; 2]
 
-(* Compact local open syntax: *)
 let sum = List.(fold_left ( + ) 0 [1; 2; 3])
 \`\`\`
 Brings a module's functions and types into scope temporarily without polluting the enclosing namespace.
@@ -3075,6 +4053,15 @@ let sum = List.fold_left ( + ) 0 list (* Always prefer fold_left over non-tail-r
 \`\`\`
 Transforms singly-linked immutable lists using higher-order functions from the standard library.
 
+## List Utilities & Generation
+\`\`\`ocaml
+let range = List.init 5 Fun.id
+let indexed = List.mapi (fun idx x -> (idx, x * 10)) [1; 2; 3]
+let (evens, odds) = List.partition (fun x -> x mod 2 = 0) [1; 2; 3; 4; 5]
+let pairs = List.combine ["a"; "b"] [1; 2]
+\`\`\`
+Constructs, partitions, and indexes lists using standard higher-order utility functions.
+
 ## Functional Queue (Okasaki Two-List Queue)
 \`\`\`ocaml
 type 'a queue = 'a list * 'a list (* (front, back) *)
@@ -3095,12 +4082,10 @@ Maintains an immutable purely functional FIFO queue with amortized $O(1)$ operat
 
 ## Imperative Queue & Stack
 \`\`\`ocaml
-(* Imperative FIFO queue: *)
 let q = Queue.create ()
-Queue.add 42 q     (* Push back *)
-let front = Queue.take q (* Pop front (O(1)) *)
+Queue.add 42 q
+let front = Queue.take q
 
-(* Imperative LIFO stack: *)
 let st = Stack.create ()
 Stack.push 10 st
 let top = Stack.pop st
@@ -3116,18 +4101,35 @@ let s = IntSet.(empty |> add 10 |> add 20)
 let has_ten = IntSet.mem 10 s
 
 let m = IntMap.(empty |> add 1 "apple" |> add 2 "banana")
-let fruit = IntMap.find_opt 1 m (* Some "apple" *)
+let fruit = IntMap.find_opt 1 m
 \`\`\`
 Generates purely functional balanced red-black trees with $O(\\log N)$ lookups and insertions using OCaml functors.
+
+## Custom Types with Set and Map Functors
+\`\`\`ocaml
+module Point = struct
+  type t = int * int
+  let compare (x1, y1) (x2, y2) =
+    match compare x1 x2 with
+    | 0 -> compare y1 y2
+    | c -> c
+end
+
+module PointSet = Set.Make(Point)
+let pts = PointSet.(empty |> add (1, 2) |> add (3, 4))
+let has_pt = PointSet.mem (1, 2) pts
+\`\`\`
+Instantiates associative collections for custom records or tuples by supplying a comparison module matching \`OrderedType\`.
 
 ## Mutable Hash Table (Hashtbl)
 \`\`\`ocaml
 let table = Hashtbl.create 16
 
-Hashtbl.add table "apple" 5
-Hashtbl.replace table "apple" 10 (* Overwrites existing key *)
+(* Hashtbl.replace overwrites existing keys; Hashtbl.add stacks bindings: *)
+Hashtbl.replace table "apple" 10
+Hashtbl.replace table "banana" 20
 
-let val_opt = Hashtbl.find_opt table "apple" (* Some 10 *)
+let val_opt = Hashtbl.find_opt table "apple"
 let exists = Hashtbl.mem table "apple"
 Hashtbl.remove table "apple"
 \`\`\`
@@ -3138,7 +4140,6 @@ Average $O(1)$ mutable associative hash table supporting lookups, replacements, 
 let rows = 4
 let cols = 5
 
-(* Allocates rows x cols matrix filled with initial value: *)
 let matrix = Array.make_matrix rows cols 0
 
 matrix.(0).(1) <- 42
@@ -3156,11 +4157,77 @@ let rec max_depth = function
   | Leaf -> 0
   | Node (l, _, r) -> 1 + max (max_depth l) (max_depth r)
 
-let rec inorder = function
-  | Leaf -> []
-  | Node (l, v, r) -> inorder l @ (v :: inorder r)
+(* Tail-recursive in-order traversal using an accumulator to avoid quadratic list appends: *)
+let inorder tree =
+  let rec aux acc = function
+    | Leaf -> acc
+    | Node (l, v, r) -> aux (v :: aux acc r) l
+  in
+  aux [] tree
 \`\`\`
-Defines algebraic tree structures and evaluates recursive depths and in-order / pre-order traversals.
+Defines algebraic tree structures with linear-time $O(N)$ accumulator traversals and recursive depth calculations.
+
+## Buffer & String Operations
+\`\`\`ocaml
+(* Efficient string building (Buffer avoids O(N^2) string concatenation copies): *)
+let buf = Buffer.create 16
+Buffer.add_string buf "hello"
+Buffer.add_char buf ' '
+Buffer.add_string buf "world"
+let str = Buffer.contents buf
+
+let tokens = String.split_on_char ',' "a,b,c"
+let joined = String.concat "-" tokens
+let sub = String.sub "abcdef" 1 3 (* (offset, length) *)
+\`\`\`
+Constructs strings efficiently using mutable \`Buffer\` and performs splitting, joining, and slicing via the \`String\` module.
+
+## Lazy Sequences (Seq)
+\`\`\`ocaml
+let naturals = Seq.ints 0
+
+let first_five_evens =
+  naturals
+  |> Seq.filter (fun x -> x mod 2 = 0)
+  |> Seq.take 5
+  |> List.of_seq
+\`\`\`
+Evaluates sequences on demand to represent potentially infinite series or avoid intermediate collections.
+
+## Trie (Prefix Tree)
+\`\`\`ocaml
+type trie = {
+  mutable is_end : bool;
+  children : (char, trie) Hashtbl.t;
+}
+
+let create_node () = { is_end = false; children = Hashtbl.create 4 }
+
+let insert root word =
+  let curr = ref root in
+  String.iter (fun ch ->
+    let next =
+      match Hashtbl.find_opt !curr.children ch with
+      | Some node -> node
+      | None ->
+          let node = create_node () in
+          Hashtbl.replace !curr.children ch node;
+          node
+    in
+    curr := next
+  ) word;
+  !curr.is_end <- true
+
+let search root word =
+  let curr = ref (Some root) in
+  String.iter (fun ch ->
+    curr := match !curr with
+      | Some node -> Hashtbl.find_opt node.children ch
+      | None -> None
+  ) word;
+  match !curr with Some node -> node.is_end | None -> false
+\`\`\`
+Maintains a tree of character prefixes supporting $O(L)$ time string insertion and existence verification for word length $L$.
 `,Zse=`---
 language: ocaml
 badge: ml
@@ -3183,7 +4250,7 @@ let has_bit mask i =
 \`\`\`
 Utilizes OCaml's logical bitwise keywords for bit testing, flag masking, and power-of-two checks.
 
-## Math: GCD, LCM & Modular Exponentiation
+## Math: GCD, LCM & Fast Modular Exponentiation
 \`\`\`ocaml
 let rec gcd a b =
   if b = 0 then a else gcd b (a mod b)
@@ -3191,57 +4258,124 @@ let rec gcd a b =
 let lcm a b =
   (a / gcd a b) * b
 
-(* Fast modular exponentiation (base^exp mod m): *)
-let rec mod_pow base exp m =
-  if exp = 0 then 1
-  else if exp mod 2 = 1 then
-    (base * mod_pow base (exp - 1) m) mod m
-  else
-    let half = mod_pow base (exp / 2) m in
-    (half * half) mod m
+(* Tail-recursive binary exponentiation (base^exp mod m): *)
+let mod_pow base exp m =
+  let rec aux b e acc =
+    if e = 0 then acc
+    else if e mod 2 = 1 then
+      aux ((b * b) mod m) (e / 2) ((acc * b) mod m)
+    else
+      aux ((b * b) mod m) (e / 2) acc
+  in
+  aux (base mod m) exp 1
+(* Note: OCaml int is 63-bit on 64-bit systems. Use Int64 or Zarith if intermediate products risk overflow. *)
 \`\`\`
-Computes standard number-theoretic algorithms in logarithmic time via Euclidean reduction and binary exponentiation.
+Computes standard number-theoretic algorithms in logarithmic time via tail-recursive Euclidean reduction and binary exponentiation.
 
-## Array and List Sorting (sort)
+## Array and List Sorting with Custom Comparators
 \`\`\`ocaml
-(* In-place array sort (O(N log N)): *)
 let arr = [| 5; 2; 8; 1 |]
-Array.sort compare arr (* Ascending *)
-Array.sort (fun a b -> compare b a) arr (* Descending *)
+Array.sort compare arr
+Array.sort (fun a b -> compare b a) arr
 
-(* Immutable list sort (returns new sorted list): *)
-let sorted_list = List.sort compare [5; 2; 8; 1]
+(* Sort: length first, then alphabetical: *)
+let words = ["banana"; "pie"; "apple"; "fig"]
+let sorted_words =
+  List.sort (fun a b ->
+    match compare (String.length a) (String.length b) with
+    | 0 -> String.compare a b
+    | c -> c
+  ) words
 \`\`\`
-Sorts arrays in-place or produces new sorted lists using standard or custom comparison functions.
+Sorts mutable arrays in-place or produces new sorted lists using standard or multi-key comparison functions.
+
+## Fast Input Parsing with Scanf
+\`\`\`ocaml
+let n = Scanf.scanf " %d" Fun.id
+let (name, score) = Scanf.scanf " %s %d" (fun s d -> (s, d))
+
+let arr = Array.init n (fun _ -> Scanf.scanf " %d" Fun.id)
+\`\`\`
+Reads structured tokens and primitive values from standard input without loading entire lines into memory.
+
+## Safe Conversions & Character Utilities
+\`\`\`ocaml
+let i_opt = int_of_string_opt "123"
+let f_opt = float_of_string_opt "3.14"
+let bad   = int_of_string_opt "abc"
+
+let ascii_code = Char.code 'A'
+let char_val   = Char.chr 65
+let digit_val  = Char.code '7' - Char.code '0'
+\`\`\`
+Parses strings safely into numeric primitives and performs bidirectional character-to-ASCII conversions.
 `,Qse=`---
 language: python
 badge: py
 aliases: [py, python]
 ---
 
+## Generators & yield
+\`\`\`python
+def fibonacci():
+    a, b = 0, 1
+    while True:
+        yield a
+        a, b = b, a + b
+
+fib = fibonacci()
+print(next(fib), next(fib), next(fib))
+
+even_squares = (x**2 for x in range(100) if x % 2 == 0)
+
+def flatten(nested):
+    for sublist in nested:
+        yield from sublist
+
+list(flatten([[1, 2], [3, 4]]))
+\`\`\`
+Generators produce values lazily, one at a time, without materializing the full sequence in memory. Use generator expressions in place of list comprehensions whenever you only need to iterate once or feed another function (e.g., \`sum\`, \`any\`, \`all\`).
+
+## itertools
+\`\`\`python
+import itertools
+
+for r, c in itertools.product(range(3), range(3)):
+    pass
+
+list(itertools.combinations([1, 2, 3], 2))
+list(itertools.permutations([1, 2, 3], 2))
+
+all_items = list(itertools.chain([1, 2], [3, 4], [5]))
+
+prefix = list(itertools.accumulate([1, 2, 3, 4]))
+
+for key, group in itertools.groupby("AAABBC"):
+    print(key, list(group))
+\`\`\`
+\`itertools\` provides fast, memory-efficient combinatorial and sequence utilities implemented in C. Prefer \`itertools.combinations\`/\`product\` over manual bitmask enumeration for Pythonic subset iteration.
+
+
 ## Binary Search (Bisect & Monotonic Predicate)
 \`\`\`python
 import bisect
 
-# Standard library binary search on sorted sequences:
 idx_ge = bisect.bisect_left(nums, target)   # First index where num >= target
 idx_gt = bisect.bisect_right(nums, target)  # First index where num > target
 
-# Custom monotonic predicate template [left, right):
 left, right = 0, len(nums)
 while left < right:
     mid = left + (right - left) // 2
     if condition(mid):
-        right = mid      # Target is at or to the left of mid
+        right = mid
     else:
-        left = mid + 1   # Target is strictly to the right
+        left = mid + 1
 return left
 \`\`\`
 Finds boundaries and insertion points in monotonic spaces in $O(\\log N)$ time.
 
 ## Two Pointers & Fast-Slow Pointers
 \`\`\`python
-# Opposite-end pointers (sorted arrays, palindromes):
 left, right = 0, len(nums) - 1
 while left < right:
     curr_sum = nums[left] + nums[right]
@@ -3252,19 +4386,17 @@ while left < right:
     else:
         right -= 1
 
-# Fast & slow pointers (Linked List cycle detection / middle node):
 slow = fast = head
 while fast and fast.next:
     slow = slow.next
     fast = fast.next.next
     if slow == fast:
-        return True # Cycle detected
+        return True
 \`\`\`
 Traverses sequences with two coordinating indices in $O(N)$ time and $O(1)$ auxiliary memory.
 
 ## Sliding Window (Dynamic & Fixed Length)
 \`\`\`python
-# Dynamic-length window:
 left = 0
 window_state = Counter()
 best = 0
@@ -3308,7 +4440,7 @@ DIRECTIONS = [(0, 1), (1, 0), (0, -1), (-1, 0)] # Right, Down, Left, Up
 def in_bounds(r, c):
     return 0 <= r < R and 0 <= c < C
 
-visited = set([(start_r, start_c)])
+visited = {(start_r, start_c)}
 
 for dr, dc in DIRECTIONS:
     nr, nc = r + dr, c + dc
@@ -3371,9 +4503,9 @@ def backtrack(start_idx, current_path):
     for i in range(start_idx, len(candidates)):
         if not is_promising(candidates[i]):
             continue
-        current_path.append(candidates[i]) # Choose
-        backtrack(i + 1, current_path)     # Explore
-        current_path.pop()                 # Unchoose
+        current_path.append(candidates[i])
+        backtrack(i + 1, current_path)
+        current_path.pop()
 \`\`\`
 Explores combinatorial state spaces (subsets, combinations, permutations) with choice exploration and state rollback.
 
@@ -3385,9 +4517,7 @@ from functools import cache
 def dp(i, rem_weight):
     if i == len(items) or rem_weight <= 0:
         return 0
-    # Choice 1: Skip item
     ans = dp(i + 1, rem_weight)
-    # Choice 2: Take item (if capacity permits)
     val, wt = items[i]
     if rem_weight >= wt:
         ans = max(ans, val + dp(i + 1, rem_weight - wt))
@@ -3417,8 +4547,10 @@ Constructs a new hash map or hash set from an iterable expression in $O(N)$ time
 \`\`\`python
 for idx, item in enumerate(items, start=0):
     print(f"{idx}: {item}")
+
+indexed = {word: i for i, word in enumerate(words)}
 \`\`\`
-Iterates over elements while maintaining a running counter, supporting an optional \`start\` offset.
+Iterates over elements while maintaining a running counter, supporting an optional \`start\` offset. Using \`enumerate\` in comprehensions avoids a manual counter variable.
 
 ## Zip Multiple Iterables
 \`\`\`python
@@ -3430,9 +4562,9 @@ Pairs items from two or more iterables in lockstep, truncating at the shortest i
 
 ## Slicing Syntax
 \`\`\`python
-rev = items[::-1]       # Reverse sequence
-sub = items[1:5:2]      # Slice [start:stop:step]
-head = items[:3]        # First three elements
+rev = items[::-1]
+sub = items[1:5:2]
+head = items[:3]
 \`\`\`
 Extracts a shallow copy of a sub-sequence from a list, tuple, or string in $O(K)$ time for slice length $K$.
 
@@ -3440,18 +4572,18 @@ Extracts a shallow copy of a sub-sequence from a list, tuple, or string in $O(K)
 \`\`\`python
 first, *middle, last = numbers
 combined = {**defaults, **overrides}
+
+a, b = b, a
 \`\`\`
-Unpacks sequences into target variables with extended wildcard splats and merges dictionaries.
+Unpacks sequences into target variables with extended wildcard splats and merges dictionaries. The tuple-swap idiom relies on Python evaluating the right-hand side fully before assignment.
 
 ## Tuples & Hashable State Keys
 \`\`\`python
-# Creation and trailing comma for single-element tuple:
 point = (r, c)
 single = (42,) # (42) without trailing comma evaluates as an integer!
 
-# Immutable & Hashable: usable as set elements and dict keys:
 visited = set()
-visited.add((r, c)) # Track 2D grid coordinates
+visited.add((r, c))
 memo[(i, rem_weight)] = best_val
 \`\`\`
 Tuples are immutable sequences that, unlike lists, can be hashed to serve as coordinates in sets or multi-variable state keys in memoization dictionaries.
@@ -3479,21 +4611,21 @@ Assigns values to variables within an expression, avoiding duplicate function ca
 
 ## Lambda Functions
 \`\`\`python
-add = lambda x, y: x + y
-evens = list(filter(lambda x: x % 2 == 0, nums))
+sorted_users = sorted(users, key=lambda u: u["age"])
+
+evens = [x for x in nums if x % 2 == 0]
+
+evens = list(filter(is_even, nums))
 \`\`\`
-Defines short, inline anonymous functions commonly used as callbacks and key extractors.
+Lambda expressions create anonymous single-expression functions. Use lambdas for inline use as sort keys or callbacks where the expression is short and self-evident.
 
 ## Dictionary Missing Keys & Membership
 \`\`\`python
-# 1. Membership test in O(1) time:
 if "timeout" in config:
     val = config["timeout"]
 
-# 2. Safe lookup with default (avoids KeyError):
 val = config.get("timeout", 30)
 
-# 3. Initialize default value if key is missing:
 tags = config.setdefault("tags", [])
 tags.append("active")
 \`\`\`
@@ -3518,30 +4650,23 @@ Captures and manages runtime exceptions, differentiates error types, and ensures
 
 ## ASCII & Character Conversions
 \`\`\`python
-# Character to ASCII code point:
-code = ord('c')               # 99
-alphabet_idx = ord('c') - ord('a') # 2 (0-25 relative index)
+code = ord('c')
+alphabet_idx = ord('c') - ord('a') # 0-based offset from 'a'
+char = chr(ord('a') + alphabet_idx)
 
-# Code point back to character:
-char = chr(ord('a') + alphabet_idx) # 'c'
-
-# Convert character list back to string:
-word = ''.join(['a', 'b', 'c']) # 'abc'
+word = ''.join(['a', 'b', 'c'])
 \`\`\`
-Translates characters to numerical ordinal values and back, avoiding unsupported direct character arithmetic.
+\`ord()\` and \`chr()\` are Python's idiomatic way to work with character arithmetic. Unlike C's \`char + 1\`, Python has no implicit character type — \`ord\`/\`chr\` make the intent explicit and portable.
 
 ## String Formatting (f-strings)
 \`\`\`python
-# Leading zeros and integer padding:
-padded = f"{num:02d}"     # 7 -> "07"
-fixed_w = f"{num:5d}"     # 7 -> "    7"
+padded = f"{num:02d}"
+fixed_w = f"{num:5d}"
 
-# Floating point decimal rounding:
-decimal = f"{ratio:.2f}"  # 3.14159 -> "3.14"
+decimal = f"{ratio:.2f}"
 
-# Binary and Hexadecimal radix formatting:
-binary_str = f"{val:08b}" # 5 -> "00000101"
-hex_str = f"{val:x}"      # 255 -> "ff"
+binary_str = f"{val:08b}"
+hex_str = f"{val:x}"
 \`\`\`
 Interpolates numbers with fixed padding, specified decimal precision, and binary/hexadecimal representations.
 
@@ -3549,15 +4674,71 @@ Interpolates numbers with fixed padding, specified decimal precision, and binary
 \`\`\`python
 import copy
 
-# Shallow copy (new outer container, shares nested references):
-shallow = original.copy()  # or original[:]
-
-# Deep copy (recursively duplicates nested lists and dictionaries):
+shallow = original.copy()
 deep = copy.deepcopy(original)
 \`\`\`
 Duplicates structures safely, preventing unintentional shared mutations in 2D matrices and graphs.
 
+## *args and **kwargs
+\`\`\`python
+def log(message: str, *args, **kwargs):
+    print(message.format(*args))
+    for key, val in kwargs.items():
+        print(f"  {key}={val}")
 
+log("Values: {} {}", 1, 2, level="INFO", source="main")
+
+nums = [1, 2, 3]
+print(*nums)
+result = add(**{"x": 1, "y": 2})
+\`\`\`
+\`*args\` captures variadic positional arguments as a tuple; \`**kwargs\` captures variadic keyword arguments as a dict. The splat operators also unpack iterables/dicts at call sites.
+
+## Type Hints
+\`\`\`python
+from typing import Optional, Union
+
+def greet(name: str, times: int = 1) -> str:
+    return ("Hello, " + name + "! ") * times
+
+def find(items: list[int], target: int) -> Optional[int]:
+    for i, v in enumerate(items):
+        if v == target:
+            return i
+    return None
+
+def stringify(val: int | float) -> str:
+    return str(val)
+\`\`\`
+Type hints annotate function signatures and variables for static analysis (mypy, Pyright) and IDE support. They are **not enforced at runtime** — use \`isinstance()\` for runtime validation.
+
+## Ternary / Conditional Expression
+\`\`\`python
+status = "even" if x % 2 == 0 else "odd"
+label  = "empty" if not items else f"{len(items)} items"
+
+clipped = [x if x > 0 else 0 for x in values]
+\`\`\`
+Single-expression conditional evaluation. Prefer this form for short, readable conditions; use a full \`if/else\` block when the logic is complex.
+
+## String Methods
+\`\`\`python
+s = "  Hello, World!  "
+
+s.strip()                        # strip whitespace
+s.lower()
+s.replace("World", "Python")
+
+parts  = "a,b,c".split(",")
+joined = ",".join(parts)
+
+"file.py".startswith("file")
+"file.py".endswith(".py")
+
+"123".isdigit()
+"abc".isalpha()
+\`\`\`
+Built-in string methods return new strings (strings are immutable). \`.join()\` is the idiomatic way to concatenate many strings — far more efficient than repeated \`+\` in a loop.
 `,ece=`---
 language: python
 badge: py
@@ -3747,7 +4928,7 @@ class Animal:
 
 class Dog(Animal):
     def __init__(self, name: str, breed: str):
-        super().__init__(name) # Call parent constructor
+        super().__init__(name)
         self.breed = breed
 \`\`\`
 Inherits attributes and methods from base classes and delegates initialization using \`super()\`.
@@ -3761,7 +4942,6 @@ class Item:
     priority: int
     name: str = field(compare=False) # Excluded from comparisons
 
-# Automatically generates __init__, __repr__, and comparison methods
 item = Item(priority=1, name="task")
 \`\`\`
 Synthesizes boilerplate constructor, string representation, and comparison methods for record types.
@@ -3779,7 +4959,6 @@ class Point:
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Point) and (self.x, self.y) == (other.x, other.y)
 
-# Usable directly in sorted(), min(), max(), and heapq
 \`\`\`
 Overloads comparison operators so custom objects can be sorted or stored directly in \`heapq\` without crashes.
 
@@ -3810,7 +4989,7 @@ class Date:
     @classmethod
     def from_iso(cls, iso_str: str) -> "Date":
         y, m, d = map(int, iso_str.split("-"))
-        return cls(y, m, d) # Factory constructor
+        return cls(y, m, d)
 
     @staticmethod
     def is_valid_month(m: int) -> bool:
@@ -3830,7 +5009,6 @@ class CustomDeck:
     def __getitem__(self, idx: int):
         return self._cards[idx]
 
-# Enables len(deck), deck[0], slicing, and 'for card in deck:'
 \`\`\`
 Enables custom classes to support \`len()\`, bracket indexing \`obj[i]\`, slicing, and iteration protocols.
 
@@ -3845,6 +5023,92 @@ class BaseSolver(ABC):
         pass
 \`\`\`
 Enforces interface contracts, preventing instantiation if declared abstract methods are unimplemented.
+
+## Context Managers (with statement)
+\`\`\`python
+
+with open("data.txt") as f:
+    content = f.read()
+
+from contextlib import contextmanager
+
+@contextmanager
+def timer(label: str):
+    import time
+    start = time.perf_counter()
+    yield
+    elapsed = time.perf_counter() - start
+    print(f"{label}: {elapsed:.4f}s")
+
+with timer("processing"):
+    result = expensive_operation()
+
+class ManagedResource:
+    def __enter__(self):
+        self.resource = acquire()
+        return self.resource
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        release(self.resource)
+        return False  # False = don't suppress exceptions
+\`\`\`
+The \`with\` statement ensures setup and teardown always run as a pair, even if an exception is raised inside the block. Use \`contextlib.contextmanager\` for simple cases; implement \`__enter__\`/\`__exit__\` for class-based managers.
+
+## Decorators
+\`\`\`python
+import functools, time
+
+def timer(func):
+    @functools.wraps(func)   # Preserves __name__, __doc__, etc.
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        result = func(*args, **kwargs)
+        print(f"{func.__name__}: {time.perf_counter() - start:.4f}s")
+        return result
+    return wrapper
+
+@timer
+def slow_sort(nums):
+    return sorted(nums)
+
+def repeat(n: int):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            for _ in range(n):
+                result = func(*args, **kwargs)
+            return result
+        return wrapper
+    return decorator
+
+@repeat(3)
+def greet(name):
+    print(f"Hello, {name}!")
+\`\`\`
+A decorator is a callable that takes a function and returns a replacement. Always use \`@functools.wraps\` to preserve the wrapped function's metadata. Built-in decorators like \`@property\`, \`@classmethod\`, \`@staticmethod\`, \`@cache\`, and \`@dataclass\` follow the same pattern.
+
+## NamedTuple
+\`\`\`python
+from typing import NamedTuple
+
+class Point(NamedTuple):
+    x: float
+    y: float
+    z: float = 0.0  # Default values supported
+
+p = Point(1.0, 2.0)
+print(p.x, p.y, p.z)
+print(p[0], p[1])
+x, y, z = p
+
+# Also hashable → usable as dict key or set element:
+visited = {Point(0, 0), Point(1, 1)}
+
+from collections import namedtuple
+Color = namedtuple("Color", ["r", "g", "b"])
+red = Color(255, 0, 0)
+\`\`\`
+\`NamedTuple\` is an immutable, hashable, memory-efficient record type — effectively a typed tuple with named fields. Prefer it over plain tuples when field names matter for readability, and over \`@dataclass\` when immutability and hashability are required.
 `,nce=`---
 language: python
 badge: py
@@ -3853,43 +5117,38 @@ aliases: [py, python]
 
 ## Bitwise Manipulation & Tricks
 \`\`\`python
-# Check if power of two:
 is_power_of_two = (x > 0) and (x & (x - 1) == 0)
-
-# Isolate lowest set bit:
 lowest_bit = x & -x
-
-# Clear lowest set bit:
 cleared = x & (x - 1)
-
-# Count set bits (Python 3.10+):
 count = x.bit_count()
-
-# Bit length:
 length = x.bit_length()
 \`\`\`
 Executes elementary bitwise operations in $O(1)$ time for state compression and bit testing.
 
 ## Subset Bitmask Iteration
 \`\`\`python
-# Iterate all subsets of size n:
 for mask in range(1 << n):
     subset = [items[i] for i in range(n) if (mask & (1 << i))]
 
 # Iterate submasks of a specific mask:
 sub = mask
 while sub > 0:
-    # process submask
+    process(sub)
     sub = (sub - 1) & mask
+
+import itertools
+for r in range(n + 1):
+    for subset in itertools.combinations(items, r):
+        pass
 \`\`\`
-Enumerates subsets and submasks in $O(2^n)$ and $O(3^n)$ total time across all submasks.
+Enumerates subsets and submasks in $O(2^n)$ and $O(3^n)$ total time across all submasks. The bitmask approach is common in competitive programming for state compression (e.g., bitmask DP); use \`itertools.combinations\` for general Python code.
 
 ## Math: GCD, LCM & Combinatorics
 \`\`\`python
 import math
 
-g = math.gcd(48, 18)    # 6
-l = math.lcm(12, 15)    # 60
+g = math.gcd(48, 18)
+l = math.lcm(12, 15)
 combinations = math.comb(n, k) # n! / (k! * (n-k)!)
 permutations = math.perm(n, k) # n! / (n-k)!
 \`\`\`
@@ -3910,29 +5169,27 @@ Calculates modular powers and inverses in $O(\\log(\\text{exp}))$ time via binar
 ## Integer Division & Negative Modulo
 \`\`\`python
 # Floor division (//) rounds towards -infinity:
-pos = 7 // 2      # 3
+pos = 7 // 2
 neg = -7 // 2     # -4 (NOT -3 like C++/Java!)
 
 # Truncation towards zero (matching C++/Java):
-trunc = int(-7 / 2) # -3
+trunc = int(-7 / 2)
 
 # Negative modulo: always non-negative for positive divisor (ideal for circular indices):
-prev_idx = (-1) % 5 # 4
+prev_idx = (-1) % 5
 \`\`\`
 Distinguishes Python's floor division from truncation towards zero, and highlights non-negative modulo behavior for circular array indexing.
 
-## Fast I/O Setup
+## Fast I/O Setup *(Competitive Programming)*
 \`\`\`python
 import sys
 
-# Fast line-by-line reading:
 input = sys.stdin.readline
 
-# Fast bulk reading of all tokens:
 def read_all():
     return sys.stdin.read().split()
 \`\`\`
-Replaces standard \`input()\` to handle large competitive programming input streams without buffer latency.
+Replaces standard \`input()\` to avoid per-call buffer overhead when reading large competitive programming input streams. This is a **competitive programming–specific** pattern with no general application outside online judge environments.
 `,rce=`---
 language: typescript
 badge: ts
@@ -3944,10 +5201,9 @@ aliases: [ts, typescript, js, javascript]
 const nums = [10, 2, 5, 1];
 
 // Explicit numeric comparator is REQUIRED (default sorts as strings!):
-nums.sort((a, b) => a - b); // Ascending
-nums.sort((a, b) => b - a); // Descending
+nums.sort((a, b) => a - b);
+nums.sort((a, b) => b - a);
 
-// Multi-attribute object sorting:
 tasks.sort((a, b) => a.priority - b.priority || a.id - b.id);
 \`\`\`
 Performs in-place stable $O(N \\log N)$ sorting using a signed numeric subtraction comparator.
@@ -3960,9 +5216,9 @@ let right = nums.length;
 while (left < right) {
   const mid = left + Math.floor((right - left) / 2);
   if (condition(mid)) {
-    right = mid;     // Target in left half including mid
+    right = mid;
   } else {
-    left = mid + 1;  // Target strictly to the right
+    left = mid + 1;
   }
 }
 return left;
@@ -3971,7 +5227,6 @@ Finds threshold boundary points and insertion indices in sorted arrays in $O(\\l
 
 ## Two Pointers & Fast-Slow Pointers
 \`\`\`typescript
-// Opposite-end pointers (Sorted Two-Sum / Palindrome):
 let left = 0, right = nums.length - 1;
 while (left < right) {
   const sum = nums[left] + nums[right];
@@ -3980,12 +5235,13 @@ while (left < right) {
   else right--;
 }
 
-// Fast & Slow pointers (Linked list cycle detection):
+// Note: JS/TS has no native linked-list; assumes a custom
+// ListNode<T> { val: T; next: ListNode<T> | null } structure.
 let slow = head, fast = head;
 while (fast !== null && fast.next !== null) {
   slow = slow.next!;
   fast = fast.next.next;
-  if (slow === fast) return true; // Cycle detected
+  if (slow === fast) return true;
 }
 \`\`\`
 Traverses sequential structures with two coordinated pointers in $O(N)$ time and $O(1)$ auxiliary space.
@@ -4000,7 +5256,6 @@ for (let right = 0; right < s.length; right++) {
   const char = s[right];
   counts.set(char, (counts.get(char) ?? 0) + 1);
 
-  // Contract invalid window from left:
   while (!isValid(counts)) {
     const leftChar = s[left];
     counts.set(leftChar, counts.get(leftChar)! - 1);
@@ -4085,12 +5340,12 @@ function subsets(nums: number[]): number[][] {
   const current: number[] = [];
 
   function backtrack(startIdx: number): void {
-    results.push([...current]); // Snapshot shallow clone
+    results.push([...current]);
 
     for (let i = startIdx; i < nums.length; i++) {
-      current.push(nums[i]); // Choose
-      backtrack(i + 1);      // Explore
-      current.pop();         // Undo
+      current.push(nums[i]);
+      backtrack(i + 1);
+      current.pop();
     }
   }
 
@@ -4114,13 +5369,10 @@ Safely accesses deeply nested properties without runtime exceptions, falling bac
 
 ## Object & Array Destructuring
 \`\`\`typescript
-// Object destructuring with renaming and default:
 const { name: fullName, age = 18, ...restProps } = person;
 
-// Array destructuring with rest elements:
 const [first, second, ...remaining] = items;
 
-// Object and array spread merging:
 const merged = { ...defaults, ...overrides };
 const cloned = [...items, newItem];
 \`\`\`
@@ -4145,9 +5397,9 @@ function isUser(val: unknown): val is User {
 }
 
 if (typeof input === "string") {
-  input.toUpperCase(); // TypeScript knows input is string
+  input.toUpperCase();
 } else if (isUser(input)) {
-  console.log(input.id); // Narrowed to User
+  console.log(input.id);
 }
 \`\`\`
 Informs the TypeScript compiler to narrow down broad \`unknown\` or union types within conditional blocks.
@@ -4158,32 +5410,27 @@ function firstOrFallback<T>(items: T[], fallback: T): T {
   return items.length > 0 ? items[0] : fallback;
 }
 
-const num = firstOrFallback([10, 20], 0);    // inferred T = number
-const str = firstOrFallback([], "default");  // inferred T = string
+const num = firstOrFallback([10, 20], 0);
+const str = firstOrFallback([], "default");
 \`\`\`
 Parametric polymorphism enabling functions and classes to operate over arbitrary types while retaining type integrity.
 
 ## ASCII & Character Conversions
 \`\`\`typescript
-// Character to 0-25 alphabet index:
-const charCode = "c".charCodeAt(0);          // 99
-const alphabetIdx = "c".charCodeAt(0) - 97;  // 2 ('a' is 97)
+const charCode = "c".charCodeAt(0);
+const alphabetIdx = "c".charCodeAt(0) - "a".charCodeAt(0);
 
-// Alphabet index back to character:
-const char = String.fromCharCode(97 + alphabetIdx); // 'c'
+const char = String.fromCharCode("a".charCodeAt(0) + alphabetIdx);
 
-// Join array of characters into string:
-const str = ["a", "b", "c"].join(""); // "abc"
+const str = ["a", "b", "c"].join("");
 \`\`\`
 Translates characters to UTF-16 code units and back, and joins token sequences into strings.
 
 ## Shallow vs Deep Copy
 \`\`\`typescript
-// Shallow copy (nested objects/arrays still share references):
 const shallowArr = [...originalArr];
 const shallowObj = { ...originalObj };
 
-// Deep copy (modern built-in algorithm recursively copying nested state):
 const deepClone = structuredClone(complexState);
 \`\`\`
 Duplicates JavaScript objects and arrays safely, leveraging modern \`structuredClone\` for deep nested state replication.
@@ -4197,22 +5444,201 @@ try {
   if (err instanceof SyntaxError) {
     console.error("Invalid JSON format:", err.message);
   } else {
-    throw err; // Re-throw unhandled errors
+    throw err;
   }
 } finally {
-  cleanup(); // Always executes
+  cleanup();
 }
 \`\`\`
 Catches runtime exceptions with type-safe \`unknown\` error discrimination and guaranteed cleanup execution.
 
-## Promise.all for Concurrent Async
+## Async / Await
 \`\`\`typescript
-const [users, posts] = await Promise.all([
-  fetchUsers(),
-  fetchPosts()
-]);
+async function fetchUser(id: string): Promise<User> {
+  const response = await fetch(\`/api/users/\${id}\`);
+  if (!response.ok) throw new Error(\`HTTP \${response.status}\`);
+  return response.json();
+}
+
+async function loadData(): Promise<void> {
+  try {
+    const user = await fetchUser("42");
+    console.log(user.name);
+  } catch (err: unknown) {
+    if (err instanceof Error) console.error(err.message);
+  }
+}
 \`\`\`
-Executes multiple independent asynchronous operations in parallel, resolving once all settle or rejecting on the first failure.
+Suspends execution at each \`await\` until the promise resolves, enabling sequential async logic with standard \`try\`/\`catch\` error handling.
+
+## Promise Combinators
+\`\`\`typescript
+// All must succeed — rejects on first failure:
+const [users, posts] = await Promise.all([fetchUsers(), fetchPosts()]);
+
+// Wait for all to settle (never rejects):
+const results = await Promise.allSettled([taskA(), taskB()]);
+for (const r of results) {
+  if (r.status === "fulfilled") console.log(r.value);
+  else console.error(r.reason);
+}
+
+// First to settle wins (resolve or reject):
+const fastest = await Promise.race([fetchPrimary(), timeout(5000)]);
+
+// First to succeed wins (ignores rejections unless all fail):
+const first = await Promise.any([mirrorA(), mirrorB(), mirrorC()]);
+\`\`\`
+Four settlement strategies: \`all\` (fail-fast parallel), \`allSettled\` (graceful degradation), \`race\` (timeout patterns), \`any\` (first-success).
+
+## Closures & Higher-Order Functions
+\`\`\`typescript
+function createCounter(initial = 0) {
+  let count = initial;
+  return {
+    increment: () => ++count,
+    decrement: () => --count,
+    getCount: () => count,
+  };
+}
+const counter = createCounter(10);
+counter.increment();
+counter.getCount();
+
+function withLogging<T extends (...args: any[]) => any>(fn: T): T {
+  return ((...args: any[]) => {
+    console.log("Calling", fn.name, "with", args);
+    return fn(...args);
+  }) as T;
+}
+\`\`\`
+Closures capture variables from their enclosing lexical scope, enabling factory functions, data privacy, and stateful callbacks.
+
+## \`this\` Binding & Arrow Functions
+\`\`\`typescript
+// Arrow functions capture \`this\` from the enclosing lexical scope:
+class Timer {
+  seconds = 0;
+  start() {
+    setInterval(() => this.seconds++, 1000);
+  }
+}
+
+// Regular functions have dynamic \`this\`, determined by call site:
+function greet(this: { name: string }) {
+  console.log(\`Hello, \${this.name}\`);
+}
+const obj = { name: "Alice", greet };
+obj.greet(); // \`this\` is obj
+
+// Explicit binding:
+const boundGreet = greet.bind({ name: "Bob" });
+boundGreet();
+greet.call({ name: "Eve" });
+\`\`\`
+Arrow functions inherit \`this\` lexically (no own binding); regular functions resolve \`this\` dynamically via the call site, \`.bind()\`, \`.call()\`, or \`.apply()\`.
+
+## Modules (\`import\` / \`export\`)
+\`\`\`typescript
+export function add(a: number, b: number): number { return a + b; }
+export const PI = 3.14159;
+
+export default class Logger { /* ... */ }
+
+import { add, PI } from "./math";
+import Logger from "./logger";
+import { add as sum } from "./math";
+
+export { add, PI } from "./math";
+export { default as Logger } from "./logger";
+
+const { add } = await import("./math");
+\`\`\`
+ES module system for structuring code into self-contained files with explicit dependency declarations and tree-shakeable imports.
+
+## Iterators & Generators
+\`\`\`typescript
+function* range(start: number, end: number): Generator<number> {
+  for (let i = start; i < end; i++) {
+    yield i;
+  }
+}
+
+for (const n of range(0, 5)) {
+  console.log(n);
+}
+
+class Countdown implements Iterable<number> {
+  constructor(private from: number) {}
+
+  *[Symbol.iterator](): Generator<number> {
+    for (let i = this.from; i > 0; i--) yield i;
+  }
+}
+
+const nums = [...new Countdown(3)];
+\`\`\`
+Generators produce values lazily on demand via \`yield\`, and \`Symbol.iterator\` makes any object usable with \`for...of\` and spread syntax.
+
+## String Methods & Template Literals
+\`\`\`typescript
+const s = "  Hello, TypeScript!  ";
+
+s.trim();
+s.includes("Type");
+s.startsWith("  Hello");
+s.endsWith("!  ");
+s.replaceAll("!", "?");
+"abc".padStart(6, "0");
+"abc".padEnd(6, ".");
+
+const name = "world";
+const greeting = \`Hello, \${name}!\`;
+
+const html = \`
+  <div>
+    <p>\${greeting}</p>
+  </div>
+\`;
+
+function sql(strings: TemplateStringsArray, ...values: unknown[]) {
+  return { text: strings.join("?"), params: values };
+}
+const query = sql\`SELECT * FROM users WHERE id = \${42}\`;
+\`\`\`
+Built-in string methods for searching, padding, and replacing, plus template literals for interpolation, multi-line strings, and tagged DSLs.
+
+## \`for...of\` vs \`for...in\` vs \`.forEach()\`
+\`\`\`typescript
+const arr = ["a", "b", "c"];
+
+// for...of — iterates VALUES (arrays, strings, Maps, Sets, generators):
+for (const val of arr) console.log(val);
+
+// for...in — iterates enumerable PROPERTY KEYS (use on objects, not arrays):
+const obj = { x: 1, y: 2 };
+for (const key in obj) console.log(key);
+
+// .forEach() — array method, no break/continue, no await support:
+arr.forEach((val, idx) => console.log(idx, val));
+\`\`\`
+\`for...of\` iterates values from any iterable; \`for...in\` enumerates object keys (avoid on arrays — includes inherited properties); \`.forEach()\` is an array method that cannot \`break\` or use \`await\`.
+
+## Nullish Assignment Operators
+\`\`\`typescript
+let config: { timeout?: number; retries?: number; verbose?: boolean } = {};
+
+// ??= assigns only if current value is null or undefined:
+config.timeout ??= 5000;
+config.timeout ??= 9999;
+
+// ||= assigns if current value is falsy (0, "", false, null, undefined):
+config.retries ||= 3;
+
+// &&= assigns only if current value is truthy:
+config.verbose &&= false;
+\`\`\`
+Shorthand assignment operators combining nullish coalescing (\`??\`), logical OR (\`||\`), and logical AND (\`&&\`) with assignment.
 `,ace=`---
 language: typescript
 badge: ts
@@ -4226,7 +5652,6 @@ for (const x of nums) {
   counts.set(x, (counts.get(x) ?? 0) + 1);
 }
 
-// Graph adjacency list:
 const adj = new Map<number, number[]>();
 for (const [u, v] of edges) {
   if (!adj.has(u)) adj.set(u, []);
@@ -4239,11 +5664,10 @@ Hash map supporting arbitrary key types with average $O(1)$ insertions, lookups,
 \`\`\`typescript
 const seen = new Set<number>([1, 2, 3]);
 seen.add(4);
-seen.delete(2); // O(1) removal, returns boolean
+seen.delete(2);
 const exists = seen.has(3);
 
-// Set conversions:
-const uniqueList = Array.from(seen); // or [...seen]
+const uniqueList = Array.from(seen);
 \`\`\`
 Maintains unique elements with average $O(1)$ membership tests and fast array deduplication.
 
@@ -4251,23 +5675,19 @@ Maintains unique elements with average $O(1)$ membership tests and fast array de
 \`\`\`typescript
 const R = 4, C = 5;
 
-// Correct: independent row references filled with initial value:
 const grid: number[][] = Array.from({ length: R }, () => new Array(C).fill(0));
 
-// Jagged row allocation:
 const jagged: number[][] = Array.from({ length: R }, (_, r) => new Array(rowSizes[r]).fill(0));
 \`\`\`
 Allocates 2D arrays safely without pointer duplication across rows (\`new Array(R).fill(new Array(C))\` shares the same row reference!).
 
 ## Pointer-Based Queue (Avoiding O(N) shift)
 \`\`\`typescript
-// Fast O(1) dequeue without shifting entire array:
 const queue: number[] = [startNode];
 let head = 0;
 
 while (head < queue.length) {
-  const current = queue[head++]; // O(1) dequeue
-  // Process current...
+  const current = queue[head++];
 }
 \`\`\`
 Avoids JavaScript's native \`Array.prototype.shift()\` $O(N)$ reallocation overhead during BFS and queue operations.
@@ -4276,7 +5696,7 @@ Avoids JavaScript's native \`Array.prototype.shift()\` $O(N)$ reallocation overh
 \`\`\`typescript
 class MinHeap<T> {
   private data: T[] = [];
-  constructor(private compare: (a: T, b: T) => number = (a, b) => (a as any) - (b as any)) {}
+  constructor(private compare: (a: T, b: T) => number) {}
 
   get size(): number { return this.data.length; }
   peek(): T | undefined { return this.data[0]; }
@@ -4317,7 +5737,7 @@ A lightweight, self-contained generic binary heap supporting $O(\\log N)$ push a
 \`\`\`typescript
 const n = nums.length;
 const result = new Array(n).fill(-1);
-const stack: number[] = []; // Indices of decreasing elements
+const stack: number[] = [];
 
 for (let i = 0; i < n; i++) {
   while (stack.length > 0 && nums[i] > nums[stack[stack.length - 1]]) {
@@ -4426,7 +5846,6 @@ Built-in type transforms that produce new types by manipulating property optiona
 ## Classes & Parameter Properties
 \`\`\`typescript
 class Account {
-  // Concise constructor auto-declaring and assigning fields:
   constructor(
     public readonly id: string,
     private balance: number = 0
@@ -4447,7 +5866,7 @@ Defines classes with constructor parameter shorthand, access modifiers (\`public
 ## Inheritance & Abstract Classes
 \`\`\`typescript
 abstract class Shape {
-  abstract area(): number; // Must be implemented by subclasses
+  abstract area(): number;
 
   describe(): void {
     console.log(\`Area is \${this.area()}\`);
@@ -4501,9 +5920,94 @@ const Direction = {
   Down: "DOWN",
 } as const;
 
-type DirectionType = typeof Direction[keyof typeof Direction]; // "UP" | "DOWN"
+type DirectionType = typeof Direction[keyof typeof Direction];
 \`\`\`
 Compares TypeScript enums with tree-shakeable \`as const\` literal dictionary types.
+
+## Template Literal Types
+\`\`\`typescript
+type EventName = \`on\${Capitalize<string>}\`;
+type Getter<K extends string> = \`get\${Capitalize<K>}\`;
+
+type Getters<T> = {
+  [K in keyof T as \`get\${Capitalize<string & K>}\`]: () => T[K];
+};
+
+interface Person { name: string; age: number }
+type PersonGetters = Getters<Person>;
+\`\`\`
+Constructs string literal types by interpolating unions and applying intrinsic string type transforms (\`Capitalize\`, \`Uppercase\`, \`Lowercase\`, \`Uncapitalize\`).
+
+## Mapped Types & Conditional Types
+\`\`\`typescript
+type Nullable<T> = { [K in keyof T]: T[K] | null };
+type ReadonlyDeep<T> = { readonly [K in keyof T]: ReadonlyDeep<T[K]> };
+
+type IsString<T> = T extends string ? true : false;
+type A = IsString<"hello">;
+type B = IsString<42>;
+
+type NonNullableProps<T> = {
+  [K in keyof T]: NonNullable<T[K]>;
+};
+
+type ReturnOf<T> = T extends (...args: any[]) => infer R ? R : never;
+type Str = ReturnOf<() => string>;
+\`\`\`
+Mapped types iterate over property keys to construct new types; conditional types branch based on assignability checks with optional \`infer\` for type extraction.
+
+## \`keyof\`, \`typeof\` & Index Access Types
+\`\`\`typescript
+interface Config {
+  host: string;
+  port: number;
+  debug: boolean;
+}
+
+type ConfigKey = keyof Config;
+
+type PortType = Config["port"];
+
+const defaults = { host: "localhost", port: 3000 };
+type Defaults = typeof defaults;
+
+function getConfig<K extends keyof Config>(key: K): Config[K] {
+  return config[key];
+}
+\`\`\`
+\`keyof\` extracts property name unions, \`typeof\` derives types from values, and index access \`T[K]\` retrieves specific property types — the building blocks of all utility types.
+
+## \`satisfies\` Operator (TS 4.9+)
+\`\`\`typescript
+// Validates a value matches a type WITHOUT widening:
+const palette = {
+  red: [255, 0, 0],
+  green: "#00ff00",
+  blue: [0, 0, 255],
+} satisfies Record<string, string | number[]>;
+
+palette.green.toUpperCase();
+palette.red.map(x => x / 255);
+
+\`\`\`
+Validates that an expression matches a type at compile time while preserving the narrowest inferred type, avoiding the widening that type annotations cause.
+
+## Tuple Types
+\`\`\`typescript
+type Point3D = [number, number, number];
+const origin: Point3D = [0, 0, 0];
+
+type HttpResponse = [status: number, body: string];
+type Range = [start: number, end: number];
+
+type Color = [number, number, number, alpha?: number];
+
+type AtLeastOne<T> = [T, ...T[]];
+type StringPair = [string, string];
+
+const [status, body]: HttpResponse = [200, "OK"];
+\`\`\`
+Fixed-length arrays with per-position types, supporting labels, optional elements, and rest patterns for precise function signatures and return types.
 `,sce=`---
 language: typescript
 badge: ts
@@ -4512,45 +6016,34 @@ aliases: [ts, typescript, js, javascript]
 
 ## Bitwise Flags & Permission Masks
 \`\`\`typescript
-const READ    = 1 << 0; // 0001
-const WRITE   = 1 << 1; // 0010
-const EXECUTE = 1 << 2; // 0100
+const READ    = 1 << 0;
+const WRITE   = 1 << 1;
+const EXECUTE = 1 << 2;
 
-// Enable / add a flag:
 let perms = READ | WRITE;
 
-// Check if a flag is enabled:
 const canWrite = (perms & WRITE) !== 0;
 
-// Clear / remove a flag:
 perms &= ~WRITE;
 
-// Toggle a flag:
 perms ^= EXECUTE;
 \`\`\`
 Manages composite boolean states and access control flags efficiently using bitwise mask arithmetic.
 
 ## Bit Manipulation Tricks
 \`\`\`typescript
-// Check if power of two:
 const isPowerOfTwo = (x: number) => x > 0 && (x & (x - 1)) === 0;
 
-// Isolate lowest set bit:
 const lowestBit = x & -x;
 
-// Clear lowest set bit:
 const cleared = x & (x - 1);
 \`\`\`
 Executes elementary bitwise arithmetic in $O(1)$ time.
 
 ## 32-Bit Truncation & Unsigned Coercion (>>> 0)
 \`\`\`typescript
-// In JS, bitwise ops operate on 32-bit signed integers:
 const signed = -1;
-const unsigned = signed >>> 0; // 4294967295 (coerces to unsigned 32-bit integer)
-
-// Integer 32-bit truncation:
-const int32 = Math.floor(floatVal) | 0;
+const unsigned = signed >>> 0; // coerces to unsigned 32-bit integer
 \`\`\`
 Converts numbers into unsigned 32-bit representations and enforces integer boundaries.
 
@@ -4563,7 +6056,6 @@ const bigA = 10n ** 18n;
 const bigB = 2n;
 const prod = (bigA * bigB) % MOD;
 
-// Convert to/from standard number:
 const asNumber = Number(prod);
 \`\`\`
 Performs arbitrary-precision integer arithmetic without 64-bit float precision loss beyond \`Number.MAX_SAFE_INTEGER\` ($2^{53} - 1$).
@@ -4571,7 +6063,8 @@ Performs arbitrary-precision integer arithmetic without 64-bit float precision l
 ## Math: GCD, LCM & Modular Exponentiation
 \`\`\`typescript
 function gcd(a: number, b: number): number {
-  return b === 0 ? a : gcd(b, a % b);
+  while (b) { [a, b] = [b, a % b]; }
+  return a;
 }
 
 function lcm(a: number, b: number): number {
@@ -4579,6 +6072,8 @@ function lcm(a: number, b: number): number {
 }
 
 // Fast modular exponentiation (base^exp % mod):
+// Note: this is primarily a competitive-programming pattern;
+// production code needing this would typically use a crypto library.
 function modPow(base: bigint, exp: bigint, mod: bigint): bigint {
   let res = 1n;
   base %= mod;
@@ -4591,7 +6086,6 @@ function modPow(base: bigint, exp: bigint, mod: bigint): bigint {
 }
 \`\`\`
 Computes number-theoretic primitives in $O(\\log(\\min(a, b)))$ and $O(\\log(\\text{exp}))$ time.
-
 `,N6=Symbol.for(`yaml.alias`),P6=Symbol.for(`yaml.document`),F6=Symbol.for(`yaml.map`),I6=Symbol.for(`yaml.pair`),L6=Symbol.for(`yaml.scalar`),R6=Symbol.for(`yaml.seq`),z6=Symbol.for(`yaml.node.type`),B6=e=>!!e&&typeof e==`object`&&e[z6]===N6,V6=e=>!!e&&typeof e==`object`&&e[z6]===P6,H6=e=>!!e&&typeof e==`object`&&e[z6]===F6,U6=e=>!!e&&typeof e==`object`&&e[z6]===I6,W6=e=>!!e&&typeof e==`object`&&e[z6]===L6,G6=e=>!!e&&typeof e==`object`&&e[z6]===R6;function K6(e){if(e&&typeof e==`object`)switch(e[z6]){case F6:case R6:return!0}return!1}function q6(e){if(e&&typeof e==`object`)switch(e[z6]){case N6:case F6:case L6:case R6:return!0}return!1}var J6=e=>(W6(e)||K6(e))&&!!e.anchor,Y6=Symbol(`break visit`),X6=Symbol(`skip children`),Z6=Symbol(`remove node`);function Q6(e,t){let n=n8(t);V6(e)?$6(null,e.contents,n,Object.freeze([e]))===Z6&&(e.contents=null):$6(null,e,n,Object.freeze([]))}Q6.BREAK=Y6,Q6.SKIP=X6,Q6.REMOVE=Z6;function $6(e,t,n,r){let i=r8(e,t,n,r);if(q6(i)||U6(i))return i8(e,r,i),$6(e,i,n,r);if(typeof i!=`symbol`){if(K6(t)){r=Object.freeze(r.concat(t));for(let e=0;e<t.items.length;++e){let i=$6(e,t.items[e],n,r);if(typeof i==`number`)e=i-1;else if(i===Y6)return Y6;else i===Z6&&(t.items.splice(e,1),--e)}}else if(U6(t)){r=Object.freeze(r.concat(t));let e=$6(`key`,t.key,n,r);if(e===Y6)return Y6;e===Z6&&(t.key=null);let i=$6(`value`,t.value,n,r);if(i===Y6)return Y6;i===Z6&&(t.value=null)}}return i}async function e8(e,t){let n=n8(t);V6(e)?await t8(null,e.contents,n,Object.freeze([e]))===Z6&&(e.contents=null):await t8(null,e,n,Object.freeze([]))}e8.BREAK=Y6,e8.SKIP=X6,e8.REMOVE=Z6;async function t8(e,t,n,r){let i=await r8(e,t,n,r);if(q6(i)||U6(i))return i8(e,r,i),t8(e,i,n,r);if(typeof i!=`symbol`){if(K6(t)){r=Object.freeze(r.concat(t));for(let e=0;e<t.items.length;++e){let i=await t8(e,t.items[e],n,r);if(typeof i==`number`)e=i-1;else if(i===Y6)return Y6;else i===Z6&&(t.items.splice(e,1),--e)}}else if(U6(t)){r=Object.freeze(r.concat(t));let e=await t8(`key`,t.key,n,r);if(e===Y6)return Y6;e===Z6&&(t.key=null);let i=await t8(`value`,t.value,n,r);if(i===Y6)return Y6;i===Z6&&(t.value=null)}}return i}function n8(e){return typeof e==`object`&&(e.Collection||e.Node||e.Value)?Object.assign({Alias:e.Node,Map:e.Node,Scalar:e.Node,Seq:e.Node},e.Value&&{Map:e.Value,Scalar:e.Value,Seq:e.Value},e.Collection&&{Map:e.Collection,Seq:e.Collection},e):e}function r8(e,t,n,r){if(typeof n==`function`)return n(e,t,r);if(H6(t))return n.Map?.(e,t,r);if(G6(t))return n.Seq?.(e,t,r);if(U6(t))return n.Pair?.(e,t,r);if(W6(t))return n.Scalar?.(e,t,r);if(B6(t))return n.Alias?.(e,t,r)}function i8(e,t,n){let r=t[t.length-1];if(K6(r))r.items[e]=n;else if(U6(r))e===`key`?r.key=n:r.value=n;else if(V6(r))r.contents=n;else{let e=B6(r)?`alias`:`scalar`;throw Error(`Cannot replace node with ${e} parent`)}}var cce={"!":`%21`,",":`%2C`,"[":`%5B`,"]":`%5D`,"{":`%7B`,"}":`%7D`},lce=e=>e.replace(/[!,[\]{}]/g,e=>cce[e]),a8=class e{constructor(t,n){this.docStart=null,this.docEnd=!1,this.yaml=Object.assign({},e.defaultYaml,t),this.tags=Object.assign({},e.defaultTags,n)}clone(){let t=new e(this.yaml,this.tags);return t.docStart=this.docStart,t}atDocument(){let t=new e(this.yaml,this.tags);switch(this.yaml.version){case`1.1`:this.atNextDocument=!0;break;case`1.2`:this.atNextDocument=!1,this.yaml={explicit:e.defaultYaml.explicit,version:`1.2`},this.tags=Object.assign({},e.defaultTags)}return t}add(t,n){this.atNextDocument&&=(this.yaml={explicit:e.defaultYaml.explicit,version:`1.1`},this.tags=Object.assign({},e.defaultTags),!1);let r=t.trim().split(/[ \t]+/),i=r.shift();switch(i){case`%TAG`:{if(r.length!==2&&(n(0,`%TAG directive should contain exactly two parts`),r.length<2))return!1;let[e,t]=r;return this.tags[e]=t,!0}case`%YAML`:{if(this.yaml.explicit=!0,r.length!==1)return n(0,`%YAML directive should contain exactly one part`),!1;let[e]=r;if(e===`1.1`||e===`1.2`)return this.yaml.version=e,!0;{let t=/^\d+\.\d+$/.test(e);return n(6,`Unsupported YAML version ${e}`,t),!1}}default:return n(0,`Unknown directive ${i}`,!0),!1}}tagName(e,t){if(e===`!`)return`!`;if(e[0]!==`!`)return t(`Not a valid tag: ${e}`),null;if(e[1]===`<`){let n=e.slice(2,-1);return n===`!`||n===`!!`?(t(`Verbatim tags aren't resolved, so ${e} is invalid.`),null):(e[e.length-1]!==`>`&&t(`Verbatim tags must end with a >`),n)}let[,n,r]=e.match(/^(.*!)([^!]*)$/s);r||t(`The ${e} tag has no suffix`);let i=this.tags[n];if(i)try{return i+decodeURIComponent(r)}catch(e){return t(String(e)),null}return n===`!`?e:(t(`Could not resolve tag: ${e}`),null)}tagString(e){for(let[t,n]of Object.entries(this.tags))if(e.startsWith(n))return t+lce(e.substring(n.length));return e[0]===`!`?e:`!<${e}>`}toString(e){let t=this.yaml.explicit?[`%YAML ${this.yaml.version||`1.2`}`]:[],n=Object.entries(this.tags),r;if(e&&n.length>0&&q6(e.contents)){let t={};Q6(e.contents,(e,n)=>{q6(n)&&n.tag&&(t[n.tag]=!0)}),r=Object.keys(t)}else r=[];for(let[i,a]of n)(i!==`!!`||a!==`tag:yaml.org,2002:`)&&(!e||r.some(e=>e.startsWith(a)))&&t.push(`%TAG ${i} ${a}`);return t.join(`
 `)}};a8.defaultYaml={explicit:!1,version:`1.2`},a8.defaultTags={"!!":`tag:yaml.org,2002:`};function o8(e){if(/[\x00-\x19\s,[\]{}]/.test(e)){let t=`Anchor must not contain whitespace or control characters: ${JSON.stringify(e)}`;throw Error(t)}return!0}function s8(e){let t=new Set;return Q6(e,{Value(e,n){n.anchor&&t.add(n.anchor)}}),t}function c8(e,t){for(let n=1;;++n){let r=`${e}${n}`;if(!t.has(r))return r}}function uce(e,t){let n=[],r=new Map,i=null;return{onAnchor:r=>{n.push(r),i??=s8(e);let a=c8(t,i);return i.add(a),a},setAnchors:()=>{for(let e of n){let t=r.get(e);if(typeof t==`object`&&t.anchor&&(W6(t.node)||K6(t.node)))t.node.anchor=t.anchor;else{let t=Error(`Failed to resolve repeated object (this should not happen)`);throw t.source=e,t}}},sourceObjects:r}}function l8(e,t,n,r){if(r&&typeof r==`object`){if(Array.isArray(r))for(let t=0,n=r.length;t<n;++t){let n=r[t],i=l8(e,r,String(t),n);i===void 0?delete r[t]:i!==n&&(r[t]=i)}else if(r instanceof Map)for(let t of Array.from(r.keys())){let n=r.get(t),i=l8(e,r,t,n);i===void 0?r.delete(t):i!==n&&r.set(t,i)}else if(r instanceof Set)for(let t of Array.from(r)){let n=l8(e,r,t,t);n===void 0?r.delete(t):n!==t&&(r.delete(t),r.add(n))}else for(let[t,n]of Object.entries(r)){let i=l8(e,r,t,n);i===void 0?delete r[t]:i!==n&&(r[t]=i)}}return e.call(t,n,r)}function u8(e,t,n){if(Array.isArray(e))return e.map((e,t)=>u8(e,String(t),n));if(e&&typeof e.toJSON==`function`){if(!n||!J6(e))return e.toJSON(t,n);let r={aliasCount:0,count:1,res:void 0};n.anchors.set(e,r),n.onCreate=e=>{r.res=e,delete n.onCreate};let i=e.toJSON(t,n);return n.onCreate&&n.onCreate(i),i}return typeof e==`bigint`&&!n?.keep?Number(e):e}var d8=class{constructor(e){Object.defineProperty(this,z6,{value:e})}clone(){let e=Object.create(Object.getPrototypeOf(this),Object.getOwnPropertyDescriptors(this));return this.range&&(e.range=this.range.slice()),e}toJS(e,{mapAsMap:t,maxAliasCount:n,onAnchor:r,reviver:i}={}){if(!V6(e))throw TypeError(`A document argument is required`);let a={anchors:new Map,doc:e,keep:!0,mapAsMap:t===!0,mapKeyWarned:!1,maxAliasCount:typeof n==`number`?n:100},o=u8(this,``,a);if(typeof r==`function`)for(let{count:e,res:t}of a.anchors.values())r(t,e);return typeof i==`function`?l8(i,{"":o},``,o):o}},f8=class extends d8{constructor(e){super(N6),this.source=e,Object.defineProperty(this,"tag",{set(){throw Error(`Alias nodes cannot have tags`)}})}resolve(e,t){if(t?.maxAliasCount===0)throw ReferenceError(`Alias resolution is disabled`);let n;t?.aliasResolveCache?n=t.aliasResolveCache:(n=[],Q6(e,{Node:(e,t)=>{(B6(t)||J6(t))&&n.push(t)}}),t&&(t.aliasResolveCache=n));let r;for(let e of n){if(e===this)break;e.anchor===this.source&&(r=e)}return r}toJSON(e,t){if(!t)return{source:this.source};let{anchors:n,doc:r,maxAliasCount:i}=t,a=this.resolve(r,t);if(!a){let e=`Unresolved alias (the anchor must be set before the alias): ${this.source}`;throw ReferenceError(e)}let o=n.get(a);if(o||=(u8(a,null,t),n.get(a)),o?.res===void 0)throw ReferenceError(`This should not happen: Alias anchor was not resolved?`);if(i>=0&&(o.count+=1,o.aliasCount===0&&(o.aliasCount=p8(r,a,n)),o.count*o.aliasCount>i))throw ReferenceError(`Excessive alias count indicates a resource exhaustion attack`);return o.res}toString(e,t,n){let r=`*${this.source}`;if(e){if(o8(this.source),e.options.verifyAliasOrder&&!e.anchors.has(this.source)){let e=`Unresolved alias (the anchor must be set before the alias): ${this.source}`;throw Error(e)}if(e.implicitKey)return`${r} `}return r}};function p8(e,t,n){if(B6(t)){let r=t.resolve(e),i=n&&r&&n.get(r);return i?i.count*i.aliasCount:0}if(K6(t)){let r=0;for(let i of t.items){let t=p8(e,i,n);t>r&&(r=t)}return r}if(U6(t)){let r=p8(e,t.key,n),i=p8(e,t.value,n);return Math.max(r,i)}return 1}var m8=e=>!e||typeof e!=`function`&&typeof e!=`object`,h8=class extends d8{constructor(e){super(L6),this.value=e}toJSON(e,t){return t?.keep?this.value:u8(this.value,e,t)}toString(){return String(this.value)}};h8.BLOCK_FOLDED=`BLOCK_FOLDED`,h8.BLOCK_LITERAL=`BLOCK_LITERAL`,h8.PLAIN=`PLAIN`,h8.QUOTE_DOUBLE=`QUOTE_DOUBLE`,h8.QUOTE_SINGLE=`QUOTE_SINGLE`;var dce=`tag:yaml.org,2002:`;function fce(e,t,n){if(t){let e=n.filter(e=>e.tag===t),r=e.find(e=>!e.format)??e[0];if(!r)throw Error(`Tag ${t} not found`);return r}return n.find(t=>t.identify?.(e)&&!t.format)}function g8(e,t,n){if(V6(e)&&(e=e.contents),q6(e))return e;if(U6(e)){let t=n.schema[F6].createNode?.(n.schema,null,n);return t.items.push(e),t}(e instanceof String||e instanceof Number||e instanceof Boolean||typeof BigInt<`u`&&e instanceof BigInt)&&(e=e.valueOf());let{aliasDuplicateObjects:r,onAnchor:i,onTagObj:a,schema:o,sourceObjects:s}=n,c;if(r&&e&&typeof e==`object`){if(c=s.get(e),c)return c.anchor??(c.anchor=i(e)),new f8(c.anchor);c={anchor:null,node:null},s.set(e,c)}t?.startsWith(`!!`)&&(t=dce+t.slice(2));let l=fce(e,t,o.tags);if(!l){if(e&&typeof e.toJSON==`function`&&(e=e.toJSON()),!e||typeof e!=`object`){let t=new h8(e);return c&&(c.node=t),t}l=e instanceof Map?o[F6]:Symbol.iterator in Object(e)?o[R6]:o[F6]}a&&(a(l),delete n.onTagObj);let u=l?.createNode?l.createNode(n.schema,e,n):typeof l?.nodeClass?.from==`function`?l.nodeClass.from(n.schema,e,n):new h8(e);return t?u.tag=t:l.default||(u.tag=l.tag),c&&(c.node=u),u}function _8(e,t,n){let r=n;for(let e=t.length-1;e>=0;--e){let n=t[e];if(typeof n==`number`&&Number.isInteger(n)&&n>=0){let e=[];e[n]=r,r=e}else r=new Map([[n,r]])}return g8(r,void 0,{aliasDuplicateObjects:!1,keepUndefined:!1,onAnchor:()=>{throw Error(`This should not happen, please report a bug.`)},schema:e,sourceObjects:new Map})}var v8=e=>e==null||typeof e==`object`&&!!e[Symbol.iterator]().next().done,y8=class extends d8{constructor(e,t){super(e),Object.defineProperty(this,"schema",{value:t,configurable:!0,enumerable:!1,writable:!0})}clone(e){let t=Object.create(Object.getPrototypeOf(this),Object.getOwnPropertyDescriptors(this));return e&&(t.schema=e),t.items=t.items.map(t=>q6(t)||U6(t)?t.clone(e):t),this.range&&(t.range=this.range.slice()),t}addIn(e,t){if(v8(e))this.add(t);else{let[n,...r]=e,i=this.get(n,!0);if(K6(i))i.addIn(r,t);else if(i===void 0&&this.schema)this.set(n,_8(this.schema,r,t));else throw Error(`Expected YAML collection at ${n}. Remaining path: ${r}`)}}deleteIn(e){let[t,...n]=e;if(n.length===0)return this.delete(t);let r=this.get(t,!0);if(K6(r))return r.deleteIn(n);throw Error(`Expected YAML collection at ${t}. Remaining path: ${n}`)}getIn(e,t){let[n,...r]=e,i=this.get(n,!0);return r.length===0?!t&&W6(i)?i.value:i:K6(i)?i.getIn(r,t):void 0}hasAllNullValues(e){return this.items.every(t=>{if(!U6(t))return!1;let n=t.value;return n==null||e&&W6(n)&&n.value==null&&!n.commentBefore&&!n.comment&&!n.tag})}hasIn(e){let[t,...n]=e;if(n.length===0)return this.has(t);let r=this.get(t,!0);return K6(r)?r.hasIn(n):!1}setIn(e,t){let[n,...r]=e;if(r.length===0)this.set(n,t);else{let e=this.get(n,!0);if(K6(e))e.setIn(r,t);else if(e===void 0&&this.schema)this.set(n,_8(this.schema,r,t));else throw Error(`Expected YAML collection at ${n}. Remaining path: ${r}`)}}},pce=e=>e.replace(/^(?!$)(?: $)?/gm,`#`);function b8(e,t){return/^\n+$/.test(e)?e.substring(1):t?e.replace(/^(?! *$)/gm,t):e}var x8=(e,t,n)=>e.endsWith(`
 `)?b8(n,t):n.includes(`
