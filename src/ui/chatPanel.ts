@@ -2,6 +2,7 @@ import { elements } from '../core/elements';
 import { store, ChatMessage, ChatConversation } from '../core/store';
 import { ICONS } from './icons';
 import { parseChatMarkdown, escapeHtml } from '../core/markdown';
+import { renderMath } from '../core/math';
 import { createUniqueId } from '../core/id';
 import { copyToClipboardSafe } from '../core/clipboard';
 import { streamCompletion, StreamStatus, generateConversationTitle } from '../core/chat/client';
@@ -470,7 +471,7 @@ function renderChatMessages() {
   }).join('');
 
   // Render KaTeX if auto-render is available in global scope
-  renderMathInChat(container);
+  renderMath(container);
 }
 
 function showStreamingPlaceholder(statusText: string = 'Connecting...') {
@@ -549,7 +550,7 @@ function appendStreamingToken(partialContent: string, statusText?: string) {
   if (streamBubble) {
     const html = parseChatMarkdown(content);
     streamBubble.innerHTML = html;
-    renderMathInChat(streamBubble);
+    renderMath(streamBubble);
     scrollToBottom(false);
   }
 }
@@ -971,23 +972,6 @@ async function submitUserMessage() {
   session.fiber = Effect.runFork(streamEffect);
 }
 
-function renderMathInChat(element: HTMLElement) {
-  if (typeof (window as any).renderMathInElement === 'function') {
-    try {
-      (window as any).renderMathInElement(element, {
-        delimiters: [
-          { left: '$$', right: '$$', display: true },
-          { left: '$', right: '$', display: false },
-          { left: '\\(', right: '\\)', display: false },
-          { left: '\\[', right: '\\]', display: true },
-        ],
-        throwOnError: false,
-      });
-    } catch {
-      // ignore KaTeX rendering errors on malformed math
-    }
-  }
-}
 
 function scrollToBottom(smooth: boolean = true) {
   const scrollContainer = elements.chat.scrollContainer;

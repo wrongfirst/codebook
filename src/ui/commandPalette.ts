@@ -5,7 +5,8 @@ import { ICONS } from './icons';
 import { getActiveLanguageId } from '../language';
 import { getAllCheatsheets } from '../core/cheatsheets/loader';
 import { searchCheatsheets, formatHighlightedTitle } from '../core/cheatsheets/search';
-import { renderCheatsheetPreview } from '../core/cheatsheets/highlighter';
+import { renderCheatsheetPreview, highlightInElement } from '../core/cheatsheets/highlighter';
+import { renderMath } from '../core/math';
 import { escapeHtml } from '../core/markdown';
 import type { CheatsheetSearchResult } from '../core/cheatsheets/types';
 
@@ -214,9 +215,13 @@ function renderPreview(): void {
   const query = elements.commandPalette.input?.value || '';
   container.innerHTML = renderCheatsheetPreview(
     result.item.title,
-    result.item.rawMarkdown,
-    query
+    result.item.rawMarkdown
   );
+
+  renderMath(container);
+  if (query) {
+    highlightInElement(container, query);
+  }
 
   // Only reset scroll when switching to a different cheatsheet
   if (lastPreviewedId !== result.item.id) {
