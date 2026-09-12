@@ -15,7 +15,7 @@ for (const x of nums) {
 const adj = new Map<number, number[]>();
 for (const [u, v] of edges) {
   if (!adj.has(u)) adj.set(u, []);
-  adj.get(u)!.push(v);
+  adj.get(u)!.push(v); // safe: adj.has(u) check + set on prior line
 }
 ```
 Hash map supporting arbitrary key types with average $O(1)$ insertions, lookups, and frequency updates.
@@ -61,7 +61,7 @@ Avoids JavaScript's native `Array.prototype.shift()` $O(N)$ reallocation overhea
 ```typescript
 class MinHeap<T> {
   private data: T[] = [];
-  constructor(private compare: (a: T, b: T) => number = (a, b) => (a as any) - (b as any)) {}
+  constructor(private compare: (a: T, b: T) => number) {}
 
   get size(): number { return this.data.length; }
   peek(): T | undefined { return this.data[0]; }
@@ -80,7 +80,7 @@ class MinHeap<T> {
   pop(): T | undefined {
     if (this.size === 0) return undefined;
     const top = this.data[0];
-    const bottom = this.data.pop()!;
+    const bottom = this.data.pop()!; // safe: size > 0 checked above
     if (this.size > 0) {
       this.data[0] = bottom;
       let i = 0;
@@ -106,7 +106,7 @@ const stack: number[] = []; // Indices of decreasing elements
 
 for (let i = 0; i < n; i++) {
   while (stack.length > 0 && nums[i] > nums[stack[stack.length - 1]]) {
-    const poppedIdx = stack.pop()!;
+    const poppedIdx = stack.pop()!; // safe: stack.length > 0 checked in while condition
     result[poppedIdx] = nums[i];
   }
   stack.push(i);
@@ -162,7 +162,7 @@ class Trie {
       if (!curr.children.has(ch)) {
         curr.children.set(ch, new TrieNode());
       }
-      curr = curr.children.get(ch)!;
+      curr = curr.children.get(ch)!; // safe: just set on prior line
     }
     curr.isEnd = true;
   }
@@ -171,7 +171,7 @@ class Trie {
     let curr = this.root;
     for (const ch of prefix) {
       if (!curr.children.has(ch)) return false;
-      curr = curr.children.get(ch)!;
+      curr = curr.children.get(ch)!; // safe: has(ch) checked above
     }
     return true;
   }

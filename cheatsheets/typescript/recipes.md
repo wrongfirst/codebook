@@ -43,10 +43,6 @@ Executes elementary bitwise arithmetic in $O(1)$ time.
 const signed = -1;
 const unsigned = signed >>> 0; // 4294967295 (coerces to unsigned 32-bit integer)
 
-// Integer 32-bit truncation:
-const int32 = Math.floor(floatVal) | 0;
-```
-Converts numbers into unsigned 32-bit representations and enforces integer boundaries.
 
 ## BigInt for Large Numbers
 ```typescript
@@ -65,7 +61,8 @@ Performs arbitrary-precision integer arithmetic without 64-bit float precision l
 ## Math: GCD, LCM & Modular Exponentiation
 ```typescript
 function gcd(a: number, b: number): number {
-  return b === 0 ? a : gcd(b, a % b);
+  while (b) { [a, b] = [b, a % b]; }
+  return a;
 }
 
 function lcm(a: number, b: number): number {
@@ -73,6 +70,8 @@ function lcm(a: number, b: number): number {
 }
 
 // Fast modular exponentiation (base^exp % mod):
+// Note: this is primarily a competitive-programming pattern;
+// production code needing this would typically use a crypto library.
 function modPow(base: bigint, exp: bigint, mod: bigint): bigint {
   let res = 1n;
   base %= mod;

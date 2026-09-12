@@ -8,24 +8,26 @@ aliases: [c]
 ```c
 #include <stdlib.h>
 
-// PITFALL: Avoid (x - y) which causes signed integer overflow on INT_MIN / INT_MAX!
+// Generic comparator: stdlib passes elements via generic const void * pointers.
+// Explicitly cast to the concrete type before dereferencing.
+// PITFALL: Avoid (x - y) subtraction which causes signed overflow on INT_MIN / INT_MAX!
 int cmp_ints(const void *a, const void *b) {
     int x = *(const int *)a;
     int y = *(const int *)b;
-    return (x > y) - (x < y); // Returns -1, 0, or 1 safely
+    return (x > y) - (x < y); // Returns -1, 0, or 1 safely without overflow
 }
 
 // In-place sort:
 qsort(arr, n, sizeof(int), cmp_ints);
 
-// Binary search with stdlib:
+// Binary search with stdlib (array must be sorted with matching comparator):
 int key = 42;
 int *found = bsearch(&key, arr, n, sizeof(int), cmp_ints);
 if (found != NULL) {
     int index = found - arr; // Pointer subtraction gives 0-based index
 }
 ```
-Sorts and searches contiguous arrays with standard library functions while preventing integer overflow in comparator functions.
+Sorts and searches contiguous arrays using type-erased `const void *` comparators while avoiding arithmetic overflow.
 
 ## Binary Search Template [left, right)
 ```c

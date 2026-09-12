@@ -14,6 +14,22 @@ let sum = List.fold_left ( + ) 0 list (* Always prefer fold_left over non-tail-r
 ```
 Transforms singly-linked immutable lists using higher-order functions from the standard library.
 
+## List Utilities & Generation
+```ocaml
+(* Generate range [0; 1; 2; ...; n-1]: *)
+let range = List.init 5 Fun.id
+
+(* Map with index: *)
+let indexed = List.mapi (fun idx x -> (idx, x * 10)) [1; 2; 3]
+
+(* Partition list into two based on predicate: *)
+let (evens, odds) = List.partition (fun x -> x mod 2 = 0) [1; 2; 3; 4; 5]
+
+(* Combine two lists into list of pairs: *)
+let pairs = List.combine ["a"; "b"] [1; 2] (* [("a", 1); ("b", 2)] *)
+```
+Constructs, partitions, and indexes lists using standard higher-order utility functions.
+
 ## Functional Queue (Okasaki Two-List Queue)
 ```ocaml
 type 'a queue = 'a list * 'a list (* (front, back) *)
@@ -59,12 +75,30 @@ let fruit = IntMap.find_opt 1 m (* Some "apple" *)
 ```
 Generates purely functional balanced red-black trees with $O(\log N)$ lookups and insertions using OCaml functors.
 
+## Custom Types with Set and Map Functors
+```ocaml
+(* Define module satisfying Set.OrderedType: *)
+module Point = struct
+  type t = int * int
+  let compare (x1, y1) (x2, y2) =
+    match compare x1 x2 with
+    | 0 -> compare y1 y2
+    | c -> c
+end
+
+module PointSet = Set.Make(Point)
+let pts = PointSet.(empty |> add (1, 2) |> add (3, 4))
+let has_pt = PointSet.mem (1, 2) pts
+```
+Instantiates associative collections for custom records or tuples by supplying a comparison module matching `OrderedType`.
+
 ## Mutable Hash Table (Hashtbl)
 ```ocaml
 let table = Hashtbl.create 16
 
-Hashtbl.add table "apple" 5
-Hashtbl.replace table "apple" 10 (* Overwrites existing key *)
+(* Hashtbl.replace overwrites existing keys; Hashtbl.add stacks bindings: *)
+Hashtbl.replace table "apple" 10
+Hashtbl.replace table "banana" 20
 
 let val_opt = Hashtbl.find_opt table "apple" (* Some 10 *)
 let exists = Hashtbl.mem table "apple"
@@ -95,8 +129,77 @@ let rec max_depth = function
   | Leaf -> 0
   | Node (l, _, r) -> 1 + max (max_depth l) (max_depth r)
 
-let rec inorder = function
-  | Leaf -> []
-  | Node (l, v, r) -> inorder l @ (v :: inorder r)
+(* Tail-recursive in-order traversal using an accumulator to avoid quadratic list appends: *)
+let inorder tree =
+  let rec aux acc = function
+    | Leaf -> acc
+    | Node (l, v, r) -> aux (v :: aux acc r) l
+  in
+  aux [] tree
 ```
-Defines algebraic tree structures and evaluates recursive depths and in-order / pre-order traversals.
+Defines algebraic tree structures with linear-time $O(N)$ accumulator traversals and recursive depth calculations.
+
+## Buffer & String Operations
+```ocaml
+(* Efficient string building (Buffer avoids O(N^2) string concatenation copies): *)
+let buf = Buffer.create 16
+Buffer.add_string buf "hello"
+Buffer.add_char buf ' '
+Buffer.add_string buf "world"
+let str = Buffer.contents buf (* "hello world" *)
+
+(* Common String operations: *)
+let tokens = String.split_on_char ',' "a,b,c"
+let joined = String.concat "-" tokens (* "a-b-c" *)
+let sub = String.sub "abcdef" 1 3      (* "bcd" (offset, length) *)
+```
+Constructs strings efficiently using mutable `Buffer` and performs splitting, joining, and slicing via the `String` module.
+
+## Lazy Sequences (Seq)
+```ocaml
+(* Infinite lazy generator sequence: *)
+let naturals = Seq.ints 0
+
+(* Lazily filter and materialize first N items: *)
+let first_five_evens =
+  naturals
+  |> Seq.filter (fun x -> x mod 2 = 0)
+  |> Seq.take 5
+  |> List.of_seq (* [0; 2; 4; 6; 8] *)
+```
+Evaluates sequences on demand to represent potentially infinite series or avoid intermediate collections.
+
+## Trie (Prefix Tree)
+```ocaml
+type trie = {
+  mutable is_end : bool;
+  children : (char, trie) Hashtbl.t;
+}
+
+let create_node () = { is_end = false; children = Hashtbl.create 4 }
+
+let insert root word =
+  let curr = ref root in
+  String.iter (fun ch ->
+    let next =
+      match Hashtbl.find_opt !curr.children ch with
+      | Some node -> node
+      | None ->
+          let node = create_node () in
+          Hashtbl.replace !curr.children ch node;
+          node
+    in
+    curr := next
+  ) word;
+  !curr.is_end <- true
+
+let search root word =
+  let curr = ref (Some root) in
+  String.iter (fun ch ->
+    curr := match !curr with
+      | Some node -> Hashtbl.find_opt node.children ch
+      | None -> None
+  ) word;
+  match !curr with Some node -> node.is_end | None -> false
+```
+Maintains a tree of character prefixes supporting $O(L)$ time string insertion and existence verification for word length $L$.

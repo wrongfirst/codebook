@@ -25,6 +25,22 @@ public:
 ```
 Defines object blueprints, contrasting default access specifiers and using initializer lists for optimal member construction.
 
+## Const Member Functions
+```cpp
+class Account {
+private:
+    double balance;
+public:
+    Account(double b) : balance(b) {}
+
+    // const guarantees method will NOT mutate any member variables:
+    double getBalance() const {
+        return balance;
+    }
+};
+```
+Enforces const correctness, permitting methods to be invoked on `const` references and objects.
+
 ## Operator Overloading (operator< for Sorting & Heaps)
 ```cpp
 struct Edge {
@@ -67,6 +83,8 @@ Derives child classes with polymorphic method overrides and virtual destructor s
 
 ## Pure Virtual Interface (Abstract Base Class)
 ```cpp
+#include <vector>
+
 class ISolver {
 public:
     virtual ~ISolver() = default;
@@ -77,30 +95,55 @@ public:
 ```
 Declares abstract interfaces that cannot be instantiated directly, enforcing contract implementation in derived types.
 
-## Const Member Functions
+## RAII & Scope-Based Resource Management
 ```cpp
-class Account {
-private:
-    double balance;
-public:
-    Account(double b) : balance(b) {}
+#include <cstdio>
+#include <mutex>
 
-    // const guarantees method will NOT mutate any member variables:
-    double getBalance() const {
-        return balance;
-    }
+std::mutex mtx;
+
+void safeOperation() {
+    // Acquired in constructor, guaranteed released in destructor:
+    std::lock_guard<std::mutex> lock(mtx);
+    // Released automatically upon exiting scope or on thrown exceptions
+}
+
+// Custom RAII wrapper:
+class FileHandle {
+    std::FILE* fp;
+public:
+    explicit FileHandle(const char* path) : fp(std::fopen(path, "r")) {}
+    ~FileHandle() { if (fp) std::fclose(fp); }
+    std::FILE* get() const { return fp; }
 };
 ```
-Enforces const correctness, permitting methods to be invoked on `const` references and objects.
+Ties resource acquisition and release directly to object lifetime, ensuring deterministic cleanup even when exceptions occur.
 
-## Rule of Zero / Rule of Five
+## Rule of Zero & Rule of Five
 ```cpp
-// Rule of Zero: Prefer using smart pointers and STL containers,
-// eliminating the need for manual copy/move/destructor implementations:
+#include <memory>
+#include <vector>
+
+// Rule of Zero: When members manage their own resources (STL / smart ptrs),
+// declare none of the 5 special member functions:
 class Graph {
     std::vector<std::vector<int>> adj;
-    std::unique_ptr<Node> root;
-    // Default copy/move constructors & destructor generated automatically
+    std::unique_ptr<int> metadata;
+    // Default copy/move/destructor generated automatically and correctly
+};
+
+// Rule of Five: If managing raw resources manually, declare all five:
+class Buffer {
+    int* ptr;
+    size_t size;
+public:
+    ~Buffer() { delete[] ptr; }                                  // 1. Destructor
+    Buffer(const Buffer& o);                                     // 2. Copy Constructor
+    Buffer& operator=(const Buffer& o);                          // 3. Copy Assignment
+    Buffer(Buffer&& o) noexcept : ptr(o.ptr), size(o.size) {     // 4. Move Constructor
+        o.ptr = nullptr; o.size = 0;
+    }
+    Buffer& operator=(Buffer&& o) noexcept;                      // 5. Move Assignment
 };
 ```
-Promotes RAII idioms where standard resource-managing wrappers remove the necessity for manual memory management routines.
+Defines resource-management contracts: prefer Rule of Zero with standard wrappers; implement the Rule of Five when managing raw resources directly.

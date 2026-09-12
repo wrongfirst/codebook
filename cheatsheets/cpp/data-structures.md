@@ -4,20 +4,43 @@ badge: cpp
 aliases: [cpp, c++, cplusplus]
 ---
 
+## std::array (Fixed-Size Stack Array)
+```cpp
+#include <array>
+#include <utility>
+
+// Zero-overhead stack-allocated fixed array:
+std::array<int, 4> arr = {10, 20, 30, 40};
+
+size_t len = arr.size();     // Compile-time known length
+int first = arr.front();
+int safe = arr.at(2);        // Bounds-checked access (throws std::out_of_range)
+
+// constexpr array (ideal for lookup tables & grid directions):
+constexpr std::array<std::pair<int, int>, 4> DIRS = {{{0, 1}, {1, 0}, {0, -1}, {-1, 0}}};
+```
+Safe, zero-overhead fixed-capacity sequence container stored directly on the stack with standard STL container member interfaces.
+
 ## Vector & Dynamic Sizing
 ```cpp
+#include <string>
+#include <utility>
 #include <vector>
 
-std::vector<int> nums;
-nums.reserve(100);       // Pre-allocates capacity to avoid repeated reallocations
-nums.push_back(10);
-nums.emplace_back(20);   // Constructs element in-place
+std::vector<std::pair<int, std::string>> items;
+items.reserve(100); // Pre-allocates buffer to prevent reallocation overhead
 
-bool empty = nums.empty();
-size_t size = nums.size();
-nums.pop_back();         // O(1) remove last
+// push_back copies or moves an existing object:
+items.push_back({1, "apple"});
+
+// emplace_back forwards constructor arguments, constructing element in-place:
+items.emplace_back(2, "banana");
+
+bool empty = items.empty();
+size_t size = items.size();
+items.pop_back(); // O(1) amortized removal
 ```
-Dynamically resizable contiguous array with $O(1)$ amortized insertions and random access.
+Dynamically resizable contiguous array with $O(1)$ amortized insertions, contrasting copy/move-based `push_back` with in-place `emplace_back`.
 
 ## 2D Matrix Allocation
 ```cpp
@@ -32,8 +55,28 @@ std::vector<std::vector<int>> adj(n); // Empty vectors for graph adjacency list
 ```
 Allocates contiguous 2D vector arrays safely with specified dimensions and initial default values.
 
+## Iterators & Range Navigation
+```cpp
+#include <iterator>
+#include <vector>
+
+std::vector<int> nums = {10, 20, 30, 40, 50};
+
+// Forward and reverse iterator endpoints:
+auto it = nums.begin();              // Points to first element (10)
+auto rit = nums.rbegin();            // Points to last element (50)
+
+// Safe iterator movement without raw pointer arithmetic:
+auto second = std::next(it);         // Advances 1 step (points to 20)
+auto prior = std::prev(nums.end());  // Points to last element (50)
+std::advance(it, 3);                 // Advances 'it' in-place by 3 steps
+```
+Provides uniform traversal abstractions across STL containers with forward, bidirectional, and random-access iterator operations.
+
 ## Hash Maps & Sets (unordered_map, unordered_set)
 ```cpp
+#include <iostream>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -41,17 +84,18 @@ std::unordered_map<std::string, int> counts;
 counts["apple"] = 5;
 counts.insert_or_assign("banana", 2);
 
-// Check presence without inserting default:
-auto it = counts.find("apple");
-if (it != counts.end()) {
-    std::cout << it->first << ": " << it->second << '\n';
+// Check presence without inserting default (C++20 .contains or .find):
+if (counts.contains("apple")) {
+    std::cout << counts["apple"] << '\n';
 }
 
 std::unordered_set<int> seen;
 seen.insert(42);
+if (seen.contains(42)) { /* exists (C++20) */ }
+// Pre-C++20 fallback:
 if (seen.count(42)) { /* exists */ }
 ```
-Average $O(1)$ key-value associations and uniqueness tracking backed by dynamic hash tables.
+Average $O(1)$ key-value associations and uniqueness tracking backed by hash tables, using modern C++20 `.contains()` for expressive membership tests.
 
 ## Ordered Maps & Sets (map, set)
 ```cpp
@@ -59,6 +103,9 @@ Average $O(1)$ key-value associations and uniqueness tracking backed by dynamic 
 #include <set>
 
 std::set<int> s = {10, 20, 30, 40};
+
+// C++20 presence check:
+bool exists = s.contains(20);
 
 // O(log N) container lower_bound / upper_bound:
 auto it = s.lower_bound(25); // Points to 30 (first element >= 25)
@@ -153,23 +200,26 @@ struct DSU {
 ```
 Tracks partitioned subsets with near $O(1)$ operations using path compression and union by rank.
 
-## Trie (Prefix Tree)
+## Trie (Prefix Tree with Smart Pointers)
 ```cpp
+#include <memory>
 #include <string>
 
 struct TrieNode {
-    TrieNode* children[26] = {};
+    std::unique_ptr<TrieNode> children[26];
     bool is_end = false;
 };
 
-void insert(TrieNode* root, const std::string& word) {
-    TrieNode* curr = root;
+void insert(TrieNode& root, const std::string& word) {
+    TrieNode* curr = &root;
     for (char ch : word) {
         int idx = ch - 'a';
-        if (!curr->children[idx]) curr->children[idx] = new TrieNode();
-        curr = curr->children[idx];
+        if (!curr->children[idx]) {
+            curr->children[idx] = std::make_unique<TrieNode>();
+        }
+        curr = curr->children[idx].get();
     }
     curr->is_end = true;
 }
 ```
-Stores strings in a tree structure for $O(L)$ prefix lookups and word validation.
+Stores strings in a tree structure for $O(L)$ prefix lookups, using `std::unique_ptr` for automatic leak-free memory reclamation.

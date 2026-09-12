@@ -7,6 +7,7 @@ aliases: [c]
 ## Dynamic Resizable Vector
 ```c
 #include <stdlib.h>
+#include <assert.h>
 
 typedef struct {
     int *data;
@@ -16,13 +17,17 @@ typedef struct {
 
 void vec_push(IntVector *v, int val) {
     if (v->size == v->cap) {
-        v->cap = v->cap == 0 ? 8 : v->cap * 2;
-        v->data = realloc(v->data, v->cap * sizeof(int));
+        size_t new_cap = v->cap == 0 ? 8 : v->cap * 2;
+        int *tmp = realloc(v->data, new_cap * sizeof(int));
+        if (tmp == NULL) return; // Allocation failed; retain existing buffer
+        v->data = tmp;
+        v->cap = new_cap;
     }
     v->data[v->size++] = val;
 }
 
 int vec_pop(IntVector *v) {
+    assert(v->size > 0);
     return v->data[--v->size]; // Stack pop (LIFO)
 }
 ```
@@ -31,6 +36,7 @@ Constructs a dynamically growing contiguous buffer providing $O(1)$ amortized ap
 ## Circular Queue (Ring Buffer for BFS)
 ```c
 #include <stdlib.h>
+#include <assert.h>
 
 typedef struct {
     int *data;
@@ -46,12 +52,14 @@ Queue* q_create(int capacity) {
 }
 
 void q_push(Queue *q, int val) {
+    assert(q->count < q->cap); // Guard against overflow
     q->rear = (q->rear + 1) % q->cap;
     q->data[q->rear] = val;
     q->count++;
 }
 
 int q_pop(Queue *q) {
+    assert(q->count > 0); // Guard against underflow
     int val = q->data[q->front];
     q->front = (q->front + 1) % q->cap;
     q->count--;

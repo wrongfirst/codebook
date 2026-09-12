@@ -12,13 +12,22 @@ stack = append(stack, val)           // Push
 top := stack[len(stack)-1]           // Peek
 stack = stack[:len(stack)-1]         // Pop
 
-// Queue (FIFO):
+// Queue (FIFO - Head Index Pattern):
 var queue []int
+head := 0
 queue = append(queue, val)           // Enqueue
-front := queue[0]                    // Peek
-queue = queue[1:]                    // Dequeue (O(1) amortized slice reslicing)
+front := queue[head]                 // Peek
+head++                               // Dequeue (O(1))
+
+// Reslice with copy to release backing array memory when head grows large:
+if head > len(queue)/2 && head > 128 {
+    queue = append([]int(nil), queue[head:]...)
+    head = 0
+}
+// CAUTION: Naive 'queue = queue[1:]' advances slice header but retains references
+// in the backing array, preventing garbage collection in long-lived queues.
 ```
-Implements lightweight stacks and FIFO queues using slice slicing and appends without extra package imports.
+Implements lightweight stacks and FIFO queues using slices, utilizing a head index to prevent memory retention leaks.
 
 ## 2D Matrix Allocation
 ```go
@@ -41,7 +50,9 @@ type IntHeap []int
 func (h IntHeap) Len() int           { return len(h) }
 func (h IntHeap) Less(i, j int) bool { return h[i] < h[j] } // Min-heap (<), Max-heap (>)
 func (h IntHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
-func (h *IntHeap) Push(x any)        { *h = append(*h, x.(int)) }
+
+// container/heap predates Go 1.18 generics; methods must accept and return 'any':
+func (h *IntHeap) Push(x any) { *h = append(*h, x.(int)) }
 func (h *IntHeap) Pop() any {
     old := *h
     n := len(old)
@@ -54,9 +65,9 @@ func (h *IntHeap) Pop() any {
 h := &IntHeap{2, 1, 5}
 heap.Init(h)
 heap.Push(h, 3)
-minVal := heap.Pop(h).(int) // 1
+minVal := heap.Pop(h).(int) // 1 (runtime type assertion from any)
 ```
-Satisfies Go's standard `heap.Interface` with 5 methods to maintain binary min/max heaps in $O(\log N)$ time.
+Satisfies Go's standard `heap.Interface` with 5 methods to maintain binary min/max heaps in $O(\log N)$ time (predates generics and requires `any` assertions).
 
 ## Monotonic Stack (Next Greater Element)
 ```go

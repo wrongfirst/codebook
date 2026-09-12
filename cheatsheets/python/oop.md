@@ -124,3 +124,98 @@ class BaseSolver(ABC):
         pass
 ```
 Enforces interface contracts, preventing instantiation if declared abstract methods are unimplemented.
+
+## Context Managers (with statement)
+```python
+# File I/O — the most common usage:
+with open("data.txt") as f:
+    content = f.read()
+# File is automatically closed when the block exits, even on exception.
+
+# Custom context manager using contextlib:
+from contextlib import contextmanager
+
+@contextmanager
+def timer(label: str):
+    import time
+    start = time.perf_counter()
+    yield                              # Code inside 'with' block runs here
+    elapsed = time.perf_counter() - start
+    print(f"{label}: {elapsed:.4f}s")
+
+with timer("processing"):
+    result = expensive_operation()
+
+# Custom context manager using __enter__ / __exit__:
+class ManagedResource:
+    def __enter__(self):
+        self.resource = acquire()
+        return self.resource
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        release(self.resource)
+        return False  # False = don't suppress exceptions
+```
+The `with` statement ensures setup and teardown always run as a pair, even if an exception is raised inside the block. Use `contextlib.contextmanager` for simple cases; implement `__enter__`/`__exit__` for class-based managers.
+
+## Decorators
+```python
+import functools, time
+
+# A decorator is a function that wraps another function:
+def timer(func):
+    @functools.wraps(func)   # Preserves __name__, __doc__, etc.
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        result = func(*args, **kwargs)
+        print(f"{func.__name__}: {time.perf_counter() - start:.4f}s")
+        return result
+    return wrapper
+
+@timer
+def slow_sort(nums):
+    return sorted(nums)
+
+# Equivalent to: slow_sort = timer(slow_sort)
+
+# Decorator with arguments (factory pattern):
+def repeat(n: int):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            for _ in range(n):
+                result = func(*args, **kwargs)
+            return result
+        return wrapper
+    return decorator
+
+@repeat(3)
+def greet(name):
+    print(f"Hello, {name}!")
+```
+A decorator is a callable that takes a function and returns a replacement. Always use `@functools.wraps` to preserve the wrapped function's metadata. Built-in decorators like `@property`, `@classmethod`, `@staticmethod`, `@cache`, and `@dataclass` follow the same pattern.
+
+## NamedTuple
+```python
+from typing import NamedTuple
+
+# Preferred modern form (class-based, supports type hints):
+class Point(NamedTuple):
+    x: float
+    y: float
+    z: float = 0.0  # Default values supported
+
+p = Point(1.0, 2.0)
+print(p.x, p.y, p.z)   # 1.0 2.0 0.0
+print(p[0], p[1])       # 1.0 2.0  — still indexable like a tuple
+x, y, z = p             # Unpackable
+
+# Also hashable → usable as dict key or set element:
+visited = {Point(0, 0), Point(1, 1)}
+
+# Classic functional form (collections.namedtuple):
+from collections import namedtuple
+Color = namedtuple("Color", ["r", "g", "b"])
+red = Color(255, 0, 0)
+```
+`NamedTuple` is an immutable, hashable, memory-efficient record type — effectively a typed tuple with named fields. Prefer it over plain tuples when field names matter for readability, and over `@dataclass` when immutability and hashability are required.

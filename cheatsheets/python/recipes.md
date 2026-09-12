@@ -34,8 +34,14 @@ sub = mask
 while sub > 0:
     # process submask
     sub = (sub - 1) & mask
+
+# Pythonic alternative with itertools (preferred in general Python):
+import itertools
+for r in range(n + 1):                          # All subset sizes
+    for subset in itertools.combinations(items, r):
+        pass
 ```
-Enumerates subsets and submasks in $O(2^n)$ and $O(3^n)$ total time across all submasks.
+Enumerates subsets and submasks in $O(2^n)$ and $O(3^n)$ total time across all submasks. The bitmask approach is common in competitive programming for state compression (e.g., bitmask DP); use `itertools.combinations` for general Python code.
 
 ## Math: GCD, LCM & Combinatorics
 ```python
@@ -74,7 +80,7 @@ prev_idx = (-1) % 5 # 4
 ```
 Distinguishes Python's floor division from truncation towards zero, and highlights non-negative modulo behavior for circular array indexing.
 
-## Fast I/O Setup
+## Fast I/O Setup *(Competitive Programming)*
 ```python
 import sys
 
@@ -85,4 +91,4 @@ input = sys.stdin.readline
 def read_all():
     return sys.stdin.read().split()
 ```
-Replaces standard `input()` to handle large competitive programming input streams without buffer latency.
+Replaces standard `input()` to avoid per-call buffer overhead when reading large competitive programming input streams. This is a **competitive programming–specific** pattern with no general application outside online judge environments.

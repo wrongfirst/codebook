@@ -4,6 +4,55 @@ badge: py
 aliases: [py, python]
 ---
 
+## Generators & yield
+```python
+# Generator function: yields values lazily instead of building a full list
+def fibonacci():
+    a, b = 0, 1
+    while True:
+        yield a
+        a, b = b, a + b
+
+fib = fibonacci()
+print(next(fib), next(fib), next(fib))  # 0 1 1
+
+# Generator expression (like a list comprehension, but lazy):
+even_squares = (x**2 for x in range(100) if x % 2 == 0)
+
+# yield from: delegate to a sub-generator
+def flatten(nested):
+    for sublist in nested:
+        yield from sublist
+
+list(flatten([[1, 2], [3, 4]]))  # [1, 2, 3, 4]
+```
+Generators produce values lazily, one at a time, without materializing the full sequence in memory. Use generator expressions in place of list comprehensions whenever you only need to iterate once or feed another function (e.g., `sum`, `any`, `all`).
+
+## itertools
+```python
+import itertools
+
+# Cartesian product (nested loops):
+for r, c in itertools.product(range(3), range(3)):
+    pass
+
+# Combinations and permutations:
+list(itertools.combinations([1, 2, 3], 2))   # [(1,2),(1,3),(2,3)]
+list(itertools.permutations([1, 2, 3], 2))   # [(1,2),(1,3),(2,1),...]
+
+# Chain multiple iterables into one:
+all_items = list(itertools.chain([1, 2], [3, 4], [5]))  # [1,2,3,4,5]
+
+# Running totals (prefix sums):
+prefix = list(itertools.accumulate([1, 2, 3, 4]))       # [1, 3, 6, 10]
+
+# Group consecutive equal elements:
+for key, group in itertools.groupby("AAABBC"):
+    print(key, list(group))   # A ['A','A','A'], B ['B','B'], C ['C']
+```
+`itertools` provides fast, memory-efficient combinatorial and sequence utilities implemented in C. Prefer `itertools.combinations`/`product` over manual bitmask enumeration for Pythonic subset iteration.
+
+
 ## Binary Search (Bisect & Monotonic Predicate)
 ```python
 import bisect
@@ -93,7 +142,7 @@ DIRECTIONS = [(0, 1), (1, 0), (0, -1), (-1, 0)] # Right, Down, Left, Up
 def in_bounds(r, c):
     return 0 <= r < R and 0 <= c < C
 
-visited = set([(start_r, start_c)])
+visited = {(start_r, start_c)}
 
 for dr, dc in DIRECTIONS:
     nr, nc = r + dr, c + dc

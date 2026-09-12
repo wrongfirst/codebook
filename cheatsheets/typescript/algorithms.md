@@ -46,6 +46,8 @@ while (left < right) {
 }
 
 // Fast & Slow pointers (Linked list cycle detection):
+// Note: JS/TS has no native linked-list; assumes a custom
+// ListNode<T> { val: T; next: ListNode<T> | null } structure.
 let slow = head, fast = head;
 while (fast !== null && fast.next !== null) {
   slow = slow.next!;

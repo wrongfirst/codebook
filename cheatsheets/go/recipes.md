@@ -55,7 +55,7 @@ func modPow(base, exp, mod int64) int64 {
 ```
 Computes number-theoretic primitives in logarithmic time via Euclidean algorithm and binary exponentiation.
 
-## Fast Competitive I/O (bufio)
+## High-Throughput Buffered I/O (bufio)
 ```go
 import (
     "bufio"
@@ -63,12 +63,12 @@ import (
 )
 
 func main() {
-    // Fast line scanner:
+    // High-throughput line scanner:
     scanner := bufio.NewScanner(os.Stdin)
-    // Enlarge default token buffer if lines can exceed 64KB:
+    // Enlarge buffer if lines can exceed default 64KB:
     scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
 
-    // Buffered writer (remember to Flush!):
+    // Buffered writer to minimize syscall overhead (remember to Flush!):
     writer := bufio.NewWriter(os.Stdout)
     defer writer.Flush()
 
@@ -78,4 +78,4 @@ func main() {
     }
 }
 ```
-Replaces unbuffered `fmt.Scan` and `fmt.Print` with high-throughput buffered streaming for competitive programming.
+Replaces unbuffered `fmt.Scan` and `fmt.Print` syscalls with high-throughput buffered streaming for files, network streams, and large dataset processing.

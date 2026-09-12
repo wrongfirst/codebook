@@ -22,11 +22,12 @@ firstIdx := sort.Search(len(nums), func(i int) bool {
 ```
 Finds boundaries and insertion indices in sorted slices or monotonic solution spaces in $O(\log N)$ time.
 
-## Custom Struct Sorting (slices.SortFunc)
+## Custom Struct Sorting (slices.SortFunc & sort.Slice)
 ```go
 import (
     "cmp"
     "slices"
+    "sort"
 )
 
 type Item struct {
@@ -34,15 +35,23 @@ type Item struct {
     Priority int
 }
 
-// Sort by Priority ascending, then Val descending:
+// Modern (Go 1.21+): generic 3-way comparator (-1, 0, 1)
 slices.SortFunc(items, func(a, b Item) int {
     if diff := cmp.Compare(a.Priority, b.Priority); diff != 0 {
         return diff
     }
     return cmp.Compare(b.Val, a.Val) // Inverted for descending
 })
+
+// Classic sort.Slice / sort.SliceStable: boolean less-function
+sort.Slice(items, func(i, j int) bool {
+    if items[i].Priority != items[j].Priority {
+        return items[i].Priority < items[j].Priority
+    }
+    return items[i].Val > items[j].Val
+})
 ```
-Sorts custom structs with generic comparator functions and multi-field tie-breaking in $O(N \log N)$ time.
+Sorts custom structs using modern generic 3-way comparators (`slices.SortFunc`) or classic boolean predicate functions (`sort.Slice` / `sort.SliceStable`) in $O(N \log N)$ time.
 
 ## Two Pointers & Fast-Slow Pointers
 ```go
@@ -60,6 +69,11 @@ for left < right {
 }
 
 // Fast & slow pointers (Linked list cycle detection):
+type ListNode struct {
+    Val  int
+    Next *ListNode
+}
+
 slow, fast := head, head
 for fast != nil && fast.Next != nil {
     slow = slow.Next
@@ -69,7 +83,7 @@ for fast != nil && fast.Next != nil {
     }
 }
 ```
-Traverses sequential structures with two coordinating indices in $O(N)$ time and $O(1)$ space.
+Traverses sequential structures and linked lists with coordinating pointers in $O(N)$ time and $O(1)$ space.
 
 ## Sliding Window Pattern
 ```go
@@ -101,11 +115,12 @@ Maintains dynamic valid substrings or subarrays with two pointers in amortized $
 adj := make(map[int][]int) // Adjacency list
 dist := make(map[int]int)
 queue := []int{start}
+head := 0
 dist[start] = 0
 
-for len(queue) > 0 {
-    u := queue[0]
-    queue = queue[1:]
+for head < len(queue) {
+    u := queue[head]
+    head++
 
     if u == target {
         break
@@ -119,7 +134,7 @@ for len(queue) > 0 {
     }
 }
 ```
-Explores unweighted graphs level-by-level, computing shortest hop distances in $O(V + E)$ time.
+Explores unweighted graphs level-by-level, computing shortest hop distances in $O(V + E)$ time using head-pointer queue indexing.
 
 ## 2D Grid Directions & Boundary Traversal
 ```go
@@ -182,9 +197,10 @@ for i := 0; i < n; i++ {
 }
 
 var topoOrder []int
-for len(queue) > 0 {
-    u := queue[0]
-    queue = queue[1:]
+head := 0
+for head < len(queue) {
+    u := queue[head]
+    head++
     topoOrder = append(topoOrder, u)
 
     for _, v := range adj[u] {
@@ -196,4 +212,4 @@ for len(queue) > 0 {
 }
 // If len(topoOrder) < n, graph contains a cycle!
 ```
-Generates a valid topological sequence of vertices in a DAG and detects cycles in $O(V + E)$ time.
+Generates a valid topological sequence of vertices in a DAG and detects cycles in $O(V + E)$ time using head-pointer queue traversal.

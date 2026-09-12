@@ -4,22 +4,25 @@ badge: cpp
 aliases: [cpp, c++, cplusplus]
 ---
 
-## Builtin Bit Intrinsics
+## Bit Intrinsics: Standard <bit> & Compiler Builtins
 ```cpp
-int x = 42;
-long long big = 1LL << 40;
+#include <bit>
 
-// Number of set bits:
-int count = __builtin_popcount(x);
-int count_ll = __builtin_popcountll(big);
+unsigned int x = 42;
+unsigned long long big = 1ULL << 40;
 
-// Count leading zeros:
-int lz = __builtin_clz(x);
+// Standard C++20 portable intrinsics (<bit>):
+int count = std::popcount(x);          // Number of set bits
+int lz = std::countl_zero(x);          // Leading zeros count
+int tz = std::countr_zero(x);          // Trailing zeros count
+bool pow2 = std::has_single_bit(x);    // Power of two check
 
-// Count trailing zeros:
-int tz = __builtin_ctz(x);
+// GCC / Clang compiler intrinsics (pre-C++20):
+int c_gcc = __builtin_popcount(x);
+int lz_gcc = __builtin_clz(x);
+int tz_gcc = __builtin_ctz(x);
 ```
-Compiler intrinsic instructions compiled down directly to hardware CPU bitwise instructions.
+Executes single-cycle hardware CPU bit operations using portable C++20 `<bit>` primitives or GCC/Clang built-in intrinsics.
 
 ## Bit Manipulation Tricks & Submask Iteration
 ```cpp
@@ -50,7 +53,7 @@ Built-in Euclidean algorithm in `<numeric>` computing greatest common divisor an
 
 ## Fast Modular Exponentiation & Inverse
 ```cpp
-constexpr long long MOD = 1e9 + 7;
+constexpr long long MOD = 1'000'000'007LL;
 
 // (base^exp) % MOD in O(log exp) time:
 long long power(long long base, long long exp) {
@@ -71,17 +74,36 @@ long long modInverse(long long n) {
 ```
 Computes large powers and modular division in logarithmic time via binary exponentiation.
 
-## Fast Competitive I/O Template
+## Competitive Programming Type Aliases & Helpers
+```cpp
+#include <utility>
+#include <vector>
+
+// Concise type aliases:
+using ll = long long;
+using pii = std::pair<int, int>;
+using vi = std::vector<int>;
+using vll = std::vector<long long>;
+
+// Range and size convenience macros:
+#define all(x) (x).begin(), (x).end()
+#define sz(x) (static_cast<int>((x).size()))
+```
+Provides standard shorthand aliases and macros to streamline repetitive type definitions in competitive programming contexts.
+
+## Fast I/O & Stream Synchronization
 ```cpp
 #include <iostream>
 
 int main() {
-    // Untie C++ streams from C stdio for fast competitive I/O:
+    // 1. Disable synchronization between C and C++ standard streams:
     std::ios_base::sync_with_stdio(false);
+
+    // 2. Untie std::cin from std::cout (prevents auto-flushing before reading):
     std::cin.tie(nullptr);
 
-    // Prefer '\n' over std::endl (std::endl forces an expensive buffer flush)
+    // 3. Prefer '\n' over std::endl (std::endl forces an explicit buffer flush)
     return 0;
 }
 ```
-Optimizes standard stream throughput for high-volume competitive programming test inputs.
+Maximizes stream I/O throughput by decoupling standard C I/O buffers and suppressing automatic output flushing on input.

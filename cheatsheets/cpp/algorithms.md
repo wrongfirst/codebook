@@ -30,6 +30,9 @@ Finds threshold boundaries and target indices in sorted ranges in $O(\log N)$ ti
 
 ## Two Pointers & Fast-Slow Pointers
 ```cpp
+#include <utility>
+#include <vector>
+
 // Opposite-end pointers (sorted two-sum / palindrome):
 int left = 0, right = nums.size() - 1;
 while (left < right) {
@@ -40,6 +43,11 @@ while (left < right) {
 }
 
 // Fast & slow pointers (Linked List cycle detection):
+struct ListNode {
+    int val;
+    ListNode* next;
+};
+
 ListNode *slow = head, *fast = head;
 while (fast && fast->next) {
     slow = slow->next;
@@ -91,6 +99,40 @@ auto max_it = std::max_element(nums.begin(), nums.end());
 ```
 Canonical generic STL algorithms operating over iterator ranges with optimal algorithmic complexity.
 
+## STL Search, Count & Predicates (find_if, count_if, all_of)
+```cpp
+#include <algorithm>
+#include <vector>
+
+// Find first element satisfying predicate:
+auto it = std::find_if(nums.begin(), nums.end(), [](int x) { return x % 2 == 0; });
+
+// Count elements matching condition:
+int evens = std::count_if(nums.begin(), nums.end(), [](int x) { return x % 2 == 0; });
+
+// Range quantification checks:
+bool all_pos = std::all_of(nums.begin(), nums.end(), [](int x) { return x > 0; });
+bool has_neg = std::any_of(nums.begin(), nums.end(), [](int x) { return x < 0; });
+```
+Performs declarative linear scans and boolean range validations with inline lambda predicates.
+
+## STL Transformations & Permutations (unique, next_permutation)
+```cpp
+#include <algorithm>
+#include <vector>
+
+// Remove consecutive duplicates (must be sorted first; returns new logical end):
+std::sort(nums.begin(), nums.end());
+nums.erase(std::unique(nums.begin(), nums.end()), nums.end());
+
+// In-place transformation:
+std::transform(nums.begin(), nums.end(), nums.begin(), [](int x) { return x * 2; });
+
+// Lexicographical next permutation (returns false when reset to smallest):
+bool has_next = std::next_permutation(nums.begin(), nums.end());
+```
+Modifies ranges in-place and generates combinatorial permutations directly in lexicographical order.
+
 ## Custom Sorting Comparators
 ```cpp
 #include <algorithm>
@@ -132,6 +174,8 @@ Traverses unweighted graphs level-by-level, finding shortest hop paths in $O(V +
 
 ## 2D Grid Directions & Boundary Traversal
 ```cpp
+#include <vector>
+
 int R = grid.size(), C = grid[0].size();
 const int dr[] = {0, 1, 0, -1}; // Right, Down, Left, Up
 const int dc[] = {1, 0, -1, 0};
@@ -154,8 +198,8 @@ Navigates orthogonal 2D matrix cells cleanly with delta coordinate offsets and b
 #include <queue>
 #include <vector>
 
-constexpr int INF = 1e9 + 7;
-using pii = std::pair<int, int>; // {dist, u}
+constexpr int INF = 1'000'000'000; // Distinct large sentinel safe from arithmetic overflow
+using pii = std::pair<int, int>;   // {dist, u}
 
 std::vector<int> dist(n, INF);
 std::priority_queue<pii, std::vector<pii>, std::greater<pii>> pq;
