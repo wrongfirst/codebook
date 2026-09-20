@@ -183,6 +183,7 @@ export function buildTestCode(cases: FlatCanonicalTestCase[], meta: CanonicalDat
   const hasInputs = inputKeys.length > 0;
   const argVars = inputKeys.length === 1 ? ['arg1'] : inputKeys.map((_, i) => `arg${i + 1}`);
   const destructureArgs = hasInputs ? `${argVars.join(', ')}, expected, desc` : 'expected, desc';
+  const testCaseType = `[${(hasInputs ? argVars.map(() => 'any') : []).concat(['any', 'string']).join(', ')}][]`;
 
   const testCaseRows = cases.map((c) => {
     const inputVals = inputKeys.map((k) => JSON.stringify(c.input[k]));
@@ -257,7 +258,7 @@ if (typeof ${property} !== "function") {
   throw new Error("${property} function is not defined");
 }
 
-const testCases = [
+const testCases: ${testCaseType} = [
 ${testCaseRows.join('\n')}
 ];
 
@@ -286,7 +287,7 @@ if (typeof ${property} !== "function") {
   throw new Error("${property} function is not defined");
 }
 
-const testCases = [
+const testCases: ${testCaseType} = [
 ${testCaseRows.join('\n')}
 ];
 
@@ -307,7 +308,7 @@ function buildOperationsTestCode(cases: FlatCanonicalTestCase[], sig: CanonicalS
   });
 
   return `// @ts-nocheck
-const testCases = [
+const testCases: [any, any, any, string][] = [
 ${testCaseRows.join('\n')}
 ];
 
@@ -345,6 +346,7 @@ function buildComposeTestCode(cases: FlatCanonicalTestCase[], sig: CanonicalSign
   const hasInputs = inputKeys.length > 0;
   const argVars = inputKeys.length === 1 ? ['arg1'] : inputKeys.map((_, i) => `arg${i + 1}`);
   const destructureArgs = hasInputs ? `${argVars.join(', ')}, expected, desc` : 'expected, desc';
+  const testCaseType = `[${(hasInputs ? argVars.map(() => 'any') : []).concat(['any', 'string']).join(', ')}][]`;
 
   const testCaseRows = cases.map((c) => {
     const inputVals = inputKeys.map((k) => JSON.stringify(c.input[k]));
@@ -378,7 +380,7 @@ function buildComposeTestCode(cases: FlatCanonicalTestCase[], sig: CanonicalSign
     : `const result = ${outerFn}(${innerFn}(${callArgs}));`;
 
   return `// @ts-nocheck
-const testCases = [
+const testCases: ${testCaseType} = [
 ${testCaseRows.join('\n')}
 ];
 
