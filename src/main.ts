@@ -6,6 +6,7 @@ import { exercises, curriculum, getExerciseDisplayNumber } from './exercises/exe
 import { getExerciseVariant } from './core/types';
 import { loadExerciseCode, setEditorCode, updateEditorTheme, getCode, formatEditorCode } from './core/editor';
 import { parseMarkdown, escapeHtml } from './core/markdown';
+import { renderMath } from './core/math';
 
 //module imports
 import { elements } from './core/elements';
@@ -118,7 +119,10 @@ function render() {
         const titleHtml = `<h1 class="text-3xl font-bold mb-6 text-fg-primary">${escapeHtml(headerTitle)}</h1>`;
         const fullContent = titleHtml + descHtml;
 
-        if (elements.description.desktop) elements.description.desktop.innerHTML = fullContent;
+        if (elements.description.desktop) {
+            elements.description.desktop.innerHTML = fullContent;
+            renderMath(elements.description.desktop);
+        }
 
         //update nav
         if (navActions) navActions.updateNavState(activeLessonSlug);
