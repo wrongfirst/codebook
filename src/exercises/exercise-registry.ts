@@ -10,6 +10,40 @@ const problemFiles = import.meta.glob<string>(
   { query: '?raw', import: 'default', eager: true }
 );
 
+// Discover all static exercise assets across exercise folders
+const exerciseAssets = import.meta.glob<string>(
+  './*/assets/*.{png,svg,jpg,jpeg,gif,webp}',
+  { import: 'default', eager: true }
+);
+
+function resolveExerciseAssets(folder: string, markdown: string): string {
+  if (!markdown) return '';
+  // 1. Resolve markdown image syntax: ![alt](./assets/filename.ext) or ![alt](assets/filename.ext)
+  let resolved = markdown.replace(
+    /!\[(.*?)\]\(\s*(?:\.\/)?assets\/([^\s)]+)(?:\s+["'](.*?)["'])?\s*\)/g,
+    (match, alt, filename, title) => {
+      const assetKey = `./${folder}/assets/${filename}`;
+      const bundledUrl = exerciseAssets[assetKey];
+      if (!bundledUrl) return match;
+      const titleAttr = title ? ` "${title}"` : '';
+      return `![${alt}](${bundledUrl}${titleAttr})`;
+    }
+  );
+
+  // 2. Resolve HTML <img> src attribute: <img src="./assets/filename.ext" ...>
+  resolved = resolved.replace(
+    /<img\b([^>]*?)\bsrc=["'](?:\.\/)?assets\/([^"']+)["']([^>]*?)>/gi,
+    (match, pre, filename, post) => {
+      const assetKey = `./${folder}/assets/${filename}`;
+      const bundledUrl = exerciseAssets[assetKey];
+      if (!bundledUrl) return match;
+      return `<img${pre}src="${bundledUrl}"${post}>`;
+    }
+  );
+
+  return resolved;
+}
+
 // Discover canonical-data.json files across exercise folders
 const canonicalDataFiles = import.meta.glob<CanonicalData>(
   './*/canonical-data.json',
@@ -68,7 +102,8 @@ export const curriculum: Chapter[] = rawChapters.map((ch) => {
     .map((folder) => {
       const exId = folder;
       const problemPath = `./${folder}/problem.md`;
-      const description = problemFiles[problemPath] || '';
+      const rawDescription = problemFiles[problemPath] || '';
+      const description = resolveExerciseAssets(folder, rawDescription);
       const title = formatTitle(folder);
 
       const exercise: Exercise = {

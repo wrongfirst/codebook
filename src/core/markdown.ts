@@ -41,7 +41,11 @@ export function isSafeUrl(url: string): boolean {
         return true;
     }
     // Allow safe in-page anchor links and relative paths (blocking protocol-relative //)
-    if (trimmed.startsWith('#') || (trimmed.startsWith('/') && !trimmed.startsWith('//'))) {
+    if (
+        trimmed.startsWith('#') ||
+        (trimmed.startsWith('/') && !trimmed.startsWith('//')) ||
+        (trimmed.startsWith('./') && !trimmed.includes(':'))
+    ) {
         return true;
     }
     // Reject javascript:, data:, vbscript:, file:, and other unsafe pseudo-protocols
