@@ -26,6 +26,9 @@ import { setupCopyCodeButton } from './ui/copyCode';
 import { setupFormatCodeButton } from './ui/formatCode';
 import { initShortcuts } from './ui/shortcuts';
 import { createLazyLoader } from './ui/lazy';
+import { initAuthWidget } from './ui/authWidget';
+import { initProUpgradeModal } from './ui/proUpgradeModal';
+import { initCloudSync } from './core/sync/cloudSync';
 import { renderLanguageSelector } from './ui/languageSelector';
 import { getLanguageExtension, prefetchInactiveLanguageAssets } from './languages/language-registry';
 import { activeRunner } from './language';
@@ -36,7 +39,6 @@ Object.defineProperty(window, 'fetch', { value: window.fetch, writable: false, c
 //initialisation
 initBranding();
 initShortcuts();
-
 //lazy-loaded modals: render visible chrome icons immediately, load modules on first click
 if (elements.settingsBtn) {
     elements.settingsBtn.innerHTML = ICONS.SETTINGS;
@@ -53,6 +55,10 @@ if (elements.resetProgressBtn) {
         void loadResetProgress().then((m) => m.openResetProgressDialog());
     });
 }
+
+initAuthWidget();
+initProUpgradeModal();
+initCloudSync();
 
 //load speedrun modal only in dev environments
 if (import.meta.env.DEV) {
