@@ -32,9 +32,15 @@ async function ensureGoRunning(): Promise<void> {
     if (!response.ok) {
       throw new Error(`Failed to load yaegi.wasm.gz: HTTP ${response.status}`);
     }
-    const ds = new DecompressionStream('gzip');
-    const decompressedStream = response.body!.pipeThrough(ds);
-    const wasmBuffer = await new Response(decompressedStream).arrayBuffer();
+    let wasmBuffer = await response.arrayBuffer();
+    const bytes = new Uint8Array(wasmBuffer, 0, 2);
+    // If the server served with Content-Encoding: gzip, the browser already decompressed it.
+    // Otherwise, manually decompress if still gzip-compressed (magic bytes 0x1f, 0x8b).
+    if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
+      const ds = new DecompressionStream('gzip');
+      const decompressedStream = new Response(wasmBuffer).body!.pipeThrough(ds);
+      wasmBuffer = await new Response(decompressedStream).arrayBuffer();
+    }
     compiledWasmModule = await WebAssembly.compile(wasmBuffer);
   }
 
