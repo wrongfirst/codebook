@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { createStore } from 'zustand/vanilla';
 
 export interface User {
   id: string;
@@ -18,7 +18,7 @@ interface AuthState {
   setUser: (user: User | null) => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = createStore<AuthState>((set) => ({
   user: null,
   isLoading: true,
 
