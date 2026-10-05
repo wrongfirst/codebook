@@ -1,6 +1,6 @@
 import harness from './harness.go?raw';
 import wasmExecRaw from './wasm_exec.js?raw';
-import yaegiWasmUrl from './yaegi.wasm?url';
+import yaegiWasmUrl from './yaegi.wasm.gz?url';
 import { createWorkerHandler } from '../base-worker';
 import type { DiagnosticItem } from '../types';
 
@@ -30,9 +30,11 @@ async function ensureGoRunning(): Promise<void> {
   if (!compiledWasmModule) {
     const response = await fetch(yaegiWasmUrl);
     if (!response.ok) {
-      throw new Error(`Failed to load yaegi.wasm: HTTP ${response.status}`);
+      throw new Error(`Failed to load yaegi.wasm.gz: HTTP ${response.status}`);
     }
-    const wasmBuffer = await response.arrayBuffer();
+    const ds = new DecompressionStream('gzip');
+    const decompressedStream = response.body!.pipeThrough(ds);
+    const wasmBuffer = await new Response(decompressedStream).arrayBuffer();
     compiledWasmModule = await WebAssembly.compile(wasmBuffer);
   }
 
