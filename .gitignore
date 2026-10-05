@@ -6,3 +6,5 @@ npm-debug.log*
 *.sw?
 .workspace/
 site.toml
+.wrangler/
+.dev.vars*

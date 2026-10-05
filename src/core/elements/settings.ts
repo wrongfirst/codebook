@@ -7,6 +7,7 @@ export const settingsElements = {
         get vimToggle() { return byId<HTMLInputElement>('vim-mode-toggle'); },
         get chatToggle() { return byId<HTMLInputElement>('chat-mode-toggle'); },
         get chatFields() { return byId('chat-settings-fields'); },
+        get chatManagedSection() { return byId('chat-managed-section'); },
         get endpointSection() { return byId('chat-endpoint-section'); },
         get refreshModelsBtn() { return byId<HTMLButtonElement>('refresh-models-btn'); },
         get chatModelContainer() { return byId('chat-model-container'); },
