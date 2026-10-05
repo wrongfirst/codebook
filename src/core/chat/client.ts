@@ -1,6 +1,7 @@
 // src/core/chat/client.ts
 import { Effect, Stream, Option, Duration } from 'effect';
 import { store } from '../store';
+import { useAuthStore } from '../auth/authStore';
 import { buildSystemPrompt, formatUserPromptWithContext } from './context';
 import { decryptSecret } from '../crypto';
 import {
@@ -37,8 +38,11 @@ export function streamCompletion(options: StreamOptions): Stream.Stream<string, 
       const state = store.getState();
       const settings = state.chatSettings;
       const { activeLessonSlug } = state;
+      const user = useAuthStore.getState().user;
+      const isPro = user?.tier === 'pro';
+      const isManagedAI = isPro && !settings?.useBYOK;
 
-      if (!settings?.enabled) {
+      if (!settings?.enabled && !isManagedAI) {
         return yield* Effect.fail(
           new ChatConfigError({
             message: 'Rubber Duck is currently disabled. Please enable it in Settings.',
@@ -46,24 +50,26 @@ export function streamCompletion(options: StreamOptions): Stream.Stream<string, 
         );
       }
 
-      if (!settings.baseUrl) {
-        return yield* Effect.fail(
-          new ChatConfigError({
-            message: 'API Base URL is not configured. Please set it in Settings.',
-          })
-        );
+      if (!isManagedAI) {
+        if (!settings?.baseUrl) {
+          return yield* Effect.fail(
+            new ChatConfigError({
+              message: 'API Base URL is not configured. Please set it in Settings or upgrade to Pro for managed AI.',
+            })
+          );
+        }
+
+        if (!settings.model) {
+          return yield* Effect.fail(
+            new ChatConfigError({
+              message: 'No model selected. Please select a model in Settings.',
+            })
+          );
+        }
       }
 
-      const model = settings.model;
-      if (!model) {
-        return yield* Effect.fail(
-          new ChatConfigError({
-            message: 'No model selected. Please select a model in Settings.',
-          })
-        );
-      }
-
-      const endpoint = getChatCompletionsUrl(settings.baseUrl);
+      const endpoint = isManagedAI ? '/api/chat' : getChatCompletionsUrl(settings.baseUrl);
+      const model = isManagedAI ? '@cf/qwen/qwen2.5-coder-32b-instruct' : settings.model;
       const { systemPrompt } = buildSystemPrompt();
 
       // Retrieve past messages for the active conversation of this exercise
@@ -98,20 +104,22 @@ export function streamCompletion(options: StreamOptions): Stream.Stream<string, 
         'Content-Type': 'application/json',
       };
 
-      const rawKey = settings.apiKey || '';
-      const resolvedKey = (
-        yield* Effect.tryPromise({
-          try: () => decryptSecret(rawKey),
-          catch: () => new ChatConfigError({ message: 'Failed to decrypt API key' }),
-        })
-      ).trim();
+      if (!isManagedAI) {
+        const rawKey = settings.apiKey || '';
+        const resolvedKey = (
+          yield* Effect.tryPromise({
+            try: () => decryptSecret(rawKey),
+            catch: () => new ChatConfigError({ message: 'Failed to decrypt API key' }),
+          })
+        ).trim();
 
-      if (resolvedKey) {
-        headers['Authorization'] = `Bearer ${resolvedKey}`;
-      }
+        if (resolvedKey) {
+          headers['Authorization'] = `Bearer ${resolvedKey}`;
+        }
 
-      if (settings.baseUrl.includes('anthropic.com')) {
-        headers['anthropic-dangerous-direct-browser-access'] = 'true';
+        if (settings.baseUrl.includes('anthropic.com')) {
+          headers['anthropic-dangerous-direct-browser-access'] = 'true';
+        }
       }
 
       onStatus?.('connecting');
@@ -121,6 +129,7 @@ export function streamCompletion(options: StreamOptions): Stream.Stream<string, 
           fetch(endpoint, {
             method: 'POST',
             headers,
+            credentials: 'same-origin',
             body: JSON.stringify({
               model,
               messages,
@@ -158,6 +167,8 @@ export function streamCompletion(options: StreamOptions): Stream.Stream<string, 
           const parsed = JSON.parse(errorText);
           if (parsed.error?.message) {
             errorMessage = parsed.error.message;
+          } else if (parsed.error && typeof parsed.error === 'string') {
+            errorMessage = parsed.error;
           }
         } catch {
           if (errorText) {
@@ -168,8 +179,15 @@ export function streamCompletion(options: StreamOptions): Stream.Stream<string, 
         if (response.status === 401) {
           return yield* Effect.fail(
             new ChatAuthError({
-              message: `Authentication failed (401): ${errorMessage}. Please check your API key in Settings.`,
+              message: `Authentication failed (401): ${errorMessage}. Please check your credentials.`,
               status: 401,
+            })
+          );
+        } else if (response.status === 403) {
+          return yield* Effect.fail(
+            new ChatAuthError({
+              message: `Access denied (403): ${errorMessage}. Pro subscription required for managed AI.`,
+              status: 403,
             })
           );
         } else if (response.status === 404) {
@@ -181,7 +199,7 @@ export function streamCompletion(options: StreamOptions): Stream.Stream<string, 
         } else if (response.status === 429) {
           return yield* Effect.fail(
             new ChatRateLimitError({
-              message: `Rate limit exceeded (429): ${errorMessage}. Please try again shortly.`,
+              message: `Rate limit exceeded (429): ${errorMessage}.`,
             })
           );
         }

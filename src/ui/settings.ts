@@ -15,6 +15,8 @@ import { buildManualExportPayload, parseManualImport } from '../core/backup';
 import { fetchAvailableModels } from '../core/chat/client';
 import { escapeHtml } from '../core/markdown';
 import { downloadJsonFile } from './download';
+import { useAuthStore } from '../core/auth/authStore';
+import { openProUpgradeModal } from './proUpgradeModal';
 
 let cachedModels: string[] = [];
 let isFetchingModels = false;
@@ -62,6 +64,13 @@ export function initSettings() {
             if (!isEditing) {
                 syncSettingsUI();
             }
+        }
+    });
+
+    useAuthStore.subscribe(() => {
+        const modal = elements.settings.modal;
+        if (modal && !modal.classList.contains('hidden')) {
+            syncSettingsUI();
         }
     });
 
@@ -205,6 +214,7 @@ function syncSettingsUI() {
         elements.settings.chatFields.classList.toggle('hidden', !chatSettings.enabled);
     }
 
+    renderManagedAISection(chatSettings);
     renderEndpointSelector(chatSettings);
     renderKeyContainer(chatSettings);
     renderModelSelector(chatSettings);
@@ -218,6 +228,61 @@ function syncSettingsUI() {
     renderGistSection(gistSyncSettings);
 
     updateStorageUsageDisplay();
+}
+
+function renderManagedAISection(chatSettings: ChatSettings) {
+    const container = elements.settings.chatManagedSection;
+    if (!container) return;
+
+    const user = useAuthStore.getState().user;
+    const isPro = user?.tier === 'pro';
+
+    if (isPro) {
+        container.innerHTML = `
+            <div class="p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 flex flex-col gap-2">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-500 border border-amber-500/30">PRO</span>
+                        <span class="text-xs font-semibold text-fg-primary">Managed Cloud AI Active</span>
+                    </div>
+                    <label class="flex items-center gap-1.5 cursor-pointer text-xs text-fg-muted select-none">
+                        <input type="checkbox" id="chat-byok-toggle" ${chatSettings.useBYOK ? 'checked' : ''} class="rounded border-border-default text-brand focus:ring-0" />
+                        <span>Use custom API key (BYOK)</span>
+                    </label>
+                </div>
+                <p class="text-[11px] text-fg-muted">
+                    Powered by Cloudflare Workers AI (Qwen 2.5 Coder 32B Instruct). No configuration or API keys required.
+                </p>
+            </div>
+        `;
+
+        container.querySelector('#chat-byok-toggle')?.addEventListener('change', (e) => {
+            const checked = (e.target as HTMLInputElement).checked;
+            store.getState().setChatSettings({ useBYOK: checked });
+        });
+    } else {
+        container.innerHTML = `
+            <div class="p-2.5 rounded-lg border border-border-default bg-bg-app flex items-center justify-between">
+                <span class="text-xs text-fg-muted">Want zero-setup AI tutoring without API keys?</span>
+                <button type="button" id="chat-upgrade-pro-btn" class="text-xs font-medium text-amber-500 hover:text-amber-400 cursor-pointer">Upgrade to Pro &rarr;</button>
+            </div>
+        `;
+
+        container.querySelector('#chat-upgrade-pro-btn')?.addEventListener('click', () => {
+            openProUpgradeModal();
+        });
+    }
+
+    // Toggle visibility of BYOK endpoint and model sections
+    const showBYOK = !isPro || !!chatSettings.useBYOK;
+    if (elements.settings.endpointSection) {
+        elements.settings.endpointSection.classList.toggle('hidden', !showBYOK);
+    }
+    const modelContainer = elements.settings.chatModelContainer;
+    const modelSectionWrapper = modelContainer ? (modelContainer.closest('.flex.flex-col') as HTMLElement | null) : null;
+    if (modelSectionWrapper) {
+        modelSectionWrapper.classList.toggle('hidden', !showBYOK);
+    }
 }
 
 function renderEndpointSelector(chatSettings: ChatSettings) {

@@ -84,6 +84,7 @@ export interface ChatSettings {
     model: string;
     selectedEndpointId: string;
     endpoints: ChatEndpoint[];
+    useBYOK?: boolean;
 }
 
 export const defaultChatSettings: ChatSettings = {
@@ -92,6 +93,7 @@ export const defaultChatSettings: ChatSettings = {
     apiKey: '',
     model: '',
     selectedEndpointId: 'default-endpoint',
+    useBYOK: false,
     endpoints: [
         {
             id: 'default-endpoint',

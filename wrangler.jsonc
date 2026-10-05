@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "codebook",
+  "main": "server/index.ts",
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "codebook-db",
+      "database_id": "local-codebook-db",
+      "migrations_dir": "server/db/migrations"
+    }
+  ],
+  "ai": {
+    "binding": "AI"
+  }
+}

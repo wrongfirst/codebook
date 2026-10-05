@@ -209,5 +209,13 @@ export default defineConfig({
   define: {
     BUILD_DATE: JSON.stringify(buildDate),
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8787',
+        changeOrigin: true,
+      },
+    },
+  },
   plugins: [tailwindcss(), rawTextPlugin(), yamlPlugin(), tomlPlugin(), htmlMetaPlugin()],
 });
