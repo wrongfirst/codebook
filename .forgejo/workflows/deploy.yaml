@@ -1,8 +1,6 @@
-name: Deploy to Cloudflare Pages
+name: Deploy to Cloudflare Workers
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -26,7 +24,7 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Deploy to Cloudflare Pages
+      - name: Deploy to Cloudflare Workers
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -35,4 +33,4 @@ jobs:
           if [ -z "$REPO_NAME" ]; then
             REPO_NAME="${GITHUB_REPOSITORY#*/}"
           fi
-          npx wrangler pages deploy dist --project-name="wf-${REPO_NAME}"
+          npx wrangler deploy --name="wf-${REPO_NAME}"
