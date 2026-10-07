@@ -33,4 +33,4 @@ jobs:
           if [ -z "$REPO_NAME" ]; then
             REPO_NAME="${GITHUB_REPOSITORY#*/}"
           fi
-          npx wrangler deploy --name="wf-${REPO_NAME}"
+          npx wrangler deploy --name="${REPO_NAME}"

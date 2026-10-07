@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "wf-codebook",
+  "name": "codebook",
   "compatibility_date": "2026-10-08",
   "assets": {
     "directory": "./dist",
