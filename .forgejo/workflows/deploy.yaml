@@ -13,9 +13,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: latest
 
       - name: Install dependencies
         run: npm ci
@@ -35,4 +35,4 @@ jobs:
           if [ -z "$REPO_NAME" ]; then
             REPO_NAME="${GITHUB_REPOSITORY#*/}"
           fi
-          npx wrangler pages deploy dist --project-name="cb-${REPO_NAME}"
+          npx wrangler pages deploy dist --project-name="wf-${REPO_NAME}"
