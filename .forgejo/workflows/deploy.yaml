@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: docker
+    runs-on: nautilus
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
