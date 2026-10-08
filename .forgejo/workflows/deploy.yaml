@@ -33,7 +33,7 @@ jobs:
           if [ -z "$REPO_NAME" ]; then
             REPO_NAME="${GITHUB_REPOSITORY#*/}"
           fi
-          npx wrangler deploy --name="${REPO_NAME}"
+          npx wrangler deploy --latest --name="${REPO_NAME}"
 
       - name: Prune old deployments and versions
         continue-on-error: true
