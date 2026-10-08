@@ -8,8 +8,9 @@
     "build": "npm run clean && npm run check && vite build",
     "dev": "vite",
     "serve": "node server.mjs",
-    "sync:instances": "node --experimental-strip-types scripts/sync-instances.ts",
-    "prune:deployments": "node --experimental-strip-types scripts/prune-deployments.ts"
+    "deploy": "node scripts/deploy.ts",
+    "sync:instances": "node scripts/sync-instances.ts",
+    "prune:deployments": "node scripts/prune-deployments.ts"
   },
   "dependencies": {
     "@astral-sh/ruff-wasm-web": "^0.9.10",
