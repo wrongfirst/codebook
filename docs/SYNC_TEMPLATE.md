@@ -47,7 +47,7 @@ public/** merge=ours
 
 | Secret | Scope | Purpose |
 |---|---|---|
-| `FORGEJO_SYNC_PAT` | Upstream repository or organization | Personal Access Token with repository read/write permissions to push merges to downstream repositories |
+| `CODEBOOK_SYNC_INSTANCES` | Upstream repository or organization | Personal Access Token with repository read/write permissions to push merges to downstream repositories (exposed to the script as `FORGEJO_TOKEN`) |
 | `CLOUDFLARE_API_TOKEN` | Organization / Environment | Deployment access token (if automated Pages deployment is enabled) |
 | `CLOUDFLARE_ACCOUNT_ID` | Organization / Environment | Target account identifier for deployments |
 
