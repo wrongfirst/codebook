@@ -4,11 +4,25 @@ on:
   workflow_dispatch:
     inputs:
       target_repo:
-        description: 'Target repository slug (e.g. wrongfirst/warmup or "all")'
+        description: 'Target repository to synchronize'
+        type: choice
         required: true
         default: 'all'
+        options:
+          - 'all'
+          - 'wrongfirst/warmup'
+          - 'wrongfirst/dsa'
+          - 'wrongfirst/more-dsa'
+          - 'wrongfirst/most-dsa'
+          - 'wrongfirst/fft'
+          - 'wrongfirst/vim-better'
+          - 'wrongfirst/gorp'
       dry_run:
         description: 'Simulate sync without pushing changes'
+        type: boolean
+        default: false
+      deploy:
+        description: 'Trigger deployment workflow on instance after sync'
         type: boolean
         default: false
 
@@ -37,6 +51,11 @@ jobs:
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             DRY_RUN_ARG="--dry-run"
           fi
+          DEPLOY_ARG=""
+          if [ "${{ inputs.deploy }}" = "true" ]; then
+            DEPLOY_ARG="--deploy"
+          fi
           npm run sync:instances -- \
             --repo "${{ inputs.target_repo }}" \
-            $DRY_RUN_ARG
+            $DRY_RUN_ARG \
+            $DEPLOY_ARG

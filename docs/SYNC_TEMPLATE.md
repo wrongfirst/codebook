@@ -33,13 +33,15 @@ Downstream content is protected from upstream overwrites using the `ours` merge 
 ```gitattributes
 site.toml merge=ours
 README.md merge=ours
+instances.json merge=ours
+.github/instances.json merge=ours
 src/exercises/** merge=ours
 public/** merge=ours
 ```
 
-- `scripts/sync-instances.ts` sets `git config merge.ours.driver true`.
+- `scripts/sync-instances.ts` sets `git config merge.ours.driver true` and preserves downstream state even on tree conflicts (`modify/delete`, `rename/delete`) for these protected paths.
 - Upstream platform files (`src/core/`, `src/ui/`, `src/languages/`, configs) merge automatically.
-- Downstream-specific files (`src/exercises/**`, `site.toml`, `README.md`, `public/**`) remain unchanged.
+- Downstream-specific files (`src/exercises/**`, `site.toml`, `README.md`, `public/**`, `instances.json`) remain unchanged.
 
 ---
 
@@ -59,21 +61,26 @@ public/** merge=ours
 
 1. Navigate to **Actions** → **Sync Template to Instances**.
 2. Select **Run workflow**:
-   - `target_repo`: `all` or specific slug (`<org>/<repo>`).
+   - `target_repo`: Select from dropdown (`all` or a specific instance like `wrongfirst/warmup`).
    - `dry_run`: `true` to validate merges without pushing.
+   - `deploy`: `true` to trigger the deployment workflow on target instances after syncing.
 
 ### Via CLI
 
 ```bash
-# Sync all instances listed in instances.json
+# Sync all instances listed in instances.json (no deployments triggered)
 npm run sync:instances
 
 # Sync a specific instance
 npm run sync:instances -- --repo <org>/<repo>
 
-# Dry run (perform clone and merge in a temporary directory without pushing)
+# Dry run (simulate clone, merge, and deployment dispatch without pushing or deploying)
 npm run sync:instances -- --dry-run
-npm run sync:instances -- --dry-run --repo <org>/<repo>
+npm run sync:instances -- --dry-run --repo <org>/<repo> --deploy
+
+# Sync and trigger deployment workflow on target instance(s)
+npm run sync:instances -- --repo <org>/<repo> --deploy
+npm run sync:instances -- --deploy
 ```
 
 ### Authentication

@@ -1,11 +1,14 @@
 name: Deploy to Cloudflare Workers
 
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: nautilus
+    if: github.event_name == 'workflow_dispatch' || github.repository == 'wrongfirst/codebook'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -18,31 +21,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Type check
-        run: npm run check
-
-      - name: Build project
-        run: npm run build
-
-      - name: Deploy to Cloudflare Workers
+      - name: Deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          REPO_NAME="${{ github.event.repository.name }}"
-          if [ -z "$REPO_NAME" ]; then
-            REPO_NAME="${GITHUB_REPOSITORY#*/}"
-          fi
-          npx wrangler deploy --latest --name="${REPO_NAME}"
+        run: npm run deploy
 
-      - name: Prune old deployments and versions
-        continue-on-error: true
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          REPO_NAME="${{ github.event.repository.name }}"
-          if [ -z "$REPO_NAME" ]; then
-            REPO_NAME="${GITHUB_REPOSITORY#*/}"
-          fi
-          WORKER_NAME="$REPO_NAME" npm run prune:deployments

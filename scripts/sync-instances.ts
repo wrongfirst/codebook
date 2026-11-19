@@ -6,6 +6,7 @@ import * as os from 'node:os';
 interface CliOptions {
   repo?: string;
   dryRun: boolean;
+  deploy: boolean;
   instancesFile: string;
   upstreamUrl?: string;
   help: boolean;
@@ -16,6 +17,7 @@ type SyncStatus = 'SUCCESS' | 'UP-TO-DATE' | 'FAILED (CONFLICT)' | 'FAILED (ERRO
 interface SyncResult {
   repo: string;
   status: SyncStatus;
+  deployStatus?: string;
   details: string;
   durationMs: number;
 }
@@ -23,6 +25,7 @@ interface SyncResult {
 function parseArgs(args: string[]): CliOptions {
   const options: CliOptions = {
     dryRun: false,
+    deploy: false,
     instancesFile: path.resolve(process.cwd(), 'instances.json'),
     help: false,
   };
@@ -34,6 +37,8 @@ function parseArgs(args: string[]): CliOptions {
       options.help = true;
     } else if (arg === '--dry-run') {
       options.dryRun = true;
+    } else if (arg === '--deploy') {
+      options.deploy = true;
     } else if (arg.startsWith('--repo=')) {
       options.repo = arg.substring('--repo='.length).trim();
     } else if (arg === '--repo' && i + 1 < args.length) {
@@ -59,6 +64,7 @@ Usage: npm run sync:instances [options]
 Options:
   --repo <slug>            Target a specific repository (e.g. wrongfirst/warmup) or "all"
   --dry-run                Perform git clone and merge locally in temp workspace without pushing
+  --deploy                 Trigger deployment workflow on instance after successful sync
   --instances-file <path>  Path to instances.json (default: ./instances.json)
   --upstream <url>         Override upstream repository URL
   --help, -h               Show this help message
@@ -74,7 +80,12 @@ function sanitize(text: string): string {
   return text.replace(/https:\/\/[^@\s/]+@/g, 'https://***@');
 }
 
-function runGit(cwd: string, args: string[], env?: NodeJS.ProcessEnv): { stdout: string; stderr: string; status: number } {
+function runGit(
+  cwd: string,
+  args: string[],
+  env?: NodeJS.ProcessEnv,
+  rawOutput = false
+): { stdout: string; stderr: string; status: number } {
   try {
     const stdout = execFileSync('git', args, {
       cwd,
@@ -82,11 +93,15 @@ function runGit(cwd: string, args: string[], env?: NodeJS.ProcessEnv): { stdout:
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
     });
-    return { stdout: stdout.trim(), stderr: '', status: 0 };
+    return { stdout: rawOutput ? stdout : stdout.trim(), stderr: '', status: 0 };
   } catch (err: any) {
-    const stdout = err.stdout ? String(err.stdout).trim() : '';
-    const stderr = err.stderr ? String(err.stderr).trim() : (err.message || '');
-    return { stdout, stderr, status: typeof err.status === 'number' ? err.status : 1 };
+    const stdoutRaw = err.stdout ? String(err.stdout) : '';
+    const stderrRaw = err.stderr ? String(err.stderr) : (err.message || '');
+    return {
+      stdout: rawOutput ? stdoutRaw : stdoutRaw.trim(),
+      stderr: rawOutput ? stderrRaw : stderrRaw.trim(),
+      status: typeof err.status === 'number' ? err.status : 1,
+    };
   }
 }
 
@@ -132,6 +147,99 @@ function getRemoteUrls(repoSlug: string, options: CliOptions): { downstreamUrl: 
   return { downstreamUrl, upstreamUrl };
 }
 
+function loadProtectedPatterns(attributesPath: string): string[] {
+  if (!fs.existsSync(attributesPath)) {
+    return [];
+  }
+
+  const patterns: string[] = [];
+  const lines = fs.readFileSync(attributesPath, 'utf-8').split(/\r?\n/);
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+    const parts = line.split(/\s+/);
+    if (parts.length < 2) continue;
+    const [pattern, ...attrs] = parts;
+    if (attrs.includes('merge=ours')) {
+      patterns.push(pattern);
+    }
+  }
+  return patterns;
+}
+
+function isProtectedPath(filePath: string, protectedPatterns: string[]): boolean {
+  for (const pattern of protectedPatterns) {
+    if (pattern.endsWith('/**')) {
+      const prefix = pattern.slice(0, -3);
+      if (filePath === prefix || filePath.startsWith(`${prefix}/`)) {
+        return true;
+      }
+    } else if (filePath === pattern) {
+      return true;
+    }
+  }
+  return false;
+}
+
+const UNMERGED_STATUS_CODES = new Set(['DD', 'AU', 'UD', 'UA', 'DU', 'AA', 'UU']);
+
+function getUnmergedEntries(tempDir: string): Array<{ code: string; filePath: string }> {
+  const statusRes = runGit(tempDir, ['status', '--porcelain', '-z'], undefined, true);
+  const tokens = statusRes.stdout.split('\0').filter(Boolean);
+  const entries: Array<{ code: string; filePath: string }> = [];
+
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (token.length < 4) continue;
+    const code = token.slice(0, 2);
+    const filePath = token.slice(3);
+
+    if (UNMERGED_STATUS_CODES.has(code)) {
+      entries.push({ code, filePath });
+    }
+
+    // Porcelain -z appends the original path as an extra NUL token for renames/copies.
+    if (code[0] === 'R' || code[0] === 'C') {
+      i++;
+    }
+  }
+
+  return entries;
+}
+
+function resolveProtectedConflicts(tempDir: string, protectedPatterns: string[]): string[] {
+  const resolved: string[] = [];
+  const unmerged = getUnmergedEntries(tempDir);
+
+  for (const { code, filePath } of unmerged) {
+    if (!isProtectedPath(filePath, protectedPatterns)) {
+      continue;
+    }
+
+    const existsInHead = runGit(tempDir, ['cat-file', '-e', `HEAD:${filePath}`]).status === 0;
+    const res = existsInHead
+      ? runGit(tempDir, ['checkout', 'HEAD', '--', filePath])
+      : runGit(tempDir, ['rm', '-f', '--ignore-unmatch', '--', filePath]);
+
+    if (res.status === 0) {
+      resolved.push(`${filePath} (${code})`);
+      console.log(`  ↻ Kept downstream state for protected path: ${filePath} (${code})`);
+    }
+  }
+
+  return resolved;
+}
+
+function getRemainingConflictedFiles(tempDir: string): string[] {
+  const diffRes = runGit(tempDir, ['diff', '--name-only', '--diff-filter=U']);
+  const fromDiff = diffRes.stdout ? diffRes.stdout.split('\n').filter(Boolean) : [];
+  if (fromDiff.length > 0) {
+    return fromDiff;
+  }
+
+  return getUnmergedEntries(tempDir).map(entry => entry.filePath);
+}
+
 function syncInstance(repo: string, options: CliOptions): SyncResult {
   const startTime = Date.now();
   const { downstreamUrl, upstreamUrl } = getRemoteUrls(repo, options);
@@ -166,6 +274,7 @@ function syncInstance(repo: string, options: CliOptions): SyncResult {
 
     // Ensure root .gitattributes rules are active in .git/info/attributes during merge
     const rootAttributesPath = path.resolve(process.cwd(), '.gitattributes');
+    const protectedPatterns = loadProtectedPatterns(rootAttributesPath);
     if (fs.existsSync(rootAttributesPath)) {
       const gitInfoDir = path.join(tempDir, '.git', 'info');
       fs.mkdirSync(gitInfoDir, { recursive: true });
@@ -227,30 +336,39 @@ function syncInstance(repo: string, options: CliOptions): SyncResult {
       'chore: sync template updates from codebook',
     ]);
 
-    if (mergeRes.status !== 0) {
-      // Find conflicted files
-      const diffRes = runGit(tempDir, ['diff', '--name-only', '--diff-filter=U']);
-      let conflictedFiles = diffRes.stdout ? diffRes.stdout.split('\n').filter(Boolean) : [];
+    let resolvedProtected: string[] = [];
 
-      if (conflictedFiles.length === 0) {
-        // Fallback to status parsing
-        const statusRes = runGit(tempDir, ['status', '--porcelain']);
-        conflictedFiles = statusRes.stdout
-          .split('\n')
-          .filter(line => line.startsWith('UU ') || line.startsWith('AA ') || line.startsWith('UD ') || line.startsWith('DU '))
-          .map(line => line.substring(3).trim());
+    if (mergeRes.status !== 0) {
+      // Auto-resolve tree/content conflicts on protected downstream-owned paths by keeping HEAD
+      resolvedProtected = resolveProtectedConflicts(tempDir, protectedPatterns);
+      const conflictedFiles = getRemainingConflictedFiles(tempDir);
+
+      if (conflictedFiles.length > 0 || resolvedProtected.length === 0) {
+        console.error(`  ✗ Merge conflict detected in: ${conflictedFiles.join(', ') || 'unspecified files'}`);
+        console.log(`  Aborting merge safely...`);
+        runGit(tempDir, ['merge', '--abort']);
+
+        return {
+          repo,
+          status: 'FAILED (CONFLICT)',
+          details: conflictedFiles.length > 0 ? `Conflicted: ${conflictedFiles.join(', ')}` : 'Merge conflict (aborted)',
+          durationMs: Date.now() - startTime,
+        };
       }
 
-      console.error(`  ✗ Merge conflict detected in: ${conflictedFiles.join(', ') || 'unspecified files'}`);
-      console.log(`  Aborting merge safely...`);
-      runGit(tempDir, ['merge', '--abort']);
-
-      return {
-        repo,
-        status: 'FAILED (CONFLICT)',
-        details: conflictedFiles.length > 0 ? `Conflicted: ${conflictedFiles.join(', ')}` : 'Merge conflict (aborted)',
-        durationMs: Date.now() - startTime,
-      };
+      // All conflicts were protected paths; finalize the merge commit
+      const commitRes = runGit(tempDir, ['commit', '--no-edit']);
+      if (commitRes.status !== 0) {
+        const err = sanitize(commitRes.stderr || commitRes.stdout || 'Failed to commit resolved merge');
+        console.error(`  ✗ Merge commit failed after resolving protected conflicts: ${err}`);
+        runGit(tempDir, ['merge', '--abort']);
+        return {
+          repo,
+          status: 'FAILED (ERROR)',
+          details: `Commit error: ${err.split('\n')[0]}`,
+          durationMs: Date.now() - startTime,
+        };
+      }
     }
 
     // Double check if merge was clean or a no-op
@@ -314,17 +432,68 @@ function syncInstance(repo: string, options: CliOptions): SyncResult {
   }
 }
 
-function printSummaryTable(results: SyncResult[]): void {
+async function triggerDeployment(repo: string, options: CliOptions): Promise<{ status: string; details?: string }> {
+  if (options.dryRun) {
+    console.log(`  [deploy] (dry-run) Would dispatch deployment workflow for ${repo}`);
+    return { status: 'DRY-RUN' };
+  }
+
+  const token = process.env.FORGEJO_TOKEN?.trim();
+  const host = process.env.FORGEJO_HOST?.trim() || 'git.jitin.xyz';
+
+  if (!token) {
+    const msg = 'FORGEJO_TOKEN required to dispatch deployment';
+    console.warn(`  ⚠ [deploy] Skipped: ${msg}`);
+    return { status: 'NO TOKEN', details: msg };
+  }
+
+  const url = `https://${host}/api/v1/repos/${repo}/actions/workflows/deploy.yaml/dispatches`;
+  try {
+    console.log(`  [deploy] Dispatching deployment workflow on ${repo} (${host})...`);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({ ref: 'main' }),
+    });
+
+    if (res.status === 204 || res.ok) {
+      console.log(`  ✓ [deploy] Deployment workflow successfully triggered for ${repo}`);
+      return { status: 'TRIGGERED' };
+    }
+
+    const errText = await res.text();
+    console.error(`  ✗ [deploy] Failed to trigger deployment for ${repo} (${res.status}): ${errText}`);
+    return { status: 'FAILED', details: `HTTP ${res.status}: ${errText.slice(0, 60)}` };
+  } catch (err: any) {
+    console.error(`  ✗ [deploy] Request error triggering deployment for ${repo}: ${err.message}`);
+    return { status: 'FAILED', details: err.message };
+  }
+}
+
+function printSummaryTable(results: SyncResult[], showDeploy: boolean): void {
   const colRepo = Math.max(12, ...results.map(r => r.repo.length));
   const colStatus = Math.max(19, ...results.map(r => r.status.length));
+  const colDeploy = showDeploy ? Math.max(12, ...results.map(r => (r.deployStatus || 'N/A').length), 'Deploy'.length) : 0;
   const colDetails = Math.max(30, ...results.map(r => r.details.length));
 
   const pad = (str: string, len: number) => str + ' '.repeat(Math.max(0, len - str.length));
 
-  const topBorder = `┌─${'─'.repeat(colRepo)}─┬─${'─'.repeat(colStatus)}─┬─${'─'.repeat(colDetails)}─┐`;
-  const header = `│ ${pad('Repository', colRepo)} │ ${pad('Status', colStatus)} │ ${pad('Details', colDetails)} │`;
-  const midBorder = `├─${'─'.repeat(colRepo)}─┼─${'─'.repeat(colStatus)}─┼─${'─'.repeat(colDetails)}─┤`;
-  const botBorder = `└─${'─'.repeat(colRepo)}─┴─${'─'.repeat(colStatus)}─┴─${'─'.repeat(colDetails)}─┘`;
+  const topBorder = showDeploy
+    ? `┌─${'─'.repeat(colRepo)}─┬─${'─'.repeat(colStatus)}─┬─${'─'.repeat(colDeploy)}─┬─${'─'.repeat(colDetails)}─┐`
+    : `┌─${'─'.repeat(colRepo)}─┬─${'─'.repeat(colStatus)}─┬─${'─'.repeat(colDetails)}─┐`;
+  const header = showDeploy
+    ? `│ ${pad('Repository', colRepo)} │ ${pad('Status', colStatus)} │ ${pad('Deploy', colDeploy)} │ ${pad('Details', colDetails)} │`
+    : `│ ${pad('Repository', colRepo)} │ ${pad('Status', colStatus)} │ ${pad('Details', colDetails)} │`;
+  const midBorder = showDeploy
+    ? `├─${'─'.repeat(colRepo)}─┼─${'─'.repeat(colStatus)}─┼─${'─'.repeat(colDeploy)}─┼─${'─'.repeat(colDetails)}─┤`
+    : `├─${'─'.repeat(colRepo)}─┼─${'─'.repeat(colStatus)}─┼─${'─'.repeat(colDetails)}─┤`;
+  const botBorder = showDeploy
+    ? `└─${'─'.repeat(colRepo)}─┴─${'─'.repeat(colStatus)}─┴─${'─'.repeat(colDeploy)}─┴─${'─'.repeat(colDetails)}─┘`
+    : `└─${'─'.repeat(colRepo)}─┴─${'─'.repeat(colStatus)}─┴─${'─'.repeat(colDetails)}─┘`;
 
   console.log('\n');
   console.log('================================================================================');
@@ -335,7 +504,11 @@ function printSummaryTable(results: SyncResult[]): void {
   console.log(midBorder);
 
   for (const r of results) {
-    console.log(`│ ${pad(r.repo, colRepo)} │ ${pad(r.status, colStatus)} │ ${pad(r.details, colDetails)} │`);
+    if (showDeploy) {
+      console.log(`│ ${pad(r.repo, colRepo)} │ ${pad(r.status, colStatus)} │ ${pad(r.deployStatus || 'N/A', colDeploy)} │ ${pad(r.details, colDetails)} │`);
+    } else {
+      console.log(`│ ${pad(r.repo, colRepo)} │ ${pad(r.status, colStatus)} │ ${pad(r.details, colDetails)} │`);
+    }
   }
 
   console.log(botBorder);
@@ -345,7 +518,12 @@ function printSummaryTable(results: SyncResult[]): void {
   const conflictCount = results.filter(r => r.status === 'FAILED (CONFLICT)').length;
   const errorCount = results.filter(r => r.status === 'FAILED (ERROR)').length;
 
-  console.log(`\nTotals: ${results.length} total | ${successCount} synced | ${upToDateCount} up-to-date | ${conflictCount} conflicts | ${errorCount} errors\n`);
+  let totalsStr = `\nTotals: ${results.length} total | ${successCount} synced | ${upToDateCount} up-to-date | ${conflictCount} conflicts | ${errorCount} errors`;
+  if (showDeploy) {
+    const deployCount = results.filter(r => r.deployStatus === 'TRIGGERED' || r.deployStatus === 'DRY-RUN').length;
+    totalsStr += ` | ${deployCount} deployed/triggered`;
+  }
+  console.log(`${totalsStr}\n`);
 }
 
 async function main(): Promise<void> {
@@ -372,17 +550,33 @@ async function main(): Promise<void> {
   if (options.dryRun) {
     console.log(`Notice: Running in --dry-run mode. No commits will be pushed.`);
   }
+  if (options.deploy) {
+    console.log(`Notice: Deployment dispatch enabled (--deploy). Target instances will be triggered for deployment.`);
+  }
 
   const results: SyncResult[] = [];
 
   for (const inst of targetInstances) {
     const result = syncInstance(inst, options);
+
+    if (options.deploy) {
+      if (result.status === 'SUCCESS' || result.status === 'UP-TO-DATE') {
+        const deployRes = await triggerDeployment(inst, options);
+        result.deployStatus = deployRes.status;
+        if (deployRes.details && !result.details) {
+          result.details = deployRes.details;
+        }
+      } else {
+        result.deployStatus = 'SKIPPED (SYNC FAILED)';
+      }
+    }
+
     results.push(result);
   }
 
-  printSummaryTable(results);
+  printSummaryTable(results, options.deploy);
 
-  const hasFailures = results.some(r => r.status.startsWith('FAILED'));
+  const hasFailures = results.some(r => r.status.startsWith('FAILED') || r.deployStatus === 'FAILED');
   if (hasFailures) {
     process.exit(1);
   }
