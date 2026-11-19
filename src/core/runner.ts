@@ -103,6 +103,18 @@ class Orchestrator {
                 return;
             }
 
+            //structural/custom validation
+            if (exerciseVariant.validate) {
+                const validation = exerciseVariant.validate(userCode, result.output, targetLanguageId);
+                if (validation !== true) {
+                    status.setFailed();
+                    elements.output.textContent = elements.output.textContent
+                        ? `${elements.output.textContent}\n\n${validation}`
+                        : validation;
+                    return;
+                }
+            }
+
             //success
             this.handleSuccess(currentEx.id, completedSlugs);
 

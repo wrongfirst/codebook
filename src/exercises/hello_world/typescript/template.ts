@@ -1,3 +1,1 @@
-export function hello(): string {
-  return "some message";
-}
+console.log("some message");

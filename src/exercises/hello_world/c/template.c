@@ -1,3 +1,6 @@
-const char* hello(void) {
-    return "some message";
+#include <stdio.h>
+
+int main(void) {
+    printf("some message\n");
+    return 0;
 }

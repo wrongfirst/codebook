@@ -154,6 +154,7 @@ Add the language folder to each supported exercise:
 - **`template.<ext>`** (e.g. `template.py`): Starter code displayed in the editor.
 - **`solution.<ext>`** (e.g. `solution.py`): Reference solution used for verification and speedrun validation.
 - **`test.<ext>`** *(Optional)*: Fallback test harness if `canonical-data.json` is not provided for the exercise.
+- **`validator.ts`** *(Optional)*: Post-run TypeScript check (`validate(code, output, languageId?) => true | string`) for stdout-only (`main()`) or structural source checks. Place at `src/exercises/<exercise_id>/validator.ts` to share across all languages, or inside `<lang_id>/validator.ts` for a language-specific override.
 
 ---
 

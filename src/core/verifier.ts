@@ -91,6 +91,20 @@ async function verifySingleExercise(
       };
     }
 
+    // Custom structural / output validator
+    if (variant.validate) {
+      const validationResult = variant.validate(variant.solutionCode, result.output, languageId);
+      if (validationResult !== true) {
+        return {
+          ...baseResult,
+          status: 'failed',
+          durationMs,
+          output: result.output,
+          error: typeof validationResult === 'string' ? validationResult : 'Custom validation failed'
+        };
+      }
+    }
+
     return {
       ...baseResult,
       status: 'passed',

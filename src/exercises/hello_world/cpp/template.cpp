@@ -1,5 +1,6 @@
-#include <string>
+#include <iostream>
 
-std::string hello() {
-    return "some message";
+int main() {
+    std::cout << "some message" << std::endl;
+    return 0;
 }

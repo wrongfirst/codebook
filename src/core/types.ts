@@ -1,7 +1,15 @@
+export type ExerciseValidator = (
+    code: string,
+    output: string,
+    languageId?: string
+) => true | string;
+
 export interface LanguageVariant {
     initialCode: string;
     testCode: string;
     solutionCode?: string;
+    validatorCode?: string;
+    validate?: ExerciseValidator;
 }
 
 export interface Exercise {
