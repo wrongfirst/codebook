@@ -1,38 +1,15 @@
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const API_BASE = 'https://api.cloudflare.com/client/v4';
-
-interface DeploymentVersion {
-  version_id: string;
-  percentage: number;
-}
+const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+export const RETENTION_LIMIT = 10;
 
 interface Deployment {
   id: string;
   created_on: string;
-  author_email?: string;
-  source?: string;
-  strategy?: string;
-  versions?: DeploymentVersion[];
-}
-
-interface WorkerVersion {
-  id: string;
-  number?: number;
-  metadata?: {
-    created_on?: string;
-    author_email?: string;
-  };
-}
-
-interface ApiResponse<T> {
-  success: boolean;
-  errors: Array<{ code: number; message: string }>;
-  messages: string[];
-  result: T;
 }
 
 interface CloudflareAuth {
@@ -40,214 +17,97 @@ interface CloudflareAuth {
   accountId: string;
 }
 
-export async function getCloudflareAuth(): Promise<CloudflareAuth | null> {
-  // 1. Check environment variables first (used in CI/CD or custom env)
-  let token =
-    process.env.CLOUDFLARE_API_TOKEN ||
-    process.env.CF_API_TOKEN ||
-    process.env.CLOUDFLARE_TOKEN;
-  let accountId =
-    process.env.CLOUDFLARE_ACCOUNT_ID ||
-    process.env.CF_ACCOUNT_ID ||
-    process.env.ACCOUNT_ID;
+// Resolve credentials exactly as `wrangler deploy` does:
+// - account: `account_id` in wrangler.jsonc, then CLOUDFLARE_ACCOUNT_ID
+// - token: `wrangler auth token` (CLOUDFLARE_API_TOKEN, or the active OAuth login/profile, refreshed if expired)
+function getCloudflareAuth(): CloudflareAuth {
+  // Plain JSON.parse: wrangler.jsonc must stay comment-free.
+  const config = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'wrangler.jsonc'), 'utf8')) as { account_id?: string };
+  const accountId = config.account_id || process.env.CLOUDFLARE_ACCOUNT_ID;
+  if (!accountId) throw new Error('No account_id in wrangler.jsonc and CLOUDFLARE_ACCOUNT_ID is not set');
 
-  // 2. If token is missing, attempt to read from local Wrangler config
-  if (!token) {
-    const homedir = os.homedir();
-    const possiblePaths = [
-      path.join(homedir, '.config', '.wrangler', 'config', 'default.toml'),
-      path.join(homedir, '.wrangler', 'config', 'default.toml'),
-      path.join(
-        process.env.XDG_CONFIG_HOME || path.join(homedir, '.config'),
-        'wrangler',
-        'config',
-        'default.toml'
-      ),
-    ];
-
-    for (const configPath of possiblePaths) {
-      if (fs.existsSync(configPath)) {
-        try {
-          const content = fs.readFileSync(configPath, 'utf8');
-          const tokenMatch =
-            content.match(/oauth_token\s*=\s*["']([^"']+)["']/) ||
-            content.match(/api_token\s*=\s*["']([^"']+)["']/);
-          if (tokenMatch?.[1]) {
-            token = tokenMatch[1].trim();
-            break;
-          }
-        } catch {
-          // ignore read errors
-        }
-      }
-    }
-  }
-
-  if (!token) {
-    return null;
-  }
-
-  // 3. If accountId is missing, resolve it from the Cloudflare API accounts list
-  if (!accountId) {
-    try {
-      const res = await fetch(`${API_BASE}/accounts`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      const data = (await res.json()) as ApiResponse<Array<{ id: string; name: string }>>;
-      if (data.success && Array.isArray(data.result) && data.result.length > 0) {
-        accountId = data.result[0].id;
-      }
-    } catch {
-      // ignore fetch error
-    }
-  }
-
-  if (!token || !accountId) {
-    return null;
-  }
+  const output = execFileSync('npx', ['wrangler', 'auth', 'token', '--json'], {
+    cwd: ROOT_DIR,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'inherit'],
+  });
+  const { token } = JSON.parse(output) as { token?: string };
+  if (!token) throw new Error('Pruning requires an API token or OAuth login (API key auth is not supported)');
 
   return { token, accountId };
 }
 
-async function cfFetch<T>(auth: CloudflareAuth, path: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      'Authorization': `Bearer ${auth.token}`,
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+async function cfFetch<T>(auth: CloudflareAuth, endpoint: string, init: RequestInit = {}): Promise<T> {
+  const response = await fetch(`${API_BASE}/accounts/${auth.accountId}${endpoint}`, {
+    ...init,
+    headers: { Authorization: `Bearer ${auth.token}` },
   });
+  const data = (await response.json().catch(() => null)) as
+    | { success: boolean; errors?: Array<{ code: number; message: string }>; result: T }
+    | null;
 
-  const data = (await response.json()) as ApiResponse<T>;
-  if (!data.success) {
-    const errorMsg = data.errors.map(e => `[${e.code}] ${e.message}`).join(', ') || response.statusText;
-    throw new Error(`Cloudflare API error (${response.status}): ${errorMsg}`);
+  if (!response.ok || !data?.success) {
+    const detail = data?.errors?.map(e => `[${e.code}] ${e.message}`).join(', ') || response.statusText;
+    throw new Error(`Cloudflare API error (${response.status}): ${detail}`);
   }
-
   return data.result;
 }
 
 export function getWorkerName(): string {
-  const workerName =
-    process.env.WORKER_NAME ||
-    process.env.REPO_NAME ||
-    (process.env.GITHUB_REPOSITORY ? process.env.GITHUB_REPOSITORY.split('/')[1] : '');
-
-  if (workerName) return workerName.trim();
+  const envName = [process.env.WORKER_NAME, process.env.REPO_NAME, process.env.GITHUB_REPOSITORY?.split('/')[1]]
+    .map(name => name?.trim())
+    .find(Boolean);
+  if (envName) return envName;
 
   try {
-    const remoteUrl = fs.readFileSync(path.resolve('.git', 'config'), 'utf8');
-    const match = remoteUrl.match(/url\s*=\s*.*[/:]([^/:]+?)(?:\.git)?$/m);
-    if (match?.[1]) return match[1].trim();
+    const remoteUrl = execFileSync('git', ['remote', 'get-url', 'origin'], {
+      cwd: ROOT_DIR,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    const match = remoteUrl.match(/[:/][^/:]+\/([^/:]+?)(?:\.git)?$/);
+    if (match?.[1]) return match[1];
   } catch {
-    // fallback
+    // fall back to directory name
   }
 
-  return path.basename(process.cwd()) || 'codebook';
+  return path.basename(ROOT_DIR);
 }
 
-export async function pruneDeployments(targetWorkerName?: string): Promise<void> {
-  const auth = await getCloudflareAuth();
-  if (!auth) {
-    console.log('[prune] Skipping pruning: Cloudflare authentication could not be determined from environment or local Wrangler login.');
-    return;
-  }
+// Deletes deployment records beyond the newest RETENTION_LIMIT. The active (newest) deployment is
+// always retained. Versions are left alone: Cloudflare has no delete endpoint for them and
+// automatically retains only the most recent ones.
+export async function pruneDeployments(workerName = getWorkerName()): Promise<void> {
+  const auth = getCloudflareAuth();
+  const scriptPath = `/workers/scripts/${workerName}/deployments`;
 
-  const workerName = (targetWorkerName || getWorkerName()).trim();
   console.log(`[prune] Checking deployments for Worker '${workerName}' (Account: ${auth.accountId})...`);
+  const { deployments = [] } = await cfFetch<{ deployments?: Deployment[] }>(auth, scriptPath);
 
-  // 1. List deployments
-  const deploymentsRes = await cfFetch<{ deployments: Deployment[] }>(
-    auth,
-    `/accounts/${auth.accountId}/workers/scripts/${workerName}/deployments`
-  );
-
-  const deployments = deploymentsRes.deployments || [];
-  console.log(`[prune] Total active deployments: ${deployments.length}`);
-
-  // Sort by created_on descending (newest first)
-  deployments.sort((a, b) => new Date(b.created_on).getTime() - new Date(a.created_on).getTime());
-
-  const RETENTION_LIMIT = 10;
   if (deployments.length <= RETENTION_LIMIT) {
-    console.log(`[prune] Deployments count (${deployments.length}) is <= limit of ${RETENTION_LIMIT}. No pruning required.`);
+    console.log(`[prune] ${deployments.length} deployment(s) found, within limit of ${RETENTION_LIMIT}. Nothing to prune.`);
     return;
   }
 
-  const retainedDeployments = deployments.slice(0, RETENTION_LIMIT);
-  const deploymentsToDelete = deployments.slice(RETENTION_LIMIT);
+  const toDelete = deployments
+    .sort((a, b) => Date.parse(b.created_on) - Date.parse(a.created_on))
+    .slice(RETENTION_LIMIT);
 
-  console.log(`[prune] Pruning ${deploymentsToDelete.length} older deployment(s) exceeding max limit of ${RETENTION_LIMIT}...`);
-
-  // Collect version IDs referenced by retained deployments
-  const retainedVersionIds = new Set<string>();
-  for (const dep of retainedDeployments) {
-    if (dep.versions) {
-      for (const v of dep.versions) {
-        if (v.version_id) {
-          retainedVersionIds.add(v.version_id);
-        }
-      }
-    }
-  }
-
-  // 2. Delete older deployments
-  for (const dep of deploymentsToDelete) {
+  let failed = 0;
+  for (const dep of toDelete) {
     try {
-      await cfFetch(
-        auth,
-        `/accounts/${auth.accountId}/workers/scripts/${workerName}/deployments/${dep.id}`,
-        { method: 'DELETE' }
-      );
-      console.log(`  ✓ Deleted deployment: ${dep.id} (created: ${dep.created_on})`);
+      await cfFetch(auth, `${scriptPath}/${dep.id}`, { method: 'DELETE' });
+      console.log(`  ✓ Deleted deployment ${dep.id} (created: ${dep.created_on})`);
     } catch (err: any) {
+      failed++;
       console.error(`  ✗ Failed to delete deployment ${dep.id}: ${err.message}`);
     }
   }
 
-  // 3. Prune orphaned versions
-  console.log(`[prune] Checking for orphaned worker versions...`);
-  try {
-    const versionsRes = await cfFetch<{ items: WorkerVersion[] } | WorkerVersion[]>(
-      auth,
-      `/accounts/${auth.accountId}/workers/scripts/${workerName}/versions`
-    );
-
-    const allVersions: WorkerVersion[] = Array.isArray(versionsRes)
-      ? versionsRes
-      : versionsRes.items || [];
-
-    const versionsToDelete = allVersions.filter(v => !retainedVersionIds.has(v.id));
-
-    if (versionsToDelete.length === 0) {
-      console.log(`[prune] No orphaned versions found.`);
-    } else {
-      console.log(`[prune] Deleting ${versionsToDelete.length} orphaned version(s)...`);
-      for (const v of versionsToDelete) {
-        try {
-          await cfFetch(
-            auth,
-            `/accounts/${auth.accountId}/workers/scripts/${workerName}/versions/${v.id}`,
-            { method: 'DELETE' }
-          );
-          console.log(`  ✓ Deleted orphaned version: ${v.id}`);
-        } catch (err: any) {
-          console.warn(`  ! Could not delete version ${v.id}: ${err.message}`);
-        }
-      }
-    }
-  } catch (err: any) {
-    console.warn(`[prune] Skipping version pruning (versions API: ${err.message})`);
-  }
-
-  console.log(`[prune] Pruning completed successfully. Retained latest ${retainedDeployments.length} deployment(s).`);
+  if (failed) throw new Error(`${failed} of ${toDelete.length} deployment deletion(s) failed`);
+  console.log(`[prune] Deleted ${toDelete.length} deployment(s); retained the latest ${RETENTION_LIMIT}.`);
 }
 
-// Run directly if invoked as script
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   pruneDeployments().catch(err => {
     console.error(`[prune] Error: ${err.message}`);
