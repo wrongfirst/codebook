@@ -125,6 +125,12 @@ function render() {
             renderMath(elements.description.desktop);
         }
 
+        //update problem pane chapter header
+        if (elements.problemChapterTitle) {
+            const currentChapter = curriculum.find(c => c.exercises.some(e => e.id === currentEx.id));
+            elements.problemChapterTitle.textContent = currentChapter?.title ?? '';
+        }
+
         //update nav
         if (navActions) navActions.updateNavState(activeLessonSlug);
 

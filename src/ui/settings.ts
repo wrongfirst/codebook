@@ -259,7 +259,7 @@ function renderEndpointSelector(chatSettings: ChatSettings) {
                         <span id="combobox-arrow" class="inline-flex items-center justify-center transition-transform duration-150">${ICONS.CHEVRON_DOWN}</span>
                     </button>
                     <input type="text" id="chat-endpoint-combobox-input"
-                        class="w-full pl-7 pr-3 py-1.5 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary placeholder:text-fg-muted focus:outline-none focus:border-brand font-mono"
+                        class="w-full pl-7 pr-3 py-1.5 text-xs bg-bg-editor rounded text-fg-primary placeholder:text-fg-muted focus:outline-none focus:ring-1 focus:ring-brand/60 font-mono"
                         placeholder="Endpoint name (e.g. OpenAI API, Local Ollama)"
                         value="${escapeHtml(currentEndpoint?.name || '')}"
                         autocomplete="off"
@@ -268,16 +268,16 @@ function renderEndpointSelector(chatSettings: ChatSettings) {
 
                 <!-- Combobox Dropdown Menu -->
                 <div id="chat-endpoint-combobox-menu"
-                    class="hidden absolute left-0 right-0 top-full mt-1 bg-bg-surface border border-border-default rounded-md shadow-xl z-50 max-h-48 overflow-y-auto py-1 text-xs">
+                    class="hidden absolute left-0 right-0 top-full mt-1 bg-bg-surface ring-1 ring-border-default/60 rounded-md shadow-xl z-50 max-h-48 overflow-y-auto py-1 text-xs">
                     ${endpoints.map(ep => `
-                        <div class="combobox-endpoint-item px-3 py-1.5 hover:bg-bg-app cursor-pointer flex items-center justify-between text-fg-primary ${ep.id === selectedId ? 'bg-brand/10 font-medium text-brand' : ''}"
+                        <div class="combobox-endpoint-item px-3 py-1.5 hover:bg-bg-editor cursor-pointer flex items-center justify-between text-fg-primary ${ep.id === selectedId ? 'bg-bg-subbar/70 font-medium text-brand' : ''}"
                             data-endpoint-id="${escapeHtml(ep.id)}">
                             <span class="truncate endpoint-item-label">${escapeHtml(ep.name || ep.baseUrl || 'Unnamed Endpoint')}</span>
                             ${ep.id === selectedId ? '<span class="text-[10px] text-brand ml-2 shrink-0">✓</span>' : ''}
                         </div>
                     `).join('')}
-                    <div class="border-t border-border-default my-1"></div>
-                    <div id="combobox-add-new-option" class="px-3 py-1.5 hover:bg-bg-app cursor-pointer text-brand font-medium flex items-center gap-1.5">
+                    <div class="border-t border-border-default/35 my-1"></div>
+                    <div id="combobox-add-new-option" class="px-3 py-1.5 hover:bg-bg-editor cursor-pointer text-brand font-medium flex items-center gap-1.5">
                         <span class="text-xs">+</span>
                         <span>Add new endpoint...</span>
                     </div>
@@ -295,8 +295,8 @@ function renderEndpointSelector(chatSettings: ChatSettings) {
                 </button>
             </div>
 
-            <!-- Collapsible Configuration Card (Base URL & API Key) -->
-            <div id="endpoint-details-panel" class="${isDetailsExpanded ? 'flex' : 'hidden'} flex-col space-y-2.5 p-2.5 rounded-lg bg-bg-app/40 border border-border-default/60">
+            <!-- Collapsible Configuration Fields (Base URL & API Key) -->
+            <div id="endpoint-details-panel" class="${isDetailsExpanded ? 'flex' : 'hidden'} flex-col space-y-2.5 pl-3 border-l-2 border-border-default/40">
                 <!-- Base URL -->
                 <div class="flex flex-col space-y-1">
                     <div class="flex items-center justify-between">
@@ -306,7 +306,7 @@ function renderEndpointSelector(chatSettings: ChatSettings) {
                         <span class="text-[9px] text-fg-muted font-normal">OpenAI-compatible</span>
                     </div>
                     <input type="text" id="chat-base-url"
-                        class="w-full px-2.5 py-1 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary placeholder:text-fg-muted focus:outline-none focus:border-brand font-mono"
+                        class="w-full px-2.5 py-1.5 text-xs bg-bg-editor rounded text-fg-primary placeholder:text-fg-muted focus:outline-none focus:ring-1 focus:ring-brand/60 font-mono"
                         placeholder="https://api.openai.com/v1"
                         value="${escapeHtml(chatSettings.baseUrl || '')}" />
                     <span class="text-[9px] text-fg-muted leading-tight">
@@ -533,14 +533,14 @@ function renderKeyContainer(chatSettings: { apiKey: string }) {
 
     if (chatSettings.apiKey) {
         container.innerHTML = `
-            <div class="flex items-center justify-between px-2.5 py-1.5 bg-bg-app border border-border-default rounded-md">
+            <div class="flex items-center justify-between px-2.5 py-1.5 bg-bg-editor rounded">
                 <div class="flex items-center gap-2 min-w-0">
                     <span class="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0"></span>
                     <span class="text-xs font-mono text-fg-primary truncate select-none">${formatMaskedKey(chatSettings.apiKey)}</span>
                     <span class="text-[10px] text-fg-muted font-sans shrink-0">(Saved)</span>
                 </div>
                 <button type="button" id="clear-chat-key" class="text-[11px] text-red-400 hover:text-red-500 font-medium px-1.5 py-0.5 rounded 
-                hover:bg-bg-surface transition-colors cursor-pointer shrink-0" title="Delete API Key">
+                hover:bg-bg-subbar transition-colors cursor-pointer shrink-0" title="Delete API Key">
                     Delete
                 </button>
             </div>
@@ -567,8 +567,8 @@ function renderKeyContainer(chatSettings: { apiKey: string }) {
                     data-form-type="other"
                     spellcheck="false"
                     style="-webkit-text-security: disc; text-security: disc;"
-                    class="w-full px-2.5 py-1.5 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary 
-                    placeholder:text-fg-muted focus:outline-none focus:border-brand font-mono"
+                    class="w-full px-2.5 py-1.5 text-xs bg-bg-editor rounded text-fg-primary 
+                    placeholder:text-fg-muted focus:outline-none focus:ring-1 focus:ring-brand/60 font-mono"
                     placeholder="Paste API key (sk-...) or leave blank"
                     value="" />
             </div>
@@ -626,7 +626,7 @@ function getModelSelectorContent(chatSettings: { apiKey: string; model: string; 
                 <div class="flex flex-col space-y-1">
                     <span class="text-[10px] text-fg-muted">Manual model name fallback:</span>
                     <input type="text" id="chat-model-manual"
-                        class="w-full px-3 py-1.5 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary font-mono focus:outline-none focus:border-brand"
+                        class="w-full px-3 py-1.5 text-xs bg-bg-editor rounded text-fg-primary font-mono focus:outline-none focus:ring-1 focus:ring-brand/60"
                         value="${escapeHtml(chatSettings.model || '')}" />
                 </div>
             </div>
@@ -644,8 +644,8 @@ function getModelSelectorContent(chatSettings: { apiKey: string; model: string; 
                         ${ICONS.CHEVRON_DOWN}
                     </div>
                     <select id="chat-model-select"
-                        class="w-full pl-7 pr-3 py-1.5 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary focus:outline-none
-                        focus:border-brand font-mono appearance-none cursor-pointer">
+                        class="w-full pl-7 pr-3 py-1.5 text-xs bg-bg-editor rounded text-fg-primary focus:outline-none
+                        focus:ring-1 focus:ring-brand/60 font-mono appearance-none cursor-pointer">
                         ${cachedModels.map(m => `
                             <option value="${escapeHtml(m)}" ${m === currentModel ? 'selected' : ''}>
                                 ${escapeHtml(m)}
@@ -657,8 +657,8 @@ function getModelSelectorContent(chatSettings: { apiKey: string; model: string; 
 
                 <div id="custom-model-wrapper" class="${isCustom ? '' : 'hidden'} pt-1">
                     <input type="text" id="chat-model-custom-input"
-                        class="w-full px-3 py-1.5 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary placeholder:text-fg-muted
-                        focus:outline-none focus:border-brand font-mono"
+                        class="w-full px-3 py-1.5 text-xs bg-bg-editor rounded text-fg-primary placeholder:text-fg-muted
+                        focus:outline-none focus:ring-1 focus:ring-brand/60 font-mono"
                         placeholder="Enter custom model identifier"
                         value="${escapeHtml(isCustom ? currentModel : '')}" />
                 </div>
@@ -674,8 +674,8 @@ function getModelSelectorContent(chatSettings: { apiKey: string; model: string; 
     return `
         <div class="flex items-center justify-between py-1">
             <span class="text-xs font-mono text-fg-primary">${escapeHtml(chatSettings.model || '(No model selected)')}</span>
-            <button type="button" id="fetch-now-btn" class="px-2.5 py-1 text-xs bg-bg-app border border-border-default hover:bg-border-default
-            rounded text-fg-primary cursor-pointer">
+            <button type="button" id="fetch-now-btn" class="h-7 px-2.5 text-xs bg-bg-subbar hover:bg-bg-editor
+            rounded text-fg-primary cursor-pointer transition-colors">
                 Validate & Fetch Models
             </button>
         </div>

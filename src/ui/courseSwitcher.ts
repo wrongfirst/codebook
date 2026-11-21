@@ -1,6 +1,5 @@
 import {
     SITE_SLUG,
-    SITE_HOME_PAGE,
     SITE_DIRECTORY_URL,
     isSameOriginUrl,
 } from '../core/siteConfig';
@@ -186,7 +185,7 @@ function renderPopoverContent(): void {
 
     const sectionsHtml = visibleSections
         .map((section, sectionIdx) => {
-            const sectionBorder = sectionIdx > 0 ? 'border-t border-border-default/60 mt-1 pt-1.5' : '';
+            const sectionBorder = sectionIdx > 0 ? 'mt-1.5 pt-1.5 border-t border-border-default/35' : '';
             const sectionHeader = section.title
                 ? `<div class="px-3 pt-1.5 pb-1 text-[10px] font-mono font-bold uppercase tracking-wider text-brand select-none">${escapeHtml(section.title)}</div>`
                 : '';
@@ -213,12 +212,12 @@ function renderPopoverContent(): void {
                         : '';
 
                     const rowClasses = isActive
-                        ? 'bg-brand/10 text-fg-primary'
-                        : 'text-fg-primary hover:bg-bg-app';
+                        ? 'border-l-2 border-brand bg-bg-subbar/60 text-fg-primary'
+                        : 'border-l-2 border-transparent text-fg-primary hover:bg-bg-editor';
 
                     return `
                         <a href="${escapeHtml(item.url)}"${targetAttr}${currentAttr}
-                            class="block px-3 py-2 transition-colors focus:outline-none focus-visible:bg-bg-app focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-brand/60 ${rowClasses}">
+                            class="block pl-2.5 pr-3 py-2 transition-colors focus:outline-none focus-visible:bg-bg-editor ${rowClasses}">
                             <div class="flex items-center justify-between gap-2">
                                 <div class="flex items-center gap-2 min-w-0">
                                     <span class="text-xs font-semibold truncate">${escapeHtml(item.name)}</span>
@@ -239,28 +238,10 @@ function renderPopoverContent(): void {
         })
         .join('');
 
-    const homePage = SITE_HOME_PAGE.trim();
-    let footerHtml = '';
-    if (homePage && isSafeUrl(homePage)) {
-        const sameOrigin = isSameOriginUrl(homePage);
-        const targetAttr = sameOrigin ? '' : ' target="_blank" rel="noopener noreferrer"';
-        const arrow = sameOrigin ? '→' : '↗';
-        footerHtml = `
-            <div class="border-t border-border-default bg-bg-app/40">
-                <a href="${escapeHtml(homePage)}"${targetAttr}
-                    class="flex items-center justify-between px-3 py-2 text-xs font-medium text-fg-muted hover:text-fg-primary hover:bg-bg-app transition-colors focus:outline-none focus-visible:bg-bg-app focus-visible:text-fg-primary focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-brand/60">
-                    <span>All courses</span>
-                    <span class="font-mono text-xs" aria-hidden="true">${arrow}</span>
-                </a>
-            </div>
-        `;
-    }
-
     popover.innerHTML = `
         <div class="subtle-scrollbar max-h-[min(24rem,calc(100dvh-6rem))] overflow-y-auto py-1">
             ${sectionsHtml}
         </div>
-        ${footerHtml}
     `;
 
     // Clicking the currently active book closes the popover without reloading the page
@@ -304,7 +285,7 @@ function activateSwitcher(): void {
     if (!trigger || !chevron) return;
 
     isSwitcherActive = true;
-    chevron.innerHTML = ICONS.CARET_DOWN;
+    chevron.innerHTML = ICONS.CHEVRON_DOWN;
     chevron.classList.remove('hidden');
     chevron.classList.add('inline-flex');
 
