@@ -244,6 +244,12 @@ function htmlMetaPlugin(): Plugin {
 export default defineConfig({
   base: "./",
   root: ".",
+  server: {
+    host: true,
+  },
+  preview: {
+    host: true,
+  },
   build: {
     outDir: "dist",
     emptyOutDir: true,
