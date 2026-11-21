@@ -5,7 +5,6 @@ export const brandingElements = {
         get header() { return byId<HTMLElement>('site-header'); },
         get portalLink() { return byId<HTMLAnchorElement>('header-portal-link'); },
         get portalName() { return byId('header-portal-name'); },
-        get portalExternalIcon() { return byId('header-portal-external-icon'); },
         get breadcrumbSep() { return byId('header-breadcrumb-sep'); },
         get bookSwitcher() { return byId('header-book-switcher'); },
         get bookTrigger() { return byId<HTMLButtonElement>('header-book-trigger'); },

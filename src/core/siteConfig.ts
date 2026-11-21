@@ -66,7 +66,7 @@ export function resolveDirectoryUrl(
     }
 
     const homePage = typeof config.home_page === 'string' ? config.home_page.trim() : '';
-    if (homePage && isSameOriginUrl(homePage)) {
+    if (homePage) {
         return '/directory.json';
     }
 

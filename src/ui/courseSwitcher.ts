@@ -125,6 +125,8 @@ async function fetchDirectoryManifest(directoryUrl: string): Promise<DirectoryMa
     try {
         const res = await window.fetch(directoryUrl, { cache: 'no-cache' });
         if (!res.ok) return null;
+        const contentType = res.headers.get('content-type') || '';
+        if (!contentType.toLowerCase().includes('json')) return null;
         const json: unknown = await res.json();
         return parseManifest(json);
     } catch {
@@ -196,9 +198,6 @@ function renderPopoverContent(): void {
                     const targetAttr = sameOrigin ? '' : ' target="_blank" rel="noopener noreferrer"';
                     const currentAttr = isActive ? ' aria-current="page" data-active-course="true"' : '';
 
-                    const emojiHtml = item.emoji
-                        ? `<span class="text-sm leading-none shrink-0" aria-hidden="true">${escapeHtml(item.emoji)}</span>`
-                        : '';
                     const activeDotHtml = isActive
                         ? `<span class="w-1.5 h-1.5 rounded-full bg-brand shrink-0" aria-hidden="true"></span>`
                         : '';
@@ -222,7 +221,6 @@ function renderPopoverContent(): void {
                             class="block px-3 py-2 transition-colors focus:outline-none focus-visible:bg-bg-app focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-brand/60 ${rowClasses}">
                             <div class="flex items-center justify-between gap-2">
                                 <div class="flex items-center gap-2 min-w-0">
-                                    ${emojiHtml}
                                     <span class="text-xs font-semibold truncate">${escapeHtml(item.name)}</span>
                                     ${activeDotHtml}
                                 </div>
@@ -259,7 +257,7 @@ function renderPopoverContent(): void {
     }
 
     popover.innerHTML = `
-        <div class="max-h-[min(24rem,calc(100dvh-6rem))] overflow-y-auto py-1">
+        <div class="subtle-scrollbar max-h-[min(24rem,calc(100dvh-6rem))] overflow-y-auto py-1">
             ${sectionsHtml}
         </div>
         ${footerHtml}
@@ -306,7 +304,7 @@ function activateSwitcher(): void {
     if (!trigger || !chevron) return;
 
     isSwitcherActive = true;
-    chevron.innerHTML = ICONS.CHEVRON_DOWN;
+    chevron.innerHTML = ICONS.CARET_DOWN;
     chevron.classList.remove('hidden');
     chevron.classList.add('inline-flex');
 

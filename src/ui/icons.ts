@@ -105,6 +105,8 @@ export const ICONS = {
 
   CHEVRON_DOWN: `<svg class="w-3 h-3 text-fg-muted pointer-events-none shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" /></svg>`,
 
+  CARET_DOWN: `<svg class="w-3.5 h-3.5 text-fg-muted pointer-events-none shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4.427 7.427l3.396 3.396a.25.25 0 00.354 0l3.396-3.396A.25.25 0 0011.396 7H4.604a.25.25 0 00-.177.427z"/></svg>`,
+
   CHEVRON_RIGHT: `<svg class="w-2.5 h-2.5 text-fg-muted pointer-events-none shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" /></svg>`,
 
   PLUS: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">

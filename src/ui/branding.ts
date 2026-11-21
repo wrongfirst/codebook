@@ -41,7 +41,6 @@ export function initBranding() {
 
     const portalLink = elements.branding.portalLink;
     const portalNameEl = elements.branding.portalName;
-    const portalExternalIcon = elements.branding.portalExternalIcon;
     const sep = elements.branding.breadcrumbSep;
     const homePage = SITE_HOME_PAGE.trim();
     const portalName = SITE_PORTAL_NAME;
@@ -59,11 +58,9 @@ export function initBranding() {
             if (isSameOriginUrl(homePage)) {
                 portalLink.removeAttribute('target');
                 portalLink.removeAttribute('rel');
-                portalExternalIcon?.classList.add('hidden');
             } else {
                 portalLink.target = '_blank';
                 portalLink.rel = 'noopener noreferrer';
-                portalExternalIcon?.classList.remove('hidden');
             }
         } else {
             portalLink.removeAttribute('href');
@@ -71,7 +68,6 @@ export function initBranding() {
             portalLink.removeAttribute('rel');
             portalLink.classList.add('hidden');
             portalLink.classList.remove('inline-flex', 'site-brand');
-            portalExternalIcon?.classList.add('hidden');
             sep.classList.add('hidden');
         }
     }
