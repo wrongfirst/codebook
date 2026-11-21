@@ -38,12 +38,13 @@ export function renderLanguageSelector(container: HTMLElement, currentExercise: 
     });
 
     // Fallback logic: if current selected language is not available in current exercise, switch to first available
+    // without overwriting the user's cross-book preferredLanguage.
     const activeIsAvailable = availableLanguages.find(l => l.id === currentLanguageId && l.isAvailable);
     if (!activeIsAvailable) {
         const fallback = availableLanguages.find(l => l.isAvailable) || availableLanguages[0];
         if (fallback && fallback.id !== currentLanguageId) {
             setTimeout(() => {
-                store.getState().setLanguage(fallback.id);
+                store.getState().setLanguage(fallback.id, { updatePreference: false });
             }, 0);
         }
     }

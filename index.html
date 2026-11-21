@@ -650,7 +650,7 @@
               <div class="flex items-center justify-between">
                 <div class="flex flex-col">
                   <span class="text-sm text-fg-primary font-medium">Local Storage</span>
-                  <span class="text-xs text-fg-muted">Manage cached progress, saved code, and settings</span>
+                  <span class="text-xs text-fg-muted">Manage cached progress, saved code, and chat history for this book</span>
                 </div>
                 <span id="storage-usage-display"
                   class="text-xs font-mono text-fg-secondary font-medium px-2 py-0.5 rounded bg-bg-app border border-border-default shrink-0">
@@ -658,12 +658,19 @@
                 </span>
               </div>
 
+              <!-- Optional shared settings opt-in -->
+              <label class="flex items-center gap-2 text-xs text-fg-secondary cursor-pointer select-none">
+                <input type="checkbox" id="clear-shared-settings-checkbox"
+                  class="rounded border-border-default text-brand focus:ring-0 focus:outline-none cursor-pointer">
+                <span>Also clear shared settings <span class="text-[10px] text-fg-muted">(Vim mode, Rubber Duck, GitHub sign-in across all books)</span></span>
+              </label>
+
               <!-- Nuke Storage Action -->
               <div class="flex items-center gap-2 pt-0.5">
                 <button type="button" id="clear-storage-btn"
                   class="px-3 py-1.5 text-xs font-medium text-red-400 hover:text-white hover:bg-red-500 border border-red-500/30 hover:border-red-500 rounded-md transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs">
                   <span id="clear-storage-icon" class="flex items-center justify-center"></span>
-                  <span>Nuke All Local Storage</span>
+                  <span>Nuke Local Storage</span>
                 </button>
               </div>
             </div>

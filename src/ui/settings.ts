@@ -2,8 +2,8 @@
 import { elements } from '../core/elements';
 import { store, STORAGE_KEY, ensureSettingsDecrypted, ChatSettings, ChatEndpoint, GistSyncSettings } from '../core/store';
 import { clearPersistedStorage } from '../core/store/storage/encryptedStorage';
+import { clearUserSettingsStorage } from '../core/store/storage/userSettingsStorage';
 import { updateEditorVimMode } from '../core/editor';
-import { decryptSecret } from '../core/crypto';
 import { ICONS } from './icons';
 import { abortAllStreams } from './chatPanel';
 import { showConfirmDialog } from './resetProgress';
@@ -873,16 +873,25 @@ function updateStorageUsageDisplay() {
 }
 
 function handleClearLocalStorage() {
+    const alsoClearShared = !!elements.settings.clearSharedSettingsCheckbox?.checked;
+    const title = alsoClearShared
+        ? `Nuke Local Storage (${SITE_TITLE} + Shared)`
+        : `Nuke Local Storage (${SITE_TITLE})`;
+    const message = alsoClearShared
+        ? `Are you sure you want to wipe local storage for ${SITE_TITLE} AND your shared settings? This will permanently delete this book's progress, saved code, and chat history, plus clear Vim mode, Rubber Duck API keys, and GitHub sign-in across all books on this origin. This action cannot be undone.`
+        : `Are you sure you want to delete local storage for ${SITE_TITLE}? This will permanently wipe your exercise progress, saved code, chat history, and Gist link for this book only. Your shared settings (Vim mode, Rubber Duck, GitHub account) and other books will remain intact. This action cannot be undone.`;
+    const confirmText = alsoClearShared ? 'Nuke Book & Shared' : 'Nuke Book Storage';
+
     showConfirmDialog({
-        title: 'Nuke Local Storage',
-        message: `Are you sure you want to delete local storage for ${SITE_TITLE}? This will permanently wipe all your exercise progress, saved code, chat history, credentials, and settings for this course. This action cannot be undone.`,
-        confirmText: 'Nuke Storage',
+        title,
+        message,
+        confirmText,
         onConfirm: () => {
             abortAllStreams();
-            try {
-                store.getState().unlinkGist();
-            } catch { }
             clearPersistedStorage(STORAGE_KEY);
+            if (alsoClearShared) {
+                clearUserSettingsStorage();
+            }
             window.location.reload();
         },
     });
@@ -902,9 +911,9 @@ function updateSyncStatusUI(event: SyncStateEvent) {
     if (!badge || !dot || !badgeText) return;
 
     const gistSettings = store.getState().gistSyncSettings;
-    const isLinked = !!gistSettings?.gistId;
+    const isAuthenticated = Boolean(gistSettings?.enabled && gistSettings?.token);
 
-    if (!isLinked) {
+    if (!isAuthenticated) {
         badge.classList.remove('hidden');
         badge.classList.add('flex');
         dot.className = 'w-1.5 h-1.5 rounded-full bg-fg-muted';
@@ -935,9 +944,9 @@ function updateSyncStatusUI(event: SyncStateEvent) {
         if (syncNowBtn) syncNowBtn.disabled = true;
         if (syncNowText) syncNowText.textContent = 'Sync Now';
     } else {
-        // Synced / Idle with linked gist
+        // Synced / Idle while authenticated (linked or awaiting first lazy Gist creation)
         dot.className = 'w-1.5 h-1.5 rounded-full bg-green-500';
-        if (event.lastSyncedAt) {
+        if (gistSettings?.gistId && event.lastSyncedAt) {
             const timeAgo = formatTimeAgo(event.lastSyncedAt);
             badgeText.textContent = `Synced ${timeAgo}`;
         } else {
@@ -962,22 +971,32 @@ function formatTimeAgo(timestamp: number): string {
 }
 
 let cachedGitHubUsername: string | null = null;
+let isValidatingGitHubUser = false;
 
 function renderGistSection(settings: GistSyncSettings) {
-    const isConnected = !!settings.enabled && !!settings.token && !!settings.gistId;
+    const isAuthenticated = Boolean(settings.enabled && settings.token);
+    const hasLinkedGist = Boolean(settings.gistId);
     const loggedOutView = elements.settings.gistLoggedOutView;
     const loggedInView = elements.settings.gistLoggedInView;
     const usernameEl = elements.settings.gistAccountUsername;
     const openLink = elements.settings.gistOpenLink;
     const autosyncToggle = elements.settings.gistAutosyncToggle;
 
-    if (isConnected) {
+    if (isAuthenticated) {
         loggedOutView?.classList.add('hidden');
         loggedInView?.classList.remove('hidden');
         loggedInView?.classList.add('flex');
 
         if (openLink) {
-            openLink.href = `https://gist.github.com/${extractGistId(settings.gistId)}`;
+            if (hasLinkedGist) {
+                openLink.href = `https://gist.github.com/${extractGistId(settings.gistId)}`;
+                openLink.classList.remove('hidden');
+                openLink.classList.add('flex');
+            } else {
+                openLink.href = '#';
+                openLink.classList.add('hidden');
+                openLink.classList.remove('flex');
+            }
         }
 
         if (autosyncToggle) {
@@ -989,19 +1008,27 @@ function renderGistSection(settings: GistSyncSettings) {
                 usernameEl.textContent = `Connected as @${cachedGitHubUsername}`;
             } else {
                 usernameEl.textContent = 'Connected to GitHub';
-                ensureSettingsDecrypted().then(() => {
-                    const activeToken = store.getState().gistSyncSettings?.token;
-                    if (activeToken && !activeToken.startsWith('enc:v1:')) {
-                        Effect.runPromise(validateToken(activeToken)).then((res) => {
-                            if (res.valid && res.username) {
-                                cachedGitHubUsername = res.username;
-                                if (usernameEl) {
-                                    usernameEl.textContent = `Connected as @${res.username}`;
-                                }
+                if (!isValidatingGitHubUser) {
+                    isValidatingGitHubUser = true;
+                    ensureSettingsDecrypted()
+                        .then(() => {
+                            const activeToken = store.getState().gistSyncSettings?.token;
+                            if (activeToken && !activeToken.startsWith('enc:v1:')) {
+                                return Effect.runPromise(validateToken(activeToken)).then((res) => {
+                                    if (res.valid && res.username) {
+                                        cachedGitHubUsername = res.username;
+                                        if (elements.settings.gistAccountUsername) {
+                                            elements.settings.gistAccountUsername.textContent = `Connected as @${res.username}`;
+                                        }
+                                    }
+                                });
                             }
-                        }).catch(() => { });
-                    }
-                }).catch(() => { });
+                        })
+                        .catch(() => { })
+                        .finally(() => {
+                            isValidatingGitHubUser = false;
+                        });
+                }
             }
         }
     } else {
@@ -1053,6 +1080,7 @@ async function handleSyncNow() {
     showGistStatus('Syncing progress to GitHub Gist...');
     try {
         await Effect.runPromise(pushToGist());
+        syncSettingsUI();
         showGistStatus('Synced successfully with GitHub Gist.');
     } catch (err: any) {
         showGistStatus(`Sync failed: ${err?.message || 'Network error'}`, true);
@@ -1073,7 +1101,7 @@ async function handlePullGist() {
 function handleUnlinkGist() {
     showConfirmDialog({
         title: 'Disconnect GitHub Sync',
-        message: 'Are you sure you want to disconnect? Your local progress will be preserved, but cloud syncing will stop on this device.',
+        message: 'Are you sure you want to disconnect? Your local progress will be preserved, but cloud syncing will stop across all books on this device.',
         confirmText: 'Disconnect',
         onConfirm: () => {
             cachedGitHubUsername = null;
