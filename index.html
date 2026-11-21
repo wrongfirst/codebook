@@ -184,7 +184,7 @@
             <!-- icon injected via js -->
           </button>
         </div>
-        <div id="sidebar-list" class="flex-1 overflow-y-auto py-2 space-y-1">
+        <div id="sidebar-list" class="flex-1 overflow-y-auto pt-[var(--pane-padding-top)] pb-2 space-y-1">
         </div>
         <div class="h-10 pl-4 sm:pl-8 pr-4 flex items-center shrink-0 select-none">
           <button id="reset-progress-btn"
@@ -212,7 +212,7 @@
         </div>
 
         <!-- unified scroll container (Problem + Rubber Duck stream) -->
-        <div id="problem-and-chat-scroll" class="flex-1 overflow-y-auto min-h-0 relative p-4 sm:px-8 sm:pt-7 pb-12">
+        <div id="problem-and-chat-scroll" class="flex-1 overflow-y-auto min-h-0 relative p-4 sm:px-8 sm:pt-[var(--pane-padding-top)] pb-12">
 
           <!-- problem description -->
           <div id="ex-desc-desktop" class="prose prose-invert prose-sm max-w-none">
@@ -356,7 +356,17 @@
     </div>
 
     <!-- footer (desktop/tablet) -->
-    <footer id="footer" class="hidden md:flex items-center justify-center px-6 py-4 border-t border-[color:var(--footer-border-color)] bg-bg-surface">
+    <footer id="footer" class="hidden md:flex items-center justify-center px-6 py-4 border-t border-[color:var(--footer-border-color)] bg-bg-surface shrink-0">
+      <!-- JN: Footer links & build date are injected by vite during build -->
+      <div class="flex flex-wrap justify-center items-center gap-4 sm:gap-8">
+        <span class="text-xs text-fg-muted">
+          <a id="footer-repo-link" href="https://github.com" target="_blank" rel="noopener noreferrer">Star on GitHub</a>
+        </span>
+        <span class="text-xs text-fg-muted">
+          <a id="footer-issues-link" href="https://github.com/issues" target="_blank" rel="noopener noreferrer">Report an Error</a>
+        </span>
+        <span id="build-date" class="w-full sm:w-auto text-xs text-fg-muted order-last text-center"></span>
+      </div>
     </footer>
 
     <!-- reset progress modal -->

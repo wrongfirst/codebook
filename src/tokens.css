@@ -14,6 +14,7 @@
   /* shared chrome dimensions & borders */
   --header-height: 48px;
   --header-height-mobile: 44px;
+  --pane-padding-top: 1.5rem;
   --brand-logo-size: 20px;
   --brand-title-size: 1rem;
   --footer-border-color: color-mix(in srgb, var(--border-default) 60%, transparent);

@@ -92,6 +92,10 @@ button {
   background-color: var(--bg-editor) !important;
 }
 
+#editor .cm-content {
+  padding: var(--pane-padding-top) 0 1rem;
+}
+
 .cm-editor {
   height: 100%;
 }
@@ -122,19 +126,6 @@ button {
 .cm-activeLine,
 .cm-activeLineGutter {
   background-color: transparent !important;
-}
-
-/* compact gutter spacing */
-.cm-lineNumbers .cm-gutterElement {
-  padding: 0 2px 0 2px;
-}
-
-.cm-gutter-lint {
-  width: 0.8em;
-}
-
-.cm-line {
-  padding-left: 4px !important;
 }
 
 /* run button*/
