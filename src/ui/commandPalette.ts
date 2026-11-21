@@ -10,6 +10,7 @@ import { renderMath } from '../core/math';
 import { escapeHtml } from '../core/markdown';
 import type { CheatsheetSearchResult } from '../core/cheatsheets/types';
 
+let isInitialized = false;
 let isOpen = false;
 let selectedIndex = 0;
 let currentResults: CheatsheetSearchResult[] = [];
@@ -18,8 +19,10 @@ let previouslyFocusedElement: HTMLElement | null = null;
 let lastPreviewedId: string | null = null;
 
 export function initCommandPalette(): void {
+  if (isInitialized) return;
   const el = elements.commandPalette;
   if (!el.modal) return;
+  isInitialized = true;
 
   if (el.searchIcon) {
     el.searchIcon.innerHTML = ICONS.SEARCH;
@@ -68,6 +71,7 @@ export function initCommandPalette(): void {
 }
 
 export function openCommandPalette(): void {
+  initCommandPalette();
   const el = elements.commandPalette;
   if (!el.modal) return;
 

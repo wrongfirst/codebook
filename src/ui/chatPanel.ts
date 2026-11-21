@@ -68,7 +68,11 @@ let lastRenderedConversationId: string | null = null;
 let lastRenderedChatMessages: ChatMessage[] | null = null;
 let lastRenderedConvs: ChatConversation[] | null = null;
 
+let isChatPanelInitialized = false;
+
 export function initChatPanel() {
+  if (isChatPanelInitialized) return;
+  isChatPanelInitialized = true;
   // Populate static icons
   if (elements.chat.clearBtn) {
     elements.chat.clearBtn.innerHTML = ICONS.TRASH;

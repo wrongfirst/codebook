@@ -22,8 +22,11 @@ let isFetchingModels = false;
 let modelFetchError: string | null = null;
 let isDetailsExpanded = false;
 let isManualGistExpanded = false;
+let isSettingsInitialized = false;
 
 export function initSettings() {
+    if (isSettingsInitialized) return;
+    isSettingsInitialized = true;
     if (elements.settingsBtn) {
         elements.settingsBtn.innerHTML = ICONS.SETTINGS;
     }
@@ -66,7 +69,6 @@ export function initSettings() {
         }
     });
 
-    elements.settingsBtn?.addEventListener('click', openModal);
     elements.settings.closeBtn?.addEventListener('click', closeModal);
 
     // close on click outside (only if both mousedown and click originated directly on the backdrop)
@@ -743,6 +745,11 @@ async function triggerModelFetch() {
         isFetchingModels = false;
         syncSettingsUI();
     }
+}
+
+export function openSettingsModal() {
+    initSettings();
+    openModal();
 }
 
 function openModal() {

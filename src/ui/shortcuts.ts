@@ -2,11 +2,21 @@ import { runner } from '../core/runner';
 import { elements } from '../core/elements';
 import { store } from '../core/store';
 import { focusEditor, formatEditorCode } from '../core/editor';
-import { focusChatInput } from './chatPanel';
-import { toggleCommandPalette } from './commandPalette';
 import { toggleSidebar } from './sidebar';
 import { showPopup } from './popup';
 import { ICONS } from './icons';
+
+let commandPaletteModulePromise: Promise<typeof import('./commandPalette')> | null = null;
+
+function loadCommandPalette(): Promise<typeof import('./commandPalette')> {
+    if (!commandPaletteModulePromise) {
+        commandPaletteModulePromise = import('./commandPalette').catch((err) => {
+            commandPaletteModulePromise = null;
+            throw err;
+        });
+    }
+    return commandPaletteModulePromise;
+}
 
 interface Shortcut {
     action: string;
@@ -73,7 +83,7 @@ export function initShortcuts() {
         if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
             e.preventDefault();
             e.stopPropagation();
-            toggleCommandPalette();
+            void loadCommandPalette().then((m) => m.toggleCommandPalette());
             return;
         }
 
@@ -109,7 +119,10 @@ export function initShortcuts() {
             e.stopPropagation();
             const cs = store.getState().chatSettings;
             if (cs?.enabled) {
-                focusChatInput();
+                void import('./chatPanel').then((m) => {
+                    m.initChatPanel();
+                    m.focusChatInput();
+                });
             }
             return;
         }

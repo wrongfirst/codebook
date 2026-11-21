@@ -15,34 +15,18 @@ export interface ConfirmDialogOptions {
 }
 
 let pendingConfirmCallback: (() => void | Promise<void>) | null = null;
+let isResetModalInitialized = false;
 
 export function initResetProgress() {
+    if (isResetModalInitialized) return;
+    isResetModalInitialized = true;
+
     if (elements.resetProgressBtn) {
         elements.resetProgressBtn.innerHTML = ICONS.TRASH;
     }
     if (elements.resetProgress.closeBtn) {
         elements.resetProgress.closeBtn.innerHTML = ICONS.CLOSE;
     }
-
-    elements.resetProgressBtn?.addEventListener('click', () => {
-        showConfirmDialog({
-            title: `Reset Progress (${SITE_TITLE})`,
-            message: `Are you sure you want to reset all progress for ${SITE_TITLE}? This will delete your saved code, chat history, and completion status for exercises in this book only. Your shared settings (Vim mode, Rubber Duck, GitHub account) and other books will not be affected. This action cannot be undone.`,
-            confirmText: 'Reset Book Progress',
-            onConfirm: async () => {
-                abortAllStreams();
-                store.getState().resetProgress();
-
-                const { gistSyncSettings } = store.getState();
-                if (gistSyncSettings?.enabled && gistSyncSettings?.gistId && gistSyncSettings?.token) {
-                    await Effect.runPromise(pushToGist().pipe(Effect.ignoreLogged));
-                }
-
-                await flushPersistedStorage();
-                window.location.reload();
-            },
-        });
-    });
 
     elements.resetProgress.closeBtn?.addEventListener('click', closeConfirmDialog);
     elements.resetProgress.cancelBtn?.addEventListener('click', closeConfirmDialog);
@@ -76,7 +60,28 @@ export function initResetProgress() {
     });
 }
 
+export function openResetProgressDialog() {
+    showConfirmDialog({
+        title: `Reset Progress (${SITE_TITLE})`,
+        message: `Are you sure you want to reset all progress for ${SITE_TITLE}? This will delete your saved code, chat history, and completion status for exercises in this book only. Your shared settings (Vim mode, Rubber Duck, GitHub account) and other books will not be affected. This action cannot be undone.`,
+        confirmText: 'Reset Book Progress',
+        onConfirm: async () => {
+            abortAllStreams();
+            store.getState().resetProgress();
+
+            const { gistSyncSettings } = store.getState();
+            if (gistSyncSettings?.enabled && gistSyncSettings?.gistId && gistSyncSettings?.token) {
+                await Effect.runPromise(pushToGist().pipe(Effect.ignoreLogged));
+            }
+
+            await flushPersistedStorage();
+            window.location.reload();
+        },
+    });
+}
+
 export function showConfirmDialog(options: ConfirmDialogOptions) {
+    initResetProgress();
     if (elements.resetProgress.title) {
         elements.resetProgress.title.textContent = options.title || 'Confirm Action';
     }

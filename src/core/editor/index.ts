@@ -4,7 +4,6 @@ import { indentWithTab } from '@codemirror/commands';
 import { indentRange } from '@codemirror/language';
 import { autocompletion, acceptCompletion } from '@codemirror/autocomplete';
 import { lintGutter } from '@codemirror/lint';
-import { vim } from '@replit/codemirror-vim';
 import { themeCompartment, getTheme } from '../../ui/theme';
 import { showPopup } from '../../ui/popup';
 import { store } from '../store';
@@ -85,15 +84,61 @@ function updateEditorLanguage(languageExtension?: Extension) {
     }
 }
 
+let vimExtensionFactory: (() => Extension) | null = null;
+let vimLoadPromise: Promise<(() => Extension) | null> | null = null;
+let vimModeSeq = 0;
+
+function loadVimExtension(): Promise<(() => Extension) | null> {
+    if (vimExtensionFactory) return Promise.resolve(vimExtensionFactory);
+    if (!vimLoadPromise) {
+        vimLoadPromise = import('@replit/codemirror-vim')
+            .then((mod) => {
+                vimExtensionFactory = mod.vim;
+                return vimExtensionFactory;
+            })
+            .catch((err) => {
+                vimLoadPromise = null;
+                console.warn('[Editor] Failed to load Vim extension:', err);
+                return null;
+            });
+    }
+    return vimLoadPromise;
+}
+
 export function updateEditorVimMode(enabled: boolean) {
-    if (view) {
+    if (!view) return;
+    const seq = ++vimModeSeq;
+
+    if (!enabled) {
         view.dispatch({
             effects: [
-                vimCompartment.reconfigure(enabled ? vim() : []),
-                lineNumbersCompartment.reconfigure(getLineNumberExtension(enabled)),
+                vimCompartment.reconfigure([]),
+                lineNumbersCompartment.reconfigure(getLineNumberExtension(false)),
             ]
         });
+        return;
     }
+
+    if (vimExtensionFactory) {
+        view.dispatch({
+            effects: [
+                vimCompartment.reconfigure(vimExtensionFactory()),
+                lineNumbersCompartment.reconfigure(getLineNumberExtension(true)),
+            ]
+        });
+        return;
+    }
+
+    view.dispatch({
+        effects: lineNumbersCompartment.reconfigure(getLineNumberExtension(true)),
+    });
+
+    void loadVimExtension().then((factory) => {
+        if (!factory || !view || seq !== vimModeSeq || !store.getState().vimMode) return;
+        view.dispatch({
+            effects: vimCompartment.reconfigure(factory()),
+        });
+    });
 }
 
 export function updateEditorTheme(isDark: boolean) {
@@ -228,7 +273,7 @@ export function loadExerciseCode(
         const state = EditorState.create({
             doc: code,
             extensions: [
-                vimCompartment.of(isVim ? vim() : []),
+                vimCompartment.of(isVim && vimExtensionFactory ? vimExtensionFactory() : []),
                 lintGutter(),
                 lineNumbersCompartment.of(getLineNumberExtension(isVim)),
                 ...baseEditorExtensions,
@@ -341,6 +386,10 @@ export function loadExerciseCode(
             state,
             parent: editorEl
         });
+
+        if (isVim && !vimExtensionFactory) {
+            updateEditorVimMode(true);
+        }
     } else {
         updateEditorLanguage(languageExtension);
         updateEditorVimMode(store.getState().vimMode);
