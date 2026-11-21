@@ -50,27 +50,46 @@
 <body class="bg-bg-app text-fg-primary h-dvh flex flex-col overflow-hidden font-sans selection:bg-brand/30">
 
   <!-- site header -->
-  <header
-    class="h-14 border-b border-border-default bg-bg-surface flex items-center justify-between px-8 z-10 shrink-0">
-    <div class="flex items-center gap-2.5">
-      <a href="#" id="header-brand" class="flex items-center hover:opacity-80 transition-opacity" title="codebook">
-        <div class="text-[30px] opacity-80 flex items-center justify-start leading-none translate-y-0.5" id="header-logo">
-        </div>
+  <header id="site-header"
+    class="site-header h-14 border-b border-border-default bg-bg-surface flex items-center justify-between px-4 sm:px-8 z-60 shrink-0 relative">
+    <nav aria-label="Breadcrumb" class="flex items-center gap-2 min-w-0">
+      <!-- JN: Portal & title values are injected by vite during build from site.toml -->
+      <a id="header-portal-link" href="#"
+        class="site-brand inline-flex items-center gap-1 font-bold text-fg-primary tracking-tight text-lg leading-none hover:opacity-80 transition-opacity shrink-0">
+        <span id="header-portal-name"></span>
+        <svg id="header-portal-external-icon"
+          class="hidden w-3 h-3 text-fg-muted opacity-70 shrink-0"
+          viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+          aria-hidden="true">
+          <path d="M3.5 8.5l5-5M4 3.5h4.5V8" />
+        </svg>
       </a>
-      <div class="flex flex-col justify-center gap-1.5">
-        <!-- JN: These are injected by vite during build from site.toml -->
-        <a href="#" id="header-title-link" class="hover:opacity-80 transition-opacity">
-          <h1 id="header-title" class="font-bold text-fg-primary tracking-tight text-lg leading-none"></h1>
-        </a>
-        <a id="header-subtitle" href="#" target="_blank" rel="noopener noreferrer"
-          class="inline-flex items-center gap-1 text-[10px] text-fg-muted hover:text-fg-primary font-mono uppercase tracking-wider leading-none transition-colors group">
-          <span id="header-subtitle-text"></span>
-          <svg id="header-subtitle-icon" class="w-2.5 h-2.5 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all shrink-0" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3.5 8.5l5-5M4 3.5h4.5V8"/>
-          </svg>
-        </a>
+
+      <span id="header-breadcrumb-sep"
+        class="text-fg-muted/60 font-mono text-base leading-none select-none shrink-0"
+        aria-hidden="true">/</span>
+
+      <div id="header-book-switcher" class="static sm:relative flex items-center min-w-0">
+        <button type="button" id="header-book-trigger"
+          class="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 -mx-1.5 text-fg-primary hover:bg-bg-app/70 transition-colors cursor-pointer min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
+          title="Return to first exercise">
+          <span id="header-logo"
+            class="text-lg leading-none flex items-center justify-center shrink-0"
+            aria-hidden="true"></span>
+          <span id="header-title"
+            class="font-bold text-fg-primary tracking-tight text-lg leading-none truncate"></span>
+          <span id="header-switcher-chevron"
+            class="hidden items-center justify-center text-fg-muted transition-transform duration-150 shrink-0 ml-0.5"
+            aria-hidden="true"></span>
+        </button>
+
+        <div id="course-switcher-popover"
+          role="dialog"
+          aria-label="Switch course"
+          class="hidden absolute left-4 right-4 top-full mt-1.5 sm:left-0 sm:right-auto sm:mt-2 sm:w-80 bg-bg-surface border border-border-default rounded-lg shadow-xl overflow-hidden text-fg-primary">
+        </div>
       </div>
-    </div>
+    </nav>
   </header>
 
   <!-- page layout -->

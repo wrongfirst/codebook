@@ -1,6 +1,19 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+/* cross-document MPA view transitions */
+@view-transition {
+  navigation: auto;
+}
+
+.site-header {
+  view-transition-name: site-header;
+}
+
+.site-brand {
+  view-transition-name: site-brand;
+}
+
 @theme {
   /* fonts */
   --font-sans: "Inter", "sans-serif";
