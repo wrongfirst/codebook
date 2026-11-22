@@ -1,11 +1,11 @@
 import { elements } from '../core/elements';
-import { ICONS } from './icons';
 import { store } from '../core/store';
 import { flushPersistedStorage } from '../core/store/storage/encryptedStorage';
 import { SITE_TITLE } from '../core/siteConfig';
 import { abortAllStreams } from './chatPanel';
 import { pushToGist } from '../core/sync/syncManager';
 import { Effect } from 'effect';
+import { createModal, type ModalController } from './modal';
 
 export interface ConfirmDialogOptions {
     title?: string;
@@ -15,47 +15,26 @@ export interface ConfirmDialogOptions {
 }
 
 let pendingConfirmCallback: (() => void | Promise<void>) | null = null;
-let isResetModalInitialized = false;
+let confirmModal: ModalController | null = null;
 
-export function initResetProgress() {
-    if (isResetModalInitialized) return;
-    isResetModalInitialized = true;
+function initResetProgress() {
+    if (confirmModal) return;
 
-    if (elements.resetProgressBtn) {
-        elements.resetProgressBtn.innerHTML = ICONS.TRASH;
-    }
-    if (elements.resetProgress.closeBtn) {
-        elements.resetProgress.closeBtn.innerHTML = ICONS.CLOSE;
-    }
+    confirmModal = createModal({
+        modal: elements.resetProgress.modal,
+        closeBtn: elements.resetProgress.closeBtn,
+        onClose: () => {
+            pendingConfirmCallback = null;
+        },
+    });
 
-    elements.resetProgress.closeBtn?.addEventListener('click', closeConfirmDialog);
-    elements.resetProgress.cancelBtn?.addEventListener('click', closeConfirmDialog);
+    elements.resetProgress.cancelBtn?.addEventListener('click', () => confirmModal?.close());
 
     elements.resetProgress.confirmBtn?.addEventListener('click', async () => {
         const callback = pendingConfirmCallback;
-        closeConfirmDialog();
+        confirmModal?.close();
         if (callback) {
             await callback();
-        }
-    });
-
-    //close on click outside (only if both mousedown and click originated directly on the backdrop)
-    let isMouseDownOnBackdrop = false;
-
-    elements.resetProgress.modal?.addEventListener('mousedown', (e) => {
-        isMouseDownOnBackdrop = (e.target === elements.resetProgress.modal);
-    });
-
-    elements.resetProgress.modal?.addEventListener('click', (e) => {
-        if (isMouseDownOnBackdrop && e.target === elements.resetProgress.modal) {
-            closeConfirmDialog();
-        }
-        isMouseDownOnBackdrop = false;
-    });
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && elements.resetProgress.modal && !elements.resetProgress.modal.classList.contains('hidden')) {
-            closeConfirmDialog();
         }
     });
 }
@@ -93,14 +72,6 @@ export function showConfirmDialog(options: ConfirmDialogOptions) {
     }
 
     pendingConfirmCallback = options.onConfirm;
-
-    elements.resetProgress.modal?.classList.remove('hidden');
-    elements.resetProgress.modal?.classList.add('flex');
-}
-
-export function closeConfirmDialog() {
-    pendingConfirmCallback = null;
-    elements.resetProgress.modal?.classList.add('hidden');
-    elements.resetProgress.modal?.classList.remove('flex');
+    confirmModal?.open();
 }
 

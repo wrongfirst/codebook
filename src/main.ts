@@ -16,7 +16,7 @@ import { status } from './ui/status';
 import { showPopup } from './ui/popup';
 import { initBranding } from './ui/branding';
 import { initCourseSwitcher } from './ui/courseSwitcher';
-import { renderSidebar, initSidebarToggle } from './ui/sidebar';
+import { renderSidebar, initSidebar } from './ui/sidebar';
 import { renderProgressBar } from './ui/progressBar';
 import { setupResize } from './ui/resize';
 import { initTabs } from './ui/tabs';
@@ -52,7 +52,7 @@ if (elements.settingsBtn) {
 }
 
 if (elements.resetProgressBtn) {
-    elements.resetProgressBtn.innerHTML = ICONS.TRASH;
+    elements.resetProgressBtn.innerHTML = ICONS.RESET;
     let resetPromise: Promise<typeof import('./ui/resetProgress')> | null = null;
     elements.resetProgressBtn.addEventListener('click', () => {
         if (!resetPromise) {
@@ -84,7 +84,7 @@ const navActions = initNavigation(
     switchTab
 );
 
-initSidebarToggle(elements.sidebar.toggle, elements.sidebar.nav);
+initSidebar();
 
 //theme
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
@@ -160,9 +160,7 @@ function render() {
         const languageExtension = getLanguageExtension(currentLanguageId);
 
         //initialize editor with user code (loadExerciseCode automatically saves prior context)
-        loadExerciseCode(activeLessonSlug, currentLanguageId, currentUserCode, languageExtension, () => {
-            showPopup('Saved!');
-        });
+        loadExerciseCode(activeLessonSlug, currentLanguageId, currentUserCode, languageExtension);
 
         //reset output on exercise or language switch
         if (isExerciseChanged || isLanguageChanged) {

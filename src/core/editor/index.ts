@@ -16,7 +16,6 @@ let view: EditorView | null = null;
 let tabCount = 0;
 let lastTabTime = 0;
 let autoSaveTimeout: ReturnType<typeof setTimeout> | null = null;
-let onSaveCallback: (() => void) | undefined;
 let isProgrammaticChange = false;
 let activeExerciseId: string | null = null;
 let activeLanguageId: string | null = null;
@@ -244,11 +243,8 @@ export function loadExerciseCode(
     exerciseId: string,
     languageId: string,
     code: string,
-    languageExtension?: Extension,
-    onSave?: () => void
+    languageExtension?: Extension
 ) {
-    onSaveCallback = onSave;
-
     // Flush any pending unsaved changes from the previous exercise/language context
     if (autoSaveTimeout && activeExerciseId && activeLanguageId && (activeExerciseId !== exerciseId || activeLanguageId !== languageId)) {
         const prevEx = activeExerciseId;
@@ -309,11 +305,7 @@ export function loadExerciseCode(
                         key: "Mod-s",
                         run: () => {
                             flushAutoSave();
-                            if (onSaveCallback) {
-                                onSaveCallback();
-                            } else {
-                                showPopup('Saved!');
-                            }
+                            showPopup('Saved!');
                             return true;
                         },
                         preventDefault: true
@@ -333,7 +325,7 @@ export function loadExerciseCode(
                 languageCompartment.of(languageExtension || []),
                 themeCompartment.of(getTheme(isDark)),
                 EditorView.theme({
-                    "&": { height: "100%", backgroundColor: "var(--bg-app)", color: "var(--fg-primary)" },
+                    "&": { height: "100%", backgroundColor: "var(--bg-editor)", color: "var(--fg-primary)" },
                     ".cm-scroller": {
                         overflow: "auto",
                         fontFamily: "var(--font-mono)",
