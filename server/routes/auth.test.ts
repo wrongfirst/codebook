@@ -28,6 +28,26 @@ describe('Auth HTTP Boundary Seam', () => {
     expect(setCookie).toContain('github_oauth_state=');
   });
 
+  it('GET /api/auth/login/github preserves valid subpath returnTo cookie and rejects open redirects', async () => {
+    const validRes = await app.request(
+      'https://next.wrongfirst.dev/api/auth/login/github?returnTo=%2Fcodebook%2F%23ex-1',
+      {},
+      mockEnv()
+    );
+    expect(validRes.status).toBe(302);
+    const cookies = validRes.headers.getSetCookie();
+    expect(cookies.some((c) => c.startsWith('github_oauth_state=') && c.includes('Secure'))).toBe(true);
+    expect(cookies.some((c) => c.startsWith('oauth_return_to=%2Fcodebook%2F%23ex-1'))).toBe(true);
+
+    const evilRes = await app.request(
+      '/api/auth/login/github?returnTo=https%3A%2F%2Fevil.example%2Fphish',
+      {},
+      mockEnv()
+    );
+    expect(evilRes.status).toBe(302);
+    expect(evilRes.headers.getSetCookie().some((c) => c.startsWith('oauth_return_to='))).toBe(false);
+  });
+
   it('GET /api/auth/login/google redirects to Google OAuth and sets state & code_verifier cookies', async () => {
     const res = await app.request('/api/auth/login/google', {}, mockEnv());
     expect(res.status).toBe(302);
@@ -208,6 +228,37 @@ describe('Auth HTTP Boundary Seam', () => {
       // 4. Reusing the same token fails
       const replayRes = await app.request(`/api/auth/verify?token=${token}`, {}, mockEnv());
       expect(replayRes.status).toBe(400);
+    });
+
+    it('GET /api/auth/verify honors safe returnTo and rejects external redirects', async () => {
+      const email = 'subpath@example.com';
+      const now = Date.now() + 15 * 60 * 1000;
+
+      await db
+        .prepare('INSERT INTO verification_tokens (token, email, expires_at) VALUES (?, ?, ?)')
+        .bind('tok_subpath_1', email, now)
+        .run();
+      await db
+        .prepare('INSERT INTO verification_tokens (token, email, expires_at) VALUES (?, ?, ?)')
+        .bind('tok_subpath_2', email, now)
+        .run();
+
+      const safeRes = await app.request(
+        'https://next.wrongfirst.dev/api/auth/verify?token=tok_subpath_1&returnTo=%2Fwarmup%2F%23ex-2',
+        {},
+        mockEnv()
+      );
+      expect(safeRes.status).toBe(302);
+      expect(safeRes.headers.get('Location')).toBe('/warmup/#ex-2');
+      expect(safeRes.headers.get('Set-Cookie')).toContain('Secure');
+
+      const unsafeRes = await app.request(
+        '/api/auth/verify?token=tok_subpath_2&returnTo=//evil.example/steal',
+        {},
+        mockEnv()
+      );
+      expect(unsafeRes.status).toBe(302);
+      expect(unsafeRes.headers.get('Location')).toBe('/');
     });
 
     it('GET /api/auth/verify rejects expired tokens', async () => {

@@ -2,6 +2,7 @@
 import { Effect, Stream, Option, Duration } from 'effect';
 import { store } from '../store';
 import { useAuthStore } from '../auth/authStore';
+import { CLOUD_ENABLED } from '../cloudConfig';
 import { buildSystemPrompt, formatUserPromptWithContext } from './context';
 import { decryptSecret } from '../crypto';
 import {
@@ -38,9 +39,9 @@ export function streamCompletion(options: StreamOptions): Stream.Stream<string, 
       const state = store.getState();
       const settings = state.chatSettings;
       const { activeLessonSlug } = state;
-      const user = useAuthStore.getState().user;
+      const user = CLOUD_ENABLED ? useAuthStore.getState().user : null;
       const isPro = user?.tier === 'pro';
-      const isManagedAI = isPro && !settings?.useBYOK;
+      const isManagedAI = CLOUD_ENABLED && isPro && !settings?.useBYOK;
 
       if (!settings?.enabled && !isManagedAI) {
         return yield* Effect.fail(

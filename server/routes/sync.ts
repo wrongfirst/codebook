@@ -3,6 +3,18 @@ import type { Env } from '../index';
 import { getSessionIdFromCookie, validateSession } from '../auth/session';
 
 const sync = new Hono<{ Bindings: Env }>();
+const SITE_SLUG_RE = /^[a-z0-9][a-z0-9._-]{0,99}$/;
+
+function resolveSiteSlug(raw?: string | null): string | null {
+  if (raw === undefined || raw === null || raw.trim() === '') {
+    return 'default';
+  }
+  const normalized = raw.trim().toLowerCase();
+  if (!SITE_SLUG_RE.test(normalized)) {
+    return null;
+  }
+  return normalized;
+}
 
 // ----------------------------------------------------
 // Retrieve Cloud Progress Snapshot (Pro Only)
@@ -27,9 +39,14 @@ sync.get('/', async (c) => {
     return c.json({ error: 'Pro subscription required for cloud sync' }, 403);
   }
 
+  const siteSlug = resolveSiteSlug(c.req.query('site'));
+  if (!siteSlug) {
+    return c.json({ error: 'Invalid site slug' }, 400);
+  }
+
   const row = await db
-    .prepare('SELECT payload_json, version, updated_at FROM user_sync WHERE user_id = ?')
-    .bind(user.id)
+    .prepare('SELECT payload_json, version, updated_at FROM user_sync WHERE user_id = ? AND site_slug = ?')
+    .bind(user.id, siteSlug)
     .first<{ payload_json: string; version: number; updated_at: number }>();
 
   if (!row) {
@@ -74,7 +91,7 @@ sync.post('/', async (c) => {
     return c.json({ error: 'Pro subscription required for cloud sync' }, 403);
   }
 
-  let body: { snapshot?: any; version?: number };
+  let body: { snapshot?: any; version?: number; siteSlug?: string };
   try {
     body = await c.req.json();
   } catch {
@@ -85,20 +102,25 @@ sync.post('/', async (c) => {
     return c.json({ error: 'Missing snapshot data' }, 400);
   }
 
+  const siteSlug = resolveSiteSlug(body.siteSlug ?? c.req.query('site'));
+  if (!siteSlug) {
+    return c.json({ error: 'Invalid site slug' }, 400);
+  }
+
   const now = Date.now();
   const version = body.version ?? 1;
   const serialized = JSON.stringify(body.snapshot);
 
   await db
     .prepare(`
-      INSERT INTO user_sync (user_id, payload_json, version, updated_at)
-      VALUES (?, ?, ?, ?)
-      ON CONFLICT(user_id) DO UPDATE SET
+      INSERT INTO user_sync (user_id, site_slug, payload_json, version, updated_at)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(user_id, site_slug) DO UPDATE SET
         payload_json = excluded.payload_json,
         version = excluded.version,
         updated_at = excluded.updated_at
     `)
-    .bind(user.id, serialized, version, now)
+    .bind(user.id, siteSlug, serialized, version, now)
     .run();
 
   return c.json({

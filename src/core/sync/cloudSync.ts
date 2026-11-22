@@ -1,5 +1,7 @@
 import { store } from '../store';
 import { useAuthStore } from '../auth/authStore';
+import { isJsonResponse } from '../cloudConfig';
+import { SITE_SLUG } from '../siteConfig';
 import { buildManualExportPayload, parseManualImport } from '../backup/backupManager';
 import { showPopup } from '../../ui/popup';
 
@@ -47,8 +49,8 @@ export async function pullCloudProgress(): Promise<void> {
   updateSyncState({ status: 'syncing', error: null });
 
   try {
-    const res = await fetch('/api/sync');
-    if (res.status === 403) {
+    const res = await fetch(`/api/sync?site=${encodeURIComponent(SITE_SLUG)}`);
+    if (res.status === 403 || !isJsonResponse(res)) {
       updateSyncState({ status: 'disabled' });
       return;
     }
@@ -102,10 +104,10 @@ export async function pushCloudProgress(): Promise<void> {
     const res = await fetch('/api/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ snapshot, version: 1 }),
+      body: JSON.stringify({ snapshot, version: 1, siteSlug: SITE_SLUG }),
     });
 
-    if (res.status === 403) {
+    if (res.status === 403 || !isJsonResponse(res)) {
       updateSyncState({ status: 'disabled' });
       return;
     }

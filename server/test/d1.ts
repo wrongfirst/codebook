@@ -1,13 +1,18 @@
 import { DatabaseSync } from 'node:sqlite';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 
 export function createTestD1(): D1Database {
   const db = new DatabaseSync(':memory:');
-  const migrationPath = resolve(process.cwd(), 'server/db/migrations/0001_initial.sql');
-  const sql = readFileSync(migrationPath, 'utf8');
-  db.exec(sql);
+  const migrationsDir = resolve(process.cwd(), 'server/db/migrations');
+  const migrationFiles = readdirSync(migrationsDir)
+    .filter((file) => file.endsWith('.sql'))
+    .sort();
+  for (const file of migrationFiles) {
+    const sql = readFileSync(resolve(migrationsDir, file), 'utf8');
+    db.exec(sql);
+  }
 
   function makePreparedStatement(query: string, boundValues: any[] = []): D1PreparedStatement {
     return {

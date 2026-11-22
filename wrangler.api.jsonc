@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "account_id": "3519a01b37f2fd8a3837212fb89c1073",
+  "name": "codebook-api",
+  "main": "server/index.ts",
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "codebook-db",
+      "database_id": "local-codebook-db",
+      "migrations_dir": "server/db/migrations"
+    }
+  ],
+  "ai": {
+    "binding": "AI"
+  }
+}

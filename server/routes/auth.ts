@@ -10,14 +10,51 @@ import {
   clearSessionCookie,
   getSessionIdFromCookie,
   generateId,
+  isSecureRequest,
 } from '../auth/session';
 import { upsertOAuthUser, upsertEmailUser } from '../auth/user';
 
 const auth = new Hono<{ Bindings: Env }>();
+const OAUTH_RETURN_TO_COOKIE = 'oauth_return_to';
 
 function getOrigin(req: Request): string {
   const url = new URL(req.url);
   return `${url.protocol}//${url.host}`;
+}
+
+/**
+ * Only allow same-origin relative paths (e.g. `/codebook/#ex-1`) to prevent open redirects.
+ */
+export function sanitizeReturnTo(raw?: string | null): string {
+  if (!raw) return '/';
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith('/') || trimmed.startsWith('//') || trimmed.startsWith('/\\')) {
+    return '/';
+  }
+  if (/[\r\n]/.test(trimmed)) {
+    return '/';
+  }
+  return trimmed;
+}
+
+function setReturnToCookie(c: Parameters<typeof setCookie>[0], raw?: string | null): void {
+  const returnTo = sanitizeReturnTo(raw);
+  if (returnTo === '/') return;
+  setCookie(c, OAUTH_RETURN_TO_COOKIE, returnTo, {
+    path: '/',
+    httpOnly: true,
+    secure: isSecureRequest(c.req.raw),
+    sameSite: 'Lax',
+    maxAge: 600,
+  });
+}
+
+function consumeReturnToCookie(c: Parameters<typeof getCookie>[0]): string {
+  const stored = getCookie(c, OAUTH_RETURN_TO_COOKIE);
+  if (stored) {
+    deleteCookie(c, OAUTH_RETURN_TO_COOKIE, { path: '/' });
+  }
+  return sanitizeReturnTo(stored);
 }
 
 // ----------------------------------------------------
@@ -40,10 +77,11 @@ auth.get('/login/github', (c) => {
   setCookie(c, 'github_oauth_state', state, {
     path: '/',
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isSecureRequest(c.req.raw),
     sameSite: 'Lax',
     maxAge: 600, // 10 minutes
   });
+  setReturnToCookie(c, c.req.query('returnTo'));
 
   return c.redirect(url.toString(), 302);
 });
@@ -111,7 +149,7 @@ auth.get('/callback/github', async (c) => {
     const sessionId = await createSession(db, user.id);
     setSessionCookie(c, sessionId);
 
-    return c.redirect('/', 302);
+    return c.redirect(consumeReturnToCookie(c), 302);
   } catch (err: any) {
     console.error('[OAuth GitHub Error]:', err);
     return c.text('Failed to authenticate with GitHub', 500);
@@ -139,7 +177,7 @@ auth.get('/login/google', (c) => {
   setCookie(c, 'google_oauth_state', state, {
     path: '/',
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isSecureRequest(c.req.raw),
     sameSite: 'Lax',
     maxAge: 600,
   });
@@ -147,10 +185,11 @@ auth.get('/login/google', (c) => {
   setCookie(c, 'google_code_verifier', codeVerifier, {
     path: '/',
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isSecureRequest(c.req.raw),
     sameSite: 'Lax',
     maxAge: 600,
   });
+  setReturnToCookie(c, c.req.query('returnTo'));
 
   return c.redirect(url.toString(), 302);
 });
@@ -204,7 +243,7 @@ auth.get('/callback/google', async (c) => {
     const sessionId = await createSession(db, user.id);
     setSessionCookie(c, sessionId);
 
-    return c.redirect('/', 302);
+    return c.redirect(consumeReturnToCookie(c), 302);
   } catch (err: any) {
     console.error('[OAuth Google Error]:', err);
     return c.text('Failed to authenticate with Google', 500);
@@ -220,7 +259,7 @@ auth.post('/magic-link', async (c) => {
     return c.json({ error: 'Database unavailable' }, 500);
   }
 
-  let body: { email?: string };
+  let body: { email?: string; returnTo?: string };
   try {
     body = await c.req.json();
   } catch {
@@ -242,7 +281,9 @@ auth.post('/magic-link', async (c) => {
     .run();
 
   const origin = getOrigin(c.req.raw);
-  const verifyUrl = `${origin}/api/auth/verify?token=${token}`;
+  const returnTo = sanitizeReturnTo(body.returnTo);
+  const returnQuery = returnTo !== '/' ? `&returnTo=${encodeURIComponent(returnTo)}` : '';
+  const verifyUrl = `${origin}/api/auth/verify?token=${token}${returnQuery}`;
 
   const resendApiKey = c.env.RESEND_API_KEY;
   if (resendApiKey) {
@@ -300,7 +341,7 @@ auth.get('/verify', async (c) => {
   const sessionId = await createSession(db, user.id);
   setSessionCookie(c, sessionId);
 
-  return c.redirect('/', 302);
+  return c.redirect(sanitizeReturnTo(c.req.query('returnTo')), 302);
 });
 
 // ----------------------------------------------------

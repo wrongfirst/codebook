@@ -1,9 +1,10 @@
-import { ICONS } from './icons';
 import { useAuthStore } from '../core/auth/authStore';
 import { openAuthModal } from './authModal';
 import { openPaddleCheckout, openCustomerBillingPortal } from '../core/billing/paddleClient';
+import { createModal, type ModalController } from './modal';
 
 let upgradeModalEl: HTMLElement | null = null;
+let upgradeModal: ModalController | null = null;
 
 export function initProUpgradeModal(): void {
   window.addEventListener('codebook:open-upgrade-modal', () => {
@@ -26,17 +27,11 @@ export function openProUpgradeModal(): void {
     createProUpgradeModal();
   }
 
-  if (upgradeModalEl) {
-    upgradeModalEl.classList.remove('hidden');
-    upgradeModalEl.classList.add('flex');
-  }
+  upgradeModal?.open();
 }
 
 export function closeProUpgradeModal(): void {
-  if (upgradeModalEl) {
-    upgradeModalEl.classList.add('hidden');
-    upgradeModalEl.classList.remove('flex');
-  }
+  upgradeModal?.close();
 }
 
 function createProUpgradeModal(): void {
@@ -55,7 +50,6 @@ function createProUpgradeModal(): void {
           <p class="text-xs text-fg-muted mt-1">Unlock cloud sync, managed AI tutoring, and early access.</p>
         </div>
         <button id="close-upgrade-modal-btn" class="text-fg-muted hover:text-fg-primary transition-colors p-1.5 rounded-md hover:bg-bg-app cursor-pointer" title="Close">
-          ${ICONS.CLOSE}
         </button>
       </div>
 
@@ -107,14 +101,10 @@ function createProUpgradeModal(): void {
 
   document.body.appendChild(upgradeModalEl);
 
-  upgradeModalEl.querySelector('#close-upgrade-modal-btn')?.addEventListener('click', closeProUpgradeModal);
-  upgradeModalEl.addEventListener('click', (e) => {
-    if (e.target === upgradeModalEl) closeProUpgradeModal();
-  });
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && upgradeModalEl && !upgradeModalEl.classList.contains('hidden')) {
-      closeProUpgradeModal();
-    }
+  upgradeModal = createModal({
+    modal: upgradeModalEl,
+    closeBtn: upgradeModalEl.querySelector<HTMLButtonElement>('#close-upgrade-modal-btn'),
+    restoreFocus: true,
   });
 
   const upgradeBtn = upgradeModalEl.querySelector('#confirm-upgrade-btn') as HTMLButtonElement;

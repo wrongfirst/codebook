@@ -74,11 +74,19 @@ export async function deleteSession(db: D1Database, sessionId: string): Promise<
   await db.prepare('DELETE FROM sessions WHERE id = ?').bind(sessionId).run();
 }
 
+export function isSecureRequest(req: Request): boolean {
+  try {
+    return new URL(req.url).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export function setSessionCookie(c: Context, sessionId: string): void {
   setCookie(c, SESSION_COOKIE_NAME, sessionId, {
     path: '/',
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isSecureRequest(c.req.raw),
     sameSite: 'Lax',
     maxAge: SESSION_MAX_AGE_SECONDS,
   });
@@ -88,7 +96,7 @@ export function clearSessionCookie(c: Context): void {
   deleteCookie(c, SESSION_COOKIE_NAME, {
     path: '/',
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isSecureRequest(c.req.raw),
     sameSite: 'Lax',
   });
 }
