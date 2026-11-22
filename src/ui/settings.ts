@@ -17,6 +17,7 @@ import { fetchAvailableModels } from '../core/chat/client';
 import { escapeHtml } from '../core/markdown';
 import { downloadJsonFile } from './download';
 import { createModal, type ModalController } from './modal';
+import { CLOUD_ENABLED } from '../core/cloudConfig';
 import { useAuthStore } from '../core/auth/authStore';
 import { openProUpgradeModal } from './proUpgradeModal';
 
@@ -72,11 +73,13 @@ function initSettings() {
             }
         }
     });
-    useAuthStore.subscribe(() => {
-        if (settingsModal?.isOpen()) {
-            syncSettingsUI();
-        }
-    });
+    if (CLOUD_ENABLED) {
+        useAuthStore.subscribe(() => {
+            if (settingsModal?.isOpen()) {
+                syncSettingsUI();
+            }
+        });
+    }
 }
 
 function bindStaticListeners() {
@@ -200,6 +203,13 @@ function renderManagedAISection(chatSettings: ChatSettings) {
     const container = elements.settings.chatManagedSection;
     if (!container) return;
 
+    if (!CLOUD_ENABLED) {
+        container.classList.add('hidden');
+        container.innerHTML = '';
+        return;
+    }
+
+    container.classList.remove('hidden');
     const user = useAuthStore.getState().user;
     const isPro = user?.tier === 'pro';
 

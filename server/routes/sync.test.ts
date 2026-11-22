@@ -160,4 +160,48 @@ describe('Pro Cloud Sync Seam', () => {
     expect(preserved).not.toBeNull();
     expect(JSON.parse(preserved!.payload_json)).toEqual(savedSnapshot);
   });
+
+  it('Isolates snapshots by site_slug across course instances and rejects invalid slugs', async () => {
+    const userId = 'usr_multi_site';
+    const now = Date.now();
+    await db.prepare(
+      'INSERT INTO users (id, email, tier, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
+    ).bind(userId, 'multi@example.com', 'pro', now, now).run();
+
+    const sessionId = 'sess_multi_site';
+    await db.prepare(
+      'INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)'
+    ).bind(sessionId, userId, now + 100000).run();
+
+    const headers = {
+      'Content-Type': 'application/json',
+      Cookie: `session=${sessionId}`,
+    };
+
+    const warmupSnap = { completedSlugs: ['warmup-1'] };
+    const dsaSnap = { completedSlugs: ['dsa-1', 'dsa-2'] };
+
+    expect((await app.request('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ snapshot: warmupSnap, siteSlug: 'warmup', version: 1 }),
+    }, mockEnv())).status).toBe(200);
+
+    expect((await app.request('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ snapshot: dsaSnap, siteSlug: 'dsa', version: 1 }),
+    }, mockEnv())).status).toBe(200);
+
+    const warmupRes = await app.request('/api/sync?site=warmup', { headers: { Cookie: `session=${sessionId}` } }, mockEnv());
+    expect(warmupRes.status).toBe(200);
+    expect(((await warmupRes.json()) as any).snapshot).toEqual(warmupSnap);
+
+    const dsaRes = await app.request('/api/sync?site=dsa', { headers: { Cookie: `session=${sessionId}` } }, mockEnv());
+    expect(dsaRes.status).toBe(200);
+    expect(((await dsaRes.json()) as any).snapshot).toEqual(dsaSnap);
+
+    const badRes = await app.request('/api/sync?site=../bad', { headers: { Cookie: `session=${sessionId}` } }, mockEnv());
+    expect(badRes.status).toBe(400);
+  });
 });

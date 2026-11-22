@@ -1,4 +1,5 @@
 import { useAuthStore } from '../auth/authStore';
+import { isJsonResponse } from '../cloudConfig';
 
 declare global {
   interface Window {
@@ -19,7 +20,7 @@ export async function getBillingConfig(): Promise<BillingConfig> {
   if (cachedConfig) return cachedConfig;
   try {
     const res = await fetch('/api/billing/config');
-    if (res.ok) {
+    if (res.ok && isJsonResponse(res)) {
       cachedConfig = await res.json() as BillingConfig;
       return cachedConfig;
     }
@@ -98,14 +99,14 @@ export async function openPaddleCheckout(): Promise<void> {
 export async function openCustomerBillingPortal(): Promise<void> {
   try {
     const res = await fetch('/api/billing/portal', { method: 'POST' });
-    if (res.ok) {
+    if (res.ok && isJsonResponse(res)) {
       const data = await res.json() as { url?: string };
       if (data.url) {
         window.open(data.url, '_blank');
         return;
       }
     }
-    const err = await res.json().catch(() => ({}));
+    const err = isJsonResponse(res) ? await res.json().catch(() => ({})) : {};
     alert((err as any).error || 'Failed to open customer portal');
   } catch (err) {
     console.error('[Paddle] Error opening billing portal:', err);

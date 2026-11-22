@@ -1,26 +1,36 @@
-import { ICONS } from './icons';
+import { isJsonResponse } from '../core/cloudConfig';
+import { createModal, type ModalController } from './modal';
 
 let modalEl: HTMLElement | null = null;
+let authModal: ModalController | null = null;
+
+function getCurrentReturnTo(): string {
+  return `${window.location.pathname}${window.location.search}${window.location.hash}`;
+}
+
+function updateOAuthLinks(): void {
+  if (!modalEl) return;
+  const returnToParam = encodeURIComponent(getCurrentReturnTo());
+  const githubLink = modalEl.querySelector<HTMLAnchorElement>('#auth-github-link');
+  const googleLink = modalEl.querySelector<HTMLAnchorElement>('#auth-google-link');
+  if (githubLink) {
+    githubLink.href = `/api/auth/login/github?returnTo=${returnToParam}`;
+  }
+  if (googleLink) {
+    googleLink.href = `/api/auth/login/google?returnTo=${returnToParam}`;
+  }
+}
 
 export function openAuthModal(): void {
   if (!modalEl) {
     createAuthModal();
   }
-  if (modalEl) {
-    modalEl.classList.remove('hidden');
-    modalEl.classList.add('flex');
-    const input = modalEl.querySelector<HTMLInputElement>('#magic-link-email');
-    if (input) {
-      setTimeout(() => input.focus(), 50);
-    }
-  }
+  updateOAuthLinks();
+  authModal?.open();
 }
 
 export function closeAuthModal(): void {
-  if (modalEl) {
-    modalEl.classList.add('hidden');
-    modalEl.classList.remove('flex');
-  }
+  authModal?.close();
 }
 
 function createAuthModal(): void {
@@ -36,19 +46,18 @@ function createAuthModal(): void {
           <p class="text-xs text-fg-muted mt-0.5">Sync progress across devices & unlock Pro</p>
         </div>
         <button id="close-auth-modal-btn" class="text-fg-muted hover:text-fg-primary transition-colors p-1.5 rounded-md hover:bg-bg-app cursor-pointer" title="Close">
-          ${ICONS.CLOSE}
         </button>
       </div>
 
       <div class="flex flex-col gap-2.5 pt-1">
-        <a href="/api/auth/login/github" class="flex items-center justify-center gap-2.5 w-full py-2.5 px-4 bg-[#24292F] hover:bg-[#1a1e22] text-white font-medium text-xs rounded-lg transition-colors shadow-sm">
+        <a id="auth-github-link" href="/api/auth/login/github" class="flex items-center justify-center gap-2.5 w-full py-2.5 px-4 bg-[#24292F] hover:bg-[#1a1e22] text-white font-medium text-xs rounded-lg transition-colors shadow-sm">
           <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
             <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
           </svg>
           Continue with GitHub
         </a>
 
-        <a href="/api/auth/login/google" class="flex items-center justify-center gap-2.5 w-full py-2.5 px-4 bg-bg-app hover:bg-border-default/50 text-fg-primary border border-border-default font-medium text-xs rounded-lg transition-colors shadow-sm">
+        <a id="auth-google-link" href="/api/auth/login/google" class="flex items-center justify-center gap-2.5 w-full py-2.5 px-4 bg-bg-app hover:bg-border-default/50 text-fg-primary border border-border-default font-medium text-xs rounded-lg transition-colors shadow-sm">
           <svg class="w-4 h-4" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
             <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
@@ -87,18 +96,19 @@ function createAuthModal(): void {
 
   document.body.appendChild(modalEl);
 
-  // Close actions
-  modalEl.querySelector('#close-auth-modal-btn')?.addEventListener('click', closeAuthModal);
-  modalEl.addEventListener('click', (e) => {
-    if (e.target === modalEl) closeAuthModal();
-  });
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && modalEl && !modalEl.classList.contains('hidden')) {
-      closeAuthModal();
-    }
+  authModal = createModal({
+    modal: modalEl,
+    closeBtn: modalEl.querySelector<HTMLButtonElement>('#close-auth-modal-btn'),
+    restoreFocus: true,
+    onOpen: () => {
+      const input = modalEl?.querySelector<HTMLInputElement>('#magic-link-email');
+      if (input) {
+        setTimeout(() => input.focus(), 50);
+      }
+    },
   });
 
-  // Placeholder form submit for magic link
+  // Form submit for magic link
   const form = modalEl.querySelector('#magic-link-form') as HTMLFormElement;
   const statusEl = modalEl.querySelector('#magic-link-status') as HTMLElement;
   const submitBtn = modalEl.querySelector('#magic-link-submit-btn') as HTMLButtonElement;
@@ -119,15 +129,15 @@ function createAuthModal(): void {
       const res = await fetch('/api/auth/magic-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, returnTo: getCurrentReturnTo() }),
       });
-      if (res.ok) {
+      if (res.ok && isJsonResponse(res)) {
         statusEl.classList.remove('text-fg-muted');
         statusEl.classList.add('text-green-500');
         statusEl.textContent = 'Check your inbox for your login link!';
         emailInput.value = '';
       } else {
-        const body = await res.json().catch(() => ({}));
+        const body = isJsonResponse(res) ? await res.json().catch(() => ({})) : {};
         statusEl.classList.remove('text-fg-muted');
         statusEl.classList.add('text-red-500');
         statusEl.textContent = (body as any).error || 'Failed to send magic link. Try again.';

@@ -1,4 +1,5 @@
 import { createStore } from 'zustand/vanilla';
+import { isJsonResponse } from '../cloudConfig';
 
 export interface User {
   id: string;
@@ -25,7 +26,7 @@ export const useAuthStore = createStore<AuthState>((set) => ({
   checkAuth: async () => {
     try {
       const res = await fetch('/api/auth/me');
-      if (res.ok) {
+      if (res.ok && isJsonResponse(res)) {
         const data = await res.json() as { user: User | null };
         set({ user: data.user, isLoading: false });
         return data.user;

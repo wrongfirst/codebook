@@ -12,6 +12,9 @@ export function initAuthWidget(): void {
   widgetContainer = document.getElementById('header-user-widget');
   if (!widgetContainer) return;
 
+  widgetContainer.classList.remove('hidden');
+  widgetContainer.classList.add('flex');
+
   // Check URL params for error feedback
   const params = new URLSearchParams(window.location.search);
   if (params.get('error') === 'invalid_token') {

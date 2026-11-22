@@ -7,15 +7,15 @@
     "check": "tsc --noEmit && tsc -p tsconfig.server.json --noEmit",
     "build": "npm run clean && npm run check && vite build",
     "dev": "vite",
-    "dev:worker": "wrangler dev",
+    "dev:worker": "wrangler dev -c wrangler.api.jsonc --port 8787",
     "serve": "node server.mjs",
     "test": "vitest run",
     "deploy": "node scripts/deploy.ts",
     "sync:instances": "node scripts/sync-instances.ts",
     "sync:tokens": "node scripts/sync-tokens.ts",
     "prune:deployments": "node scripts/prune-deployments.ts",
-    "db:migrate:local": "wrangler d1 migrations apply codebook-db --local",
-    "db:migrate:remote": "wrangler d1 migrations apply codebook-db --remote"
+    "db:migrate:local": "wrangler d1 migrations apply codebook-db --local -c wrangler.api.jsonc",
+    "db:migrate:remote": "wrangler d1 migrations apply codebook-db --remote -c wrangler.api.jsonc"
   },
   "dependencies": {
     "@astral-sh/ruff-wasm-web": "^0.9.10",

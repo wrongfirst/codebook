@@ -26,9 +26,7 @@ import { setupCopyCodeButton } from './ui/copyCode';
 import { setupFormatCodeButton } from './ui/formatCode';
 import { initShortcuts } from './ui/shortcuts';
 import { createLazyLoader } from './ui/lazy';
-import { initAuthWidget } from './ui/authWidget';
-import { initProUpgradeModal } from './ui/proUpgradeModal';
-import { initCloudSync } from './core/sync/cloudSync';
+import { CLOUD_ENABLED } from './core/cloudConfig';
 import { renderLanguageSelector } from './ui/languageSelector';
 import { getLanguageExtension, prefetchInactiveLanguageAssets } from './languages/language-registry';
 import { activeRunner } from './language';
@@ -56,9 +54,21 @@ if (elements.resetProgressBtn) {
     });
 }
 
-initAuthWidget();
-initProUpgradeModal();
-initCloudSync();
+if (CLOUD_ENABLED) {
+    void Promise.all([
+        import('./ui/authWidget'),
+        import('./ui/proUpgradeModal'),
+        import('./core/sync/cloudSync'),
+    ])
+        .then(([authWidget, proUpgrade, cloudSync]) => {
+            authWidget.initAuthWidget();
+            proUpgrade.initProUpgradeModal();
+            cloudSync.initCloudSync();
+        })
+        .catch((err) => {
+            console.warn('[main] Failed to initialize cloud modules:', err);
+        });
+}
 
 //load speedrun modal only in dev environments
 if (import.meta.env.DEV) {

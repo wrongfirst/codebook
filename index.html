@@ -7,11 +7,12 @@
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
-    script-src 'self' https://cdn.jsdelivr.net;
-    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net;
+    script-src 'self' https://cdn.jsdelivr.net https://cdn.paddle.com;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdn.paddle.com;
     font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net;
     img-src 'self' data: https:;
     connect-src 'self' https: http:;
+    frame-src 'self' https://*.paddle.com;
     worker-src 'self' blob:;
     object-src 'none';
     base-uri 'self';
@@ -111,6 +112,8 @@
         class="icon-btn icon-btn--lg edge-right-lg"
         title="Settings">
       </button>
+
+      <div id="header-user-widget" class="hidden items-center gap-2 ml-1"></div>
     </div>
 
     <!-- mobile sidebar toggle (Row 2 left on < md, aligned with header logo) -->
@@ -161,7 +164,6 @@
         </button>
       </div>
     </div>
-    <div id="header-user-widget" class="flex items-center gap-3"></div>
   </header>
 
   <!-- page layout -->
