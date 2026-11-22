@@ -327,7 +327,7 @@ export function loadExerciseCode(
                     ".cm-scroller": {
                         overflow: "auto",
                         fontFamily: "var(--font-mono)",
-                        fontSize: "0.875rem",
+                        fontSize: "var(--text-code-editor)",
                         lineHeight: "1.5",
                     },
                     ".cm-gutter-lint": {

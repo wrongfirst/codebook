@@ -53,6 +53,13 @@
   --gap-tight: 0.25rem;
   --gap-group: 0.75rem;
   --gap-section: 1.5rem;
+
+  /* code & reading typography scale */
+  --text-code-primary: 0.8125rem;
+  --text-code-dense: 0.75rem;
+  --text-code-editor: 0.875rem;
+  --text-chat-body: 0.8125rem;
+
   /* semantic button colors (light) */
   --color-danger-fg: #dc2626;
 }
@@ -131,6 +138,31 @@ button {
   --tw-prose-td-borders: var(--border-default);
 }
 
+/* bare inline code & unified prose code scale (prevents .prose-sm double-shrinking <pre><code>) */
+.prose :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  font-size: var(--prose-code-size, var(--text-code-primary));
+  font-weight: 500;
+}
+
+.prose :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *))::before,
+.prose :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *))::after {
+  content: none;
+}
+
+.prose :where(h1 code, h2 code, h3 code, h4 code):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  font-size: 0.9em;
+}
+
+.prose :where(pre code):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.chat-prose {
+  font-size: var(--text-chat-body);
+  --prose-code-size: var(--text-code-dense);
+}
+
 /* editor and related */
 #editor {
   height: 100%;
@@ -155,6 +187,7 @@ button {
   border-radius: 6px;
   overflow: hidden;
   background-color: var(--bg-app);
+  font-size: var(--text-code-primary);
 }
 
 /* override default selection color */
@@ -354,7 +387,7 @@ mark.search-highlight {
   border-radius: 6px;
   padding: 0.75rem 1rem;
   font-family: var(--font-mono);
-  font-size: 0.8125rem;
+  font-size: var(--text-code-primary);
   line-height: 1.5;
   overflow-x: auto;
 }
