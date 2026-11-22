@@ -16,6 +16,7 @@ import { upsertOAuthUser, upsertEmailUser } from '../auth/user';
 
 const auth = new Hono<{ Bindings: Env }>();
 const OAUTH_RETURN_TO_COOKIE = 'oauth_return_to';
+const DEFAULT_AUTH_FROM_EMAIL = 'Wrongfirst <auth@wrongfirst.dev>';
 
 function getOrigin(req: Request): string {
   const url = new URL(req.url);
@@ -287,6 +288,7 @@ auth.post('/magic-link', async (c) => {
 
   const resendApiKey = c.env.RESEND_API_KEY;
   if (resendApiKey) {
+    const fromEmail = c.env.AUTH_FROM_EMAIL?.trim() || DEFAULT_AUTH_FROM_EMAIL;
     try {
       await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -295,10 +297,10 @@ auth.post('/magic-link', async (c) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: 'Codebook <auth@codebook.dev>',
+          from: fromEmail,
           to: [email],
-          subject: 'Sign in to Codebook',
-          html: `<p>Click here to sign in to Codebook:</p><p><a href="${verifyUrl}">Sign in to Codebook</a></p><p>This link will expire in 15 minutes.</p>`,
+          subject: 'Sign in to Wrongfirst',
+          html: `<p>Click here to sign in to Wrongfirst:</p><p><a href="${verifyUrl}">Sign in to Wrongfirst</a></p><p>This link will expire in 15 minutes.</p>`,
         }),
       });
     } catch (err) {

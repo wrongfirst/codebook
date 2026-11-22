@@ -49,3 +49,14 @@ jobs:
           fi
           npm run deploy
 
+      - name: Deploy Staging API Worker
+        if: github.repository == 'wrongfirst/codebook' && (github.event_name == 'workflow_dispatch' && inputs.environment == 'staging')
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npm run check:server
+          npm run db:migrate:staging
+          npx wrangler deploy -c wrangler.api.jsonc --env staging
+          WORKER_NAME=wrongfirst-api-staging npm run prune:deployments || echo "[deploy] Warning: Pruning failed for wrongfirst-api-staging"
+

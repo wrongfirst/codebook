@@ -1,5 +1,5 @@
 import { createStore } from 'zustand/vanilla';
-import { isJsonResponse } from '../cloudConfig';
+import { isJsonResponse } from '../features';
 
 export interface User {
   id: string;
