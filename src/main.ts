@@ -26,7 +26,7 @@ import { setupCopyCodeButton } from './ui/copyCode';
 import { setupFormatCodeButton } from './ui/formatCode';
 import { initShortcuts } from './ui/shortcuts';
 import { createLazyLoader } from './ui/lazy';
-import { CLOUD_ENABLED } from './core/cloudConfig';
+import { isFeatureEnabled } from './core/features';
 import { renderLanguageSelector } from './ui/languageSelector';
 import { getLanguageExtension, prefetchInactiveLanguageAssets } from './languages/language-registry';
 import { activeRunner } from './language';
@@ -54,7 +54,7 @@ if (elements.resetProgressBtn) {
     });
 }
 
-if (CLOUD_ENABLED) {
+if (isFeatureEnabled('cloud')) {
     void Promise.all([
         import('./ui/authWidget'),
         import('./ui/proUpgradeModal'),

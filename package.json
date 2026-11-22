@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "clean": "rm -rf dist",
-    "check": "tsc --noEmit && tsc -p tsconfig.server.json --noEmit",
+    "check": "tsc --noEmit",
+    "check:server": "tsc -p tsconfig.server.json --noEmit",
     "build": "npm run clean && npm run check && vite build",
     "dev": "vite",
     "dev:worker": "wrangler dev -c wrangler.api.jsonc --port 8787",
@@ -14,8 +15,10 @@
     "sync:instances": "node scripts/sync-instances.ts",
     "sync:tokens": "node scripts/sync-tokens.ts",
     "prune:deployments": "node scripts/prune-deployments.ts",
-    "db:migrate:local": "wrangler d1 migrations apply codebook-db --local -c wrangler.api.jsonc",
-    "db:migrate:remote": "wrangler d1 migrations apply codebook-db --remote -c wrangler.api.jsonc"
+    "db:migrate:local": "wrangler d1 migrations apply wrongfirst-next --local -c wrangler.api.jsonc",
+    "db:reset:local": "rm -rf .wrangler/state/v3/d1 && npm run db:migrate:local",
+    "db:migrate:staging": "wrangler d1 migrations apply wrongfirst-next --remote -c wrangler.api.jsonc --env staging",
+    "db:migrate:prod": "wrangler d1 migrations apply wrongfirst --remote -c wrangler.api.jsonc --env production"
   },
   "dependencies": {
     "@astral-sh/ruff-wasm-web": "^0.9.10",

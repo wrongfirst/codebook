@@ -1,19 +1,70 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "account_id": "3519a01b37f2fd8a3837212fb89c1073",
-  "name": "codebook-api",
+  "name": "wrongfirst-api",
   "main": "server/index.ts",
   "compatibility_date": "2024-09-23",
   "compatibility_flags": ["nodejs_compat"],
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "codebook-db",
-      "database_id": "local-codebook-db",
+      "database_name": "wrongfirst-next",
+      "database_id": "local-wrongfirst-db",
       "migrations_dir": "server/db/migrations"
     }
   ],
   "ai": {
-    "binding": "AI"
+    "binding": "AI",
+    "remote": true
+  },
+  "env": {
+    "staging": {
+      "name": "wrongfirst-api-staging",
+      "workers_dev": false,
+      "routes": [
+        {
+          "pattern": "next.wrongfirst.dev/api/*",
+          "zone_name": "wrongfirst.dev"
+        }
+      ],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "wrongfirst-next",
+          "database_id": "76a9923c-99e7-43a1-be38-0139aa2273fb",
+          "migrations_dir": "server/db/migrations"
+        }
+      ],
+      "ai": {
+        "binding": "AI"
+      },
+      "vars": {
+        "PADDLE_ENV": "sandbox"
+      }
+    },
+    "production": {
+      "name": "wrongfirst-api",
+      "workers_dev": false,
+      "routes": [
+        {
+          "pattern": "wrongfirst.dev/api/*",
+          "zone_name": "wrongfirst.dev"
+        }
+      ],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "wrongfirst",
+          "database_id": "afe4f6ac-a39c-4c35-af43-0cbff018e8e4",
+          "migrations_dir": "server/db/migrations"
+        }
+      ],
+      "ai": {
+        "binding": "AI"
+      },
+      "vars": {
+        "PADDLE_ENV": "production"
+      }
+    }
   }
 }

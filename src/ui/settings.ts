@@ -17,7 +17,7 @@ import { fetchAvailableModels } from '../core/chat/client';
 import { escapeHtml } from '../core/markdown';
 import { downloadJsonFile } from './download';
 import { createModal, type ModalController } from './modal';
-import { CLOUD_ENABLED } from '../core/cloudConfig';
+import { isFeatureEnabled } from '../core/features';
 import { useAuthStore } from '../core/auth/authStore';
 import { openProUpgradeModal } from './proUpgradeModal';
 
@@ -73,7 +73,7 @@ function initSettings() {
             }
         }
     });
-    if (CLOUD_ENABLED) {
+    if (isFeatureEnabled('cloud')) {
         useAuthStore.subscribe(() => {
             if (settingsModal?.isOpen()) {
                 syncSettingsUI();
@@ -203,7 +203,7 @@ function renderManagedAISection(chatSettings: ChatSettings) {
     const container = elements.settings.chatManagedSection;
     if (!container) return;
 
-    if (!CLOUD_ENABLED) {
+    if (!isFeatureEnabled('cloud')) {
         container.classList.add('hidden');
         container.innerHTML = '';
         return;

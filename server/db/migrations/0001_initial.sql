@@ -36,12 +36,14 @@ CREATE TABLE IF NOT EXISTS verification_tokens (
     expires_at INTEGER NOT NULL
 );
 
--- 5. User Cloud Sync State (Monolithic Snapshot)
+-- 5. User Cloud Sync State (Monolithic Snapshot, scoped per course instance)
 CREATE TABLE IF NOT EXISTS user_sync (
-    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    site_slug TEXT NOT NULL DEFAULT 'default',
     version INTEGER NOT NULL DEFAULT 1,
     payload_json TEXT NOT NULL,
-    updated_at INTEGER NOT NULL
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (user_id, site_slug)
 );
 
 -- 6. AI Rate Limiting & Usage Tracking

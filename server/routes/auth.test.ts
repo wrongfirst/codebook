@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import app from '../index';
 import { createTestD1 } from '../test/d1';
 import { upsertOAuthUser } from '../auth/user';
@@ -191,6 +191,41 @@ describe('Auth HTTP Boundary Seam', () => {
       expect(tokenRecord).not.toBeNull();
       expect(tokenRecord!.token).toBeDefined();
       expect(tokenRecord!.expires_at).toBeGreaterThan(Date.now());
+    });
+
+    it('POST /api/auth/magic-link sends via Resend using default or configured AUTH_FROM_EMAIL', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(JSON.stringify({ id: 'email_123' }), { status: 200 })
+      );
+
+      try {
+        await app.request('/api/auth/magic-link', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'default-from@example.com' }),
+        }, { ...mockEnv(), RESEND_API_KEY: 're_test_key' });
+
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+        const defaultBody = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
+        expect(defaultBody.from).toBe('Wrongfirst <auth@wrongfirst.dev>');
+        expect(defaultBody.to).toEqual(['default-from@example.com']);
+
+        await app.request('/api/auth/magic-link', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'custom-from@example.com' }),
+        }, {
+          ...mockEnv(),
+          RESEND_API_KEY: 're_test_key',
+          AUTH_FROM_EMAIL: 'Staging <staging-auth@wrongfirst.dev>',
+        });
+
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
+        const customBody = JSON.parse(fetchSpy.mock.calls[1][1]?.body as string);
+        expect(customBody.from).toBe('Staging <staging-auth@wrongfirst.dev>');
+      } finally {
+        fetchSpy.mockRestore();
+      }
     });
 
     it('GET /api/auth/verify verifies token, creates session, and prevents reuse', async () => {

@@ -1,6 +1,6 @@
 import { store } from '../store';
 import { useAuthStore } from '../auth/authStore';
-import { isJsonResponse } from '../cloudConfig';
+import { isJsonResponse } from '../features';
 import { SITE_SLUG } from '../siteConfig';
 import { buildManualExportPayload, parseManualImport } from '../backup/backupManager';
 import { showPopup } from '../../ui/popup';

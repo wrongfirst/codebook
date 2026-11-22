@@ -1,5 +1,5 @@
 import { useAuthStore } from '../auth/authStore';
-import { isJsonResponse } from '../cloudConfig';
+import { isJsonResponse } from '../features';
 
 declare global {
   interface Window {

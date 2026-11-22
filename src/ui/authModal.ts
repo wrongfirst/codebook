@@ -1,4 +1,4 @@
-import { isJsonResponse } from '../core/cloudConfig';
+import { isJsonResponse } from '../core/features';
 import { createModal, type ModalController } from './modal';
 
 let modalEl: HTMLElement | null = null;
