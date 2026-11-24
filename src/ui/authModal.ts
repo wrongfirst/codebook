@@ -73,23 +73,42 @@ function createAuthModal(): void {
         <span class="bg-bg-surface px-2 text-[11px] text-fg-muted uppercase tracking-wider absolute">or</span>
       </div>
 
-      <form id="magic-link-form" class="flex flex-col gap-2">
-        <label for="magic-link-email" class="text-xs text-fg-muted font-medium">Email address</label>
+      <form id="password-login-form" class="flex flex-col gap-2">
+        <label for="auth-email" class="text-xs text-fg-muted font-medium">Email address</label>
         <input 
           type="email" 
-          id="magic-link-email" 
+          id="auth-email" 
           placeholder="you@example.com" 
+          autocomplete="email"
           required 
           class="w-full px-3 py-2 text-xs bg-bg-app border border-border-default rounded-lg focus:outline-none focus:border-brand text-fg-primary"
         />
+        <div id="auth-password-field" class="flex flex-col gap-1.5">
+          <label for="auth-password" class="text-xs text-fg-muted font-medium">Password</label>
+          <input 
+            type="password" 
+            id="auth-password" 
+            placeholder="••••••••" 
+            autocomplete="current-password"
+            required 
+            class="w-full px-3 py-2 text-xs bg-bg-app border border-border-default rounded-lg focus:outline-none focus:border-brand text-fg-primary"
+          />
+        </div>
         <button 
           type="submit" 
-          id="magic-link-submit-btn" 
-          class="w-full py-2 px-4 bg-brand hover:opacity-90 text-white font-medium text-xs rounded-lg transition-all shadow-sm cursor-pointer"
+          id="auth-submit-btn" 
+          class="w-full py-2 px-4 bg-brand hover:opacity-90 text-white font-medium text-xs rounded-lg transition-all shadow-sm cursor-pointer mt-1"
         >
-          Send Magic Link
+          Sign in with Password
         </button>
-        <div id="magic-link-status" class="hidden text-xs text-center py-1 font-medium"></div>
+        <button
+          type="button"
+          id="auth-mode-toggle-btn"
+          class="text-[11px] text-fg-muted hover:text-fg-primary transition-colors text-center cursor-pointer pt-0.5"
+        >
+          Use a magic link instead
+        </button>
+        <div id="auth-status" class="hidden text-xs text-center py-1 font-medium"></div>
       </form>
     </div>
   `;
@@ -101,51 +120,91 @@ function createAuthModal(): void {
     closeBtn: modalEl.querySelector<HTMLButtonElement>('#close-auth-modal-btn'),
     restoreFocus: true,
     onOpen: () => {
-      const input = modalEl?.querySelector<HTMLInputElement>('#magic-link-email');
+      const input = modalEl?.querySelector<HTMLInputElement>('#auth-email');
       if (input) {
         setTimeout(() => input.focus(), 50);
       }
     },
   });
 
-  // Form submit for magic link
-  const form = modalEl.querySelector('#magic-link-form') as HTMLFormElement;
-  const statusEl = modalEl.querySelector('#magic-link-status') as HTMLElement;
-  const submitBtn = modalEl.querySelector('#magic-link-submit-btn') as HTMLButtonElement;
+  // Toggle between password login and magic link
+  let mode: 'password' | 'magic-link' = 'password';
+  const form = modalEl.querySelector('#password-login-form') as HTMLFormElement;
+  const emailInput = modalEl.querySelector('#auth-email') as HTMLInputElement;
+  const passwordField = modalEl.querySelector('#auth-password-field') as HTMLElement;
+  const passwordInput = modalEl.querySelector('#auth-password') as HTMLInputElement;
+  const submitBtn = modalEl.querySelector('#auth-submit-btn') as HTMLButtonElement;
+  const toggleBtn = modalEl.querySelector('#auth-mode-toggle-btn') as HTMLButtonElement;
+  const statusEl = modalEl.querySelector('#auth-status') as HTMLElement;
+
+  const setStatus = (text: string, tone: 'muted' | 'error' | 'success') => {
+    statusEl.classList.remove('hidden', 'text-red-500', 'text-green-500', 'text-fg-muted');
+    statusEl.classList.add(
+      tone === 'error' ? 'text-red-500' : tone === 'success' ? 'text-green-500' : 'text-fg-muted'
+    );
+    statusEl.textContent = text;
+  };
+
+  toggleBtn?.addEventListener('click', () => {
+    mode = mode === 'password' ? 'magic-link' : 'password';
+    statusEl.classList.add('hidden');
+    if (mode === 'password') {
+      passwordField.classList.remove('hidden');
+      passwordInput.required = true;
+      submitBtn.textContent = 'Sign in with Password';
+      toggleBtn.textContent = 'Use a magic link instead';
+    } else {
+      passwordField.classList.add('hidden');
+      passwordInput.required = false;
+      submitBtn.textContent = 'Send Magic Link';
+      toggleBtn.textContent = 'Sign in with password instead';
+    }
+  });
 
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const emailInput = modalEl?.querySelector('#magic-link-email') as HTMLInputElement;
     const email = emailInput?.value.trim();
     if (!email) return;
 
     submitBtn.disabled = true;
     submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
-    statusEl.classList.remove('hidden', 'text-red-500', 'text-green-500');
-    statusEl.classList.add('text-fg-muted');
-    statusEl.textContent = 'Sending magic link...';
 
     try {
-      const res = await fetch('/api/auth/magic-link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, returnTo: getCurrentReturnTo() }),
-      });
-      if (res.ok && isJsonResponse(res)) {
-        statusEl.classList.remove('text-fg-muted');
-        statusEl.classList.add('text-green-500');
-        statusEl.textContent = 'Check your inbox for your login link!';
-        emailInput.value = '';
+      if (mode === 'password') {
+        const password = passwordInput?.value;
+        if (!password) return;
+        setStatus('Signing in...', 'muted');
+
+        const res = await fetch('/api/auth/login/password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+
+        if (res.ok && isJsonResponse(res)) {
+          setStatus('Signed in! Reloading...', 'success');
+          window.location.reload();
+        } else {
+          const body = isJsonResponse(res) ? await res.json().catch(() => ({})) : {};
+          setStatus((body as any).error || 'Invalid email or password.', 'error');
+        }
       } else {
-        const body = isJsonResponse(res) ? await res.json().catch(() => ({})) : {};
-        statusEl.classList.remove('text-fg-muted');
-        statusEl.classList.add('text-red-500');
-        statusEl.textContent = (body as any).error || 'Failed to send magic link. Try again.';
+        setStatus('Sending magic link...', 'muted');
+        const res = await fetch('/api/auth/magic-link', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, returnTo: getCurrentReturnTo() }),
+        });
+        if (res.ok && isJsonResponse(res)) {
+          setStatus('Check your inbox for your login link!', 'success');
+          emailInput.value = '';
+        } else {
+          const body = isJsonResponse(res) ? await res.json().catch(() => ({})) : {};
+          setStatus((body as any).error || 'Failed to send magic link. Try again.', 'error');
+        }
       }
     } catch {
-      statusEl.classList.remove('text-fg-muted');
-      statusEl.classList.add('text-red-500');
-      statusEl.textContent = 'Network error. Please try again.';
+      setStatus('Network error. Please try again.', 'error');
     } finally {
       submitBtn.disabled = false;
       submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');

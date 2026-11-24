@@ -13,6 +13,7 @@ import {
   isSecureRequest,
 } from '../auth/session';
 import { upsertOAuthUser, upsertEmailUser } from '../auth/user';
+import { verifyPassword } from '../auth/password';
 
 const auth = new Hono<{ Bindings: Env }>();
 const OAUTH_RETURN_TO_COOKIE = 'oauth_return_to';
@@ -344,6 +345,79 @@ auth.get('/verify', async (c) => {
   setSessionCookie(c, sessionId);
 
   return c.redirect(sanitizeReturnTo(c.req.query('returnTo')), 302);
+});
+
+// ----------------------------------------------------
+// Email + Password Login
+// ----------------------------------------------------
+auth.post('/login/password', async (c) => {
+  const db = c.env.DB;
+  if (!db) {
+    return c.json({ error: 'Database unavailable' }, 500);
+  }
+
+  let body: { email?: string; password?: string };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'Invalid request body' }, 400);
+  }
+
+  const email = body.email?.trim().toLowerCase();
+  const password = body.password;
+  if (!email || !password) {
+    return c.json({ error: 'Email and password are required' }, 400);
+  }
+
+  const row = await db
+    .prepare(`
+      SELECT
+        id,
+        email,
+        name,
+        avatar_url as avatarUrl,
+        tier,
+        paddle_customer_id as paddleCustomerId,
+        paddle_subscription_id as paddleSubscriptionId,
+        password_hash as passwordHash
+      FROM users
+      WHERE email = ?
+    `)
+    .bind(email)
+    .first<{
+      id: string;
+      email: string;
+      name: string | null;
+      avatarUrl: string | null;
+      tier: 'free' | 'pro';
+      paddleCustomerId: string | null;
+      paddleSubscriptionId: string | null;
+      passwordHash: string | null;
+    }>();
+
+  if (!row || !row.passwordHash) {
+    return c.json({ error: 'Invalid email or password' }, 401);
+  }
+
+  const valid = await verifyPassword(password, row.passwordHash);
+  if (!valid) {
+    return c.json({ error: 'Invalid email or password' }, 401);
+  }
+
+  const sessionId = await createSession(db, row.id);
+  setSessionCookie(c, sessionId);
+
+  return c.json({
+    user: {
+      id: row.id,
+      email: row.email,
+      name: row.name,
+      avatarUrl: row.avatarUrl,
+      tier: row.tier || 'free',
+      paddleCustomerId: row.paddleCustomerId,
+      paddleSubscriptionId: row.paddleSubscriptionId,
+    },
+  });
 });
 
 // ----------------------------------------------------
