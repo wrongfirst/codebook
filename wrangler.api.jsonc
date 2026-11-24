@@ -19,6 +19,7 @@
   },
   "env": {
     "staging": {
+      "account_id": "3519a01b37f2fd8a3837212fb89c1073",
       "name": "wrongfirst-api-staging",
       "workers_dev": false,
       "routes": [
@@ -43,6 +44,7 @@
       }
     },
     "production": {
+      "account_id": "3519a01b37f2fd8a3837212fb89c1073",
       "name": "wrongfirst-api",
       "workers_dev": false,
       "routes": [
