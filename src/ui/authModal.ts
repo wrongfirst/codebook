@@ -1,8 +1,83 @@
 import { isJsonResponse } from '../core/features';
 import { createModal, type ModalController } from './modal';
 
+interface TurnstileApi {
+  render(
+    container: string | HTMLElement,
+    options: {
+      sitekey: string;
+      action?: string;
+      theme?: 'light' | 'dark' | 'auto';
+      callback?: (token: string) => void;
+      'expired-callback'?: () => void;
+      'error-callback'?: () => void;
+    }
+  ): string;
+  reset(widgetId?: string): void;
+  getResponse(widgetId?: string): string | undefined;
+}
+
+declare global {
+  interface Window {
+    turnstile?: TurnstileApi;
+  }
+}
+
+const TURNSTILE_SITEKEY = '0x4AAAAAAGRJSaBc3A9zSFEc';
+const TURNSTILE_ACTION = 'login';
+
 let modalEl: HTMLElement | null = null;
 let authModal: ModalController | null = null;
+let turnstileWidgetId: string | null = null;
+let turnstileToken = '';
+let turnstileRetryTimer: number | null = null;
+
+function clearTurnstileRetryTimer(): void {
+  if (turnstileRetryTimer !== null) {
+    window.clearTimeout(turnstileRetryTimer);
+    turnstileRetryTimer = null;
+  }
+}
+
+function ensureTurnstileWidget(attemptsLeft = 50): void {
+  if (!modalEl || turnstileWidgetId !== null) return;
+  const container = modalEl.querySelector<HTMLElement>('#auth-turnstile-container');
+  if (!container) return;
+
+  if (window.turnstile) {
+    clearTurnstileRetryTimer();
+    turnstileWidgetId = window.turnstile.render(container, {
+      sitekey: TURNSTILE_SITEKEY,
+      action: TURNSTILE_ACTION,
+      theme: 'auto',
+      callback: (token: string) => {
+        turnstileToken = token;
+      },
+      'expired-callback': () => {
+        turnstileToken = '';
+      },
+      'error-callback': () => {
+        turnstileToken = '';
+      },
+    });
+    return;
+  }
+
+  if (attemptsLeft > 0) {
+    clearTurnstileRetryTimer();
+    turnstileRetryTimer = window.setTimeout(() => {
+      turnstileRetryTimer = null;
+      ensureTurnstileWidget(attemptsLeft - 1);
+    }, 100);
+  }
+}
+
+function resetTurnstileWidget(): void {
+  turnstileToken = '';
+  if (turnstileWidgetId !== null && window.turnstile) {
+    window.turnstile.reset(turnstileWidgetId);
+  }
+}
 
 function getCurrentReturnTo(): string {
   return `${window.location.pathname}${window.location.search}${window.location.hash}`;
@@ -83,7 +158,7 @@ function createAuthModal(): void {
           required 
           class="w-full px-3 py-2 text-xs bg-bg-app border border-border-default rounded-lg focus:outline-none focus:border-brand text-fg-primary"
         />
-        <div id="auth-password-field" class="flex flex-col gap-1.5">
+        <div class="flex flex-col gap-1.5">
           <label for="auth-password" class="text-xs text-fg-muted font-medium">Password</label>
           <input 
             type="password" 
@@ -94,19 +169,13 @@ function createAuthModal(): void {
             class="w-full px-3 py-2 text-xs bg-bg-app border border-border-default rounded-lg focus:outline-none focus:border-brand text-fg-primary"
           />
         </div>
+        <div id="auth-turnstile-container" class="flex justify-center pt-1"></div>
         <button 
           type="submit" 
           id="auth-submit-btn" 
           class="w-full py-2 px-4 bg-brand hover:opacity-90 text-white font-medium text-xs rounded-lg transition-all shadow-sm cursor-pointer mt-1"
         >
-          Sign in with Password
-        </button>
-        <button
-          type="button"
-          id="auth-mode-toggle-btn"
-          class="text-[11px] text-fg-muted hover:text-fg-primary transition-colors text-center cursor-pointer pt-0.5"
-        >
-          Use a magic link instead
+          Sign in
         </button>
         <div id="auth-status" class="hidden text-xs text-center py-1 font-medium"></div>
       </form>
@@ -120,6 +189,7 @@ function createAuthModal(): void {
     closeBtn: modalEl.querySelector<HTMLButtonElement>('#close-auth-modal-btn'),
     restoreFocus: true,
     onOpen: () => {
+      ensureTurnstileWidget();
       const input = modalEl?.querySelector<HTMLInputElement>('#auth-email');
       if (input) {
         setTimeout(() => input.focus(), 50);
@@ -127,14 +197,10 @@ function createAuthModal(): void {
     },
   });
 
-  // Toggle between password login and magic link
-  let mode: 'password' | 'magic-link' = 'password';
   const form = modalEl.querySelector('#password-login-form') as HTMLFormElement;
   const emailInput = modalEl.querySelector('#auth-email') as HTMLInputElement;
-  const passwordField = modalEl.querySelector('#auth-password-field') as HTMLElement;
   const passwordInput = modalEl.querySelector('#auth-password') as HTMLInputElement;
   const submitBtn = modalEl.querySelector('#auth-submit-btn') as HTMLButtonElement;
-  const toggleBtn = modalEl.querySelector('#auth-mode-toggle-btn') as HTMLButtonElement;
   const statusEl = modalEl.querySelector('#auth-status') as HTMLElement;
 
   const setStatus = (text: string, tone: 'muted' | 'error' | 'success') => {
@@ -145,67 +211,46 @@ function createAuthModal(): void {
     statusEl.textContent = text;
   };
 
-  toggleBtn?.addEventListener('click', () => {
-    mode = mode === 'password' ? 'magic-link' : 'password';
-    statusEl.classList.add('hidden');
-    if (mode === 'password') {
-      passwordField.classList.remove('hidden');
-      passwordInput.required = true;
-      submitBtn.textContent = 'Sign in with Password';
-      toggleBtn.textContent = 'Use a magic link instead';
-    } else {
-      passwordField.classList.add('hidden');
-      passwordInput.required = false;
-      submitBtn.textContent = 'Send Magic Link';
-      toggleBtn.textContent = 'Sign in with password instead';
-    }
-  });
-
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = emailInput?.value.trim();
-    if (!email) return;
+    const password = passwordInput?.value;
+    if (!email || !password) return;
+
+    const cfTurnstileResponse =
+      turnstileToken ||
+      (turnstileWidgetId !== null ? window.turnstile?.getResponse(turnstileWidgetId) ?? '' : '');
+    if (!cfTurnstileResponse) {
+      setStatus('Please complete the verification check.', 'error');
+      return;
+    }
 
     submitBtn.disabled = true;
     submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+    setStatus('Signing in...', 'muted');
 
     try {
-      if (mode === 'password') {
-        const password = passwordInput?.value;
-        if (!password) return;
-        setStatus('Signing in...', 'muted');
+      const res = await fetch('/api/auth/login/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password,
+          'cf-turnstile-response': cfTurnstileResponse,
+        }),
+      });
 
-        const res = await fetch('/api/auth/login/password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        });
-
-        if (res.ok && isJsonResponse(res)) {
-          setStatus('Signed in! Reloading...', 'success');
-          window.location.reload();
-        } else {
-          const body = isJsonResponse(res) ? await res.json().catch(() => ({})) : {};
-          setStatus((body as any).error || 'Invalid email or password.', 'error');
-        }
+      if (res.ok && isJsonResponse(res)) {
+        setStatus('Signed in! Reloading...', 'success');
+        window.location.reload();
       } else {
-        setStatus('Sending magic link...', 'muted');
-        const res = await fetch('/api/auth/magic-link', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, returnTo: getCurrentReturnTo() }),
-        });
-        if (res.ok && isJsonResponse(res)) {
-          setStatus('Check your inbox for your login link!', 'success');
-          emailInput.value = '';
-        } else {
-          const body = isJsonResponse(res) ? await res.json().catch(() => ({})) : {};
-          setStatus((body as any).error || 'Failed to send magic link. Try again.', 'error');
-        }
+        const body = isJsonResponse(res) ? await res.json().catch(() => ({})) : {};
+        setStatus((body as any).error || 'Invalid email or password.', 'error');
       }
     } catch {
       setStatus('Network error. Please try again.', 'error');
     } finally {
+      resetTurnstileWidget();
       submitBtn.disabled = false;
       submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
     }

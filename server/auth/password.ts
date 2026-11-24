@@ -2,6 +2,26 @@ const PBKDF2_ITERATIONS = 100_000; // Cloudflare Workers Web Crypto max
 const SALT_BYTES = 16;
 const HASH_BITS = 256;
 const HASH_PREFIX = 'pbkdf2_sha256';
+export const MIN_PASSWORD_LENGTH = 12;
+export const MAX_PASSWORD_LENGTH = 256;
+
+// Validly formatted dummy hash used when a user/password is absent so login
+// runs the same PBKDF2 work on unknown emails (prevents timing enumeration).
+export const DUMMY_PASSWORD_HASH =
+  'pbkdf2_sha256$100000$00000000000000000000000000000000$0000000000000000000000000000000000000000000000000000000000000000';
+
+/**
+ * Enforce NIST SP 800-63B password length policy (min 12, max 256; no arbitrary symbol rules).
+ */
+export function validatePasswordPolicy(password: string): { valid: boolean; error?: string } {
+  if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
+    return { valid: false, error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long` };
+  }
+  if (password.length > MAX_PASSWORD_LENGTH) {
+    return { valid: false, error: `Password must be at most ${MAX_PASSWORD_LENGTH} characters long` };
+  }
+  return { valid: true };
+}
 
 function toHex(bytes: Uint8Array): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');

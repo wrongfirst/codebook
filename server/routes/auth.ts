@@ -12,12 +12,17 @@ import {
   generateId,
   isSecureRequest,
 } from '../auth/session';
-import { upsertOAuthUser, upsertEmailUser } from '../auth/user';
-import { verifyPassword } from '../auth/password';
+import { upsertOAuthUser } from '../auth/user';
+import { DUMMY_PASSWORD_HASH, MAX_PASSWORD_LENGTH, verifyPassword } from '../auth/password';
+import {
+  checkLoginRateLimit,
+  clearEmailLoginFailures,
+  getClientIp,
+  recordFailedLogin,
+} from '../auth/rateLimit';
 
 const auth = new Hono<{ Bindings: Env }>();
 const OAUTH_RETURN_TO_COOKIE = 'oauth_return_to';
-const DEFAULT_AUTH_FROM_EMAIL = 'Wrongfirst <auth@wrongfirst.dev>';
 
 function getOrigin(req: Request): string {
   const url = new URL(req.url);
@@ -253,101 +258,6 @@ auth.get('/callback/google', async (c) => {
 });
 
 // ----------------------------------------------------
-// Passwordless Magic Link
-// ----------------------------------------------------
-auth.post('/magic-link', async (c) => {
-  const db = c.env.DB;
-  if (!db) {
-    return c.json({ error: 'Database unavailable' }, 500);
-  }
-
-  let body: { email?: string; returnTo?: string };
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: 'Invalid request body' }, 400);
-  }
-
-  const email = body.email?.trim().toLowerCase();
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!email || !emailRegex.test(email)) {
-    return c.json({ error: 'A valid email address is required' }, 400);
-  }
-
-  const token = generateId('tok');
-  const expiresAt = Date.now() + 15 * 60 * 1000; // 15 mins
-
-  await db
-    .prepare('INSERT INTO verification_tokens (token, email, expires_at) VALUES (?, ?, ?)')
-    .bind(token, email, expiresAt)
-    .run();
-
-  const origin = getOrigin(c.req.raw);
-  const returnTo = sanitizeReturnTo(body.returnTo);
-  const returnQuery = returnTo !== '/' ? `&returnTo=${encodeURIComponent(returnTo)}` : '';
-  const verifyUrl = `${origin}/api/auth/verify?token=${token}${returnQuery}`;
-
-  const resendApiKey = c.env.RESEND_API_KEY;
-  if (resendApiKey) {
-    const fromEmail = c.env.AUTH_FROM_EMAIL?.trim() || DEFAULT_AUTH_FROM_EMAIL;
-    try {
-      await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${resendApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: fromEmail,
-          to: [email],
-          subject: 'Sign in to Wrongfirst',
-          html: `<p>Click here to sign in to Wrongfirst:</p><p><a href="${verifyUrl}">Sign in to Wrongfirst</a></p><p>This link will expire in 15 minutes.</p>`,
-        }),
-      });
-    } catch (err) {
-      console.error('[Magic Link Email Error]:', err);
-    }
-  } else {
-    console.log(`[Magic Link Dev URL]: ${verifyUrl}`);
-  }
-
-  return c.json({ success: true });
-});
-
-auth.get('/verify', async (c) => {
-  const db = c.env.DB;
-  if (!db) {
-    return c.text('Database unavailable', 500);
-  }
-
-  const token = c.req.query('token');
-  if (!token) {
-    return c.text('Missing verification token', 400);
-  }
-
-  const record = await db
-    .prepare('SELECT token, email, expires_at FROM verification_tokens WHERE token = ?')
-    .bind(token)
-    .first<{ token: string; email: string; expires_at: number }>();
-
-  if (!record || record.expires_at < Date.now()) {
-    if (record) {
-      await db.prepare('DELETE FROM verification_tokens WHERE token = ?').bind(token).run();
-    }
-    return c.text('Invalid or expired verification link', 400);
-  }
-
-  // One-time use: delete token immediately
-  await db.prepare('DELETE FROM verification_tokens WHERE token = ?').bind(token).run();
-
-  const user = await upsertEmailUser(db, record.email);
-  const sessionId = await createSession(db, user.id);
-  setSessionCookie(c, sessionId);
-
-  return c.redirect(sanitizeReturnTo(c.req.query('returnTo')), 302);
-});
-
-// ----------------------------------------------------
 // Email + Password Login
 // ----------------------------------------------------
 auth.post('/login/password', async (c) => {
@@ -356,7 +266,7 @@ auth.post('/login/password', async (c) => {
     return c.json({ error: 'Database unavailable' }, 500);
   }
 
-  let body: { email?: string; password?: string };
+  let body: { email?: string; password?: string; 'cf-turnstile-response'?: string };
   try {
     body = await c.req.json();
   } catch {
@@ -369,6 +279,82 @@ auth.post('/login/password', async (c) => {
     return c.json({ error: 'Email and password are required' }, 400);
   }
 
+  const clientIp = getClientIp(c.req.raw);
+
+  const expectedAction = 'login';
+  const expectedHostnames = new Set(
+    (c.env.TURNSTILE_HOSTNAMES ?? '')
+      .split(',')
+      .map((hostname) => hostname.trim())
+      .filter(Boolean)
+  );
+  const turnstileSecret = c.env.TURNSTILE_SECRET_KEY;
+  const turnstileToken = body['cf-turnstile-response'];
+
+  if (
+    typeof turnstileSecret !== 'string' ||
+    turnstileSecret.length === 0 ||
+    typeof turnstileToken !== 'string' ||
+    turnstileToken.length === 0 ||
+    turnstileToken.length > 2048 ||
+    expectedHostnames.size === 0
+  ) {
+    return c.json({ error: 'Verification failed. Please try again.' }, 403);
+  }
+
+  let siteverifyResult: {
+    success?: boolean;
+    action?: string;
+    hostname?: string;
+  };
+  try {
+    const formData = new URLSearchParams({
+      secret: turnstileSecret,
+      response: turnstileToken,
+    });
+    if (clientIp) {
+      formData.set('remoteip', clientIp);
+    }
+    const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      signal: AbortSignal.timeout(10_000),
+      body: formData,
+    });
+    if (!verifyRes.ok) {
+      throw new Error(`siteverify ${verifyRes.status}`);
+    }
+    siteverifyResult = (await verifyRes.json()) as {
+      success?: boolean;
+      action?: string;
+      hostname?: string;
+    };
+  } catch {
+    return c.json({ error: 'Verification failed. Please try again.' }, 403);
+  }
+
+  if (
+    !siteverifyResult.success ||
+    siteverifyResult.action !== expectedAction ||
+    typeof siteverifyResult.hostname !== 'string' ||
+    !expectedHostnames.has(siteverifyResult.hostname)
+  ) {
+    return c.json({ error: 'Verification failed. Please try again.' }, 403);
+  }
+
+  const rateLimit = await checkLoginRateLimit(db, { email, ip: clientIp });
+  if (!rateLimit.allowed) {
+    if (rateLimit.retryAfterSeconds) {
+      c.header('Retry-After', String(rateLimit.retryAfterSeconds));
+    }
+    return c.json({ error: 'Too many failed login attempts. Please try again later.' }, 429);
+  }
+
+  if (password.length > MAX_PASSWORD_LENGTH) {
+    await recordFailedLogin(db, { email, ip: clientIp });
+    return c.json({ error: 'Invalid email or password' }, 401);
+  }
+
   const row = await db
     .prepare(`
       SELECT
@@ -379,7 +365,8 @@ auth.post('/login/password', async (c) => {
         tier,
         paddle_customer_id as paddleCustomerId,
         paddle_subscription_id as paddleSubscriptionId,
-        password_hash as passwordHash
+        password_hash as passwordHash,
+        email_verified_at as emailVerifiedAt
       FROM users
       WHERE email = ?
     `)
@@ -393,16 +380,20 @@ auth.post('/login/password', async (c) => {
       paddleCustomerId: string | null;
       paddleSubscriptionId: string | null;
       passwordHash: string | null;
+      emailVerifiedAt: number | null;
     }>();
 
-  if (!row || !row.passwordHash) {
+  const valid = await verifyPassword(password, row?.passwordHash || DUMMY_PASSWORD_HASH);
+  if (!row || !row.passwordHash || !valid) {
+    await recordFailedLogin(db, { email, ip: clientIp });
     return c.json({ error: 'Invalid email or password' }, 401);
   }
 
-  const valid = await verifyPassword(password, row.passwordHash);
-  if (!valid) {
-    return c.json({ error: 'Invalid email or password' }, 401);
+  if (row.emailVerifiedAt === null) {
+    return c.json({ error: 'Please verify your email address before signing in.' }, 403);
   }
+
+  await clearEmailLoginFailures(db, email);
 
   const sessionId = await createSession(db, row.id);
   setSessionCookie(c, sessionId);

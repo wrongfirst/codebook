@@ -1,5 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import { generateId, type AuthUser } from './session';
+import { deleteAllUserSessions, generateId, type AuthUser } from './session';
+import { hashPassword, validatePasswordPolicy } from './password';
 
 export interface OAuthProfile {
   provider: 'github' | 'google';
@@ -34,13 +35,13 @@ export async function upsertOAuthUser(db: D1Database, profile: OAuthProfile): Pr
   } else {
     // 2. Check if a user with this email already exists (Automatic Account Linking)
     const existingUser = await db
-      .prepare('SELECT id FROM users WHERE email = ?')
+      .prepare('SELECT id, email_verified_at as emailVerifiedAt FROM users WHERE email = ?')
       .bind(profile.email.toLowerCase())
-      .first<{ id: string }>();
+      .first<{ id: string; emailVerifiedAt: number | null }>();
 
     if (existingUser) {
       userId = existingUser.id;
-      // Link this provider to the existing user
+      // Link this verified OAuth provider to the existing user
       await db
         .prepare(`
           INSERT INTO oauth_accounts (provider, provider_user_id, user_id, created_at)
@@ -49,23 +50,41 @@ export async function upsertOAuthUser(db: D1Database, profile: OAuthProfile): Pr
         .bind(profile.provider, profile.providerUserId, userId, now)
         .run();
 
-      await db
-        .prepare(`
-          UPDATE users 
-          SET name = COALESCE(?, name), avatar_url = COALESCE(?, avatar_url), updated_at = ?
-          WHERE id = ?
-        `)
-        .bind(profile.name ?? null, profile.avatarUrl ?? null, now, userId)
-        .run();
+      if (existingUser.emailVerifiedAt === null) {
+        // Prevent pre-hijacking: an unverified password signup must not retain
+        // password access or sessions once the verified email owner signs in via OAuth.
+        await db
+          .prepare(`
+            UPDATE users
+            SET name = COALESCE(?, name),
+                avatar_url = COALESCE(?, avatar_url),
+                password_hash = NULL,
+                email_verified_at = ?,
+                updated_at = ?
+            WHERE id = ?
+          `)
+          .bind(profile.name ?? null, profile.avatarUrl ?? null, now, now, userId)
+          .run();
+        await deleteAllUserSessions(db, userId);
+      } else {
+        await db
+          .prepare(`
+            UPDATE users 
+            SET name = COALESCE(?, name), avatar_url = COALESCE(?, avatar_url), updated_at = ?
+            WHERE id = ?
+          `)
+          .bind(profile.name ?? null, profile.avatarUrl ?? null, now, userId)
+          .run();
+      }
     } else {
-      // 3. Create new user
+      // 3. Create new verified user
       userId = generateId('usr');
       await db
         .prepare(`
-          INSERT INTO users (id, email, name, avatar_url, tier, created_at, updated_at)
-          VALUES (?, ?, ?, ?, 'free', ?, ?)
+          INSERT INTO users (id, email, name, avatar_url, tier, email_verified_at, created_at, updated_at)
+          VALUES (?, ?, ?, ?, 'free', ?, ?, ?)
         `)
-        .bind(userId, profile.email.toLowerCase(), profile.name ?? null, profile.avatarUrl ?? null, now, now)
+        .bind(userId, profile.email.toLowerCase(), profile.name ?? null, profile.avatarUrl ?? null, now, now, now)
         .run();
 
       await db
@@ -95,44 +114,28 @@ export async function upsertOAuthUser(db: D1Database, profile: OAuthProfile): Pr
   return user;
 }
 
-export async function upsertEmailUser(db: D1Database, email: string): Promise<AuthUser> {
-  const normalizedEmail = email.toLowerCase().trim();
+/**
+ * Update a user's password (enforcing NIST length policy) and revoke all existing sessions.
+ */
+export async function updateUserPassword(
+  db: D1Database,
+  userId: string,
+  newPassword: string
+): Promise<void> {
+  const policy = validatePasswordPolicy(newPassword);
+  if (!policy.valid) {
+    throw new Error(policy.error || 'Invalid password');
+  }
+
+  const passwordHash = await hashPassword(newPassword);
   const now = Date.now();
 
-  const existingUser = await db
-    .prepare('SELECT id FROM users WHERE email = ?')
-    .bind(normalizedEmail)
-    .first<{ id: string }>();
+  await db
+    .prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?')
+    .bind(passwordHash, now, userId)
+    .run();
 
-  let userId: string;
-
-  if (existingUser) {
-    userId = existingUser.id;
-  } else {
-    userId = generateId('usr');
-    await db
-      .prepare(`
-        INSERT INTO users (id, email, name, avatar_url, tier, created_at, updated_at)
-        VALUES (?, ?, NULL, NULL, 'free', ?, ?)
-      `)
-      .bind(userId, normalizedEmail, now, now)
-      .run();
-  }
-
-  const user = await db
-    .prepare(`
-      SELECT 
-        id, email, name, avatar_url as avatarUrl, tier,
-        paddle_customer_id as paddleCustomerId, paddle_subscription_id as paddleSubscriptionId
-      FROM users WHERE id = ?
-    `)
-    .bind(userId)
-    .first<AuthUser>();
-
-  if (!user) {
-    throw new Error('Failed to retrieve user after email upsert');
-  }
-
-  return user;
+  await deleteAllUserSessions(db, userId);
 }
+
 
