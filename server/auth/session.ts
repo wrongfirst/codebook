@@ -74,6 +74,10 @@ export async function deleteSession(db: D1Database, sessionId: string): Promise<
   await db.prepare('DELETE FROM sessions WHERE id = ?').bind(sessionId).run();
 }
 
+export async function deleteAllUserSessions(db: D1Database, userId: string): Promise<void> {
+  await db.prepare('DELETE FROM sessions WHERE user_id = ?').bind(userId).run();
+}
+
 export function isSecureRequest(req: Request): boolean {
   try {
     return new URL(req.url).protocol === 'https:';

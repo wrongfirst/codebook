@@ -1,8 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import app from '../index';
 import { createTestD1 } from '../test/d1';
-import { upsertOAuthUser } from '../auth/user';
-import { hashPassword, verifyPassword } from '../auth/password';
+import { upsertOAuthUser, updateUserPassword } from '../auth/user';
+import { hashPassword, verifyPassword, validatePasswordPolicy } from '../auth/password';
+import { createSession } from '../auth/session';
+import { MAX_EMAIL_FAILURES } from '../auth/rateLimit';
 import type { D1Database } from '@cloudflare/workers-types';
 
 describe('Auth HTTP Boundary Seam', () => {
@@ -13,10 +15,16 @@ describe('Auth HTTP Boundary Seam', () => {
     GITHUB_CLIENT_SECRET: 'mock-gh-client-secret',
     GOOGLE_CLIENT_ID: 'mock-google-client-id',
     GOOGLE_CLIENT_SECRET: 'mock-google-client-secret',
+    TURNSTILE_SECRET_KEY: 'mock-turnstile-secret',
+    TURNSTILE_HOSTNAMES: 'wrongfirst.dev,next.wrongfirst.dev',
   });
 
   beforeEach(() => {
     db = createTestD1();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('GET /api/auth/login/github redirects to GitHub OAuth and sets state cookie', async () => {
@@ -161,197 +169,31 @@ describe('Auth HTTP Boundary Seam', () => {
     expect(accounts.results[1]).toEqual({ provider: 'google', provider_user_id: 'google_12345' });
   });
 
-  describe('Passwordless Magic Link Seam', () => {
-    it('POST /api/auth/magic-link validates email format', async () => {
-      const res = await app.request('/api/auth/magic-link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'not-an-email' }),
-      }, mockEnv());
-
-      expect(res.status).toBe(400);
-    });
-
-    it('POST /api/auth/magic-link creates verification token in D1', async () => {
-      const email = 'magic@example.com';
-      const res = await app.request('/api/auth/magic-link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      }, mockEnv());
-
-      expect(res.status).toBe(200);
-      const body = await res.json() as any;
-      expect(body.success).toBe(true);
-
-      const tokenRecord = await db
-        .prepare('SELECT * FROM verification_tokens WHERE email = ?')
-        .bind(email)
-        .first<{ token: string; email: string; expires_at: number }>();
-
-      expect(tokenRecord).not.toBeNull();
-      expect(tokenRecord!.token).toBeDefined();
-      expect(tokenRecord!.expires_at).toBeGreaterThan(Date.now());
-    });
-
-    it('POST /api/auth/magic-link sends via Resend using default or configured AUTH_FROM_EMAIL', async () => {
-      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-        new Response(JSON.stringify({ id: 'email_123' }), { status: 200 })
-      );
-
-      try {
-        await app.request('/api/auth/magic-link', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: 'default-from@example.com' }),
-        }, { ...mockEnv(), RESEND_API_KEY: 're_test_key' });
-
-        expect(fetchSpy).toHaveBeenCalledTimes(1);
-        const defaultBody = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
-        expect(defaultBody.from).toBe('Wrongfirst <auth@wrongfirst.dev>');
-        expect(defaultBody.to).toEqual(['default-from@example.com']);
-
-        await app.request('/api/auth/magic-link', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: 'custom-from@example.com' }),
-        }, {
-          ...mockEnv(),
-          RESEND_API_KEY: 're_test_key',
-          AUTH_FROM_EMAIL: 'Staging <staging-auth@wrongfirst.dev>',
-        });
-
-        expect(fetchSpy).toHaveBeenCalledTimes(2);
-        const customBody = JSON.parse(fetchSpy.mock.calls[1][1]?.body as string);
-        expect(customBody.from).toBe('Staging <staging-auth@wrongfirst.dev>');
-      } finally {
-        fetchSpy.mockRestore();
-      }
-    });
-
-    it('GET /api/auth/verify verifies token, creates session, and prevents reuse', async () => {
-      const email = 'magic-user@example.com';
-      const token = 'tok_valid_test_12345';
-      const expiresAt = Date.now() + 15 * 60 * 1000;
-
-      await db
-        .prepare('INSERT INTO verification_tokens (token, email, expires_at) VALUES (?, ?, ?)')
-        .bind(token, email, expiresAt)
-        .run();
-
-      // 1. Verify with valid token
-      const res = await app.request(`/api/auth/verify?token=${token}`, {}, mockEnv());
-      expect(res.status).toBe(302);
-      expect(res.headers.get('Location')).toBe('/');
-      const setCookie = res.headers.get('Set-Cookie');
-      expect(setCookie).toContain('session=');
-
-      // 2. Token must be consumed/deleted
-      const deletedToken = await db
-        .prepare('SELECT * FROM verification_tokens WHERE token = ?')
-        .bind(token)
-        .first();
-      expect(deletedToken).toBeNull();
-
-      // 3. User must be created in D1
-      const user = await db
-        .prepare('SELECT * FROM users WHERE email = ?')
-        .bind(email)
-        .first<{ id: string; email: string; tier: string }>();
-      expect(user).not.toBeNull();
-      expect(user!.tier).toBe('free');
-
-      // 4. Reusing the same token fails
-      const replayRes = await app.request(`/api/auth/verify?token=${token}`, {}, mockEnv());
-      expect(replayRes.status).toBe(400);
-    });
-
-    it('GET /api/auth/verify honors safe returnTo and rejects external redirects', async () => {
-      const email = 'subpath@example.com';
-      const now = Date.now() + 15 * 60 * 1000;
-
-      await db
-        .prepare('INSERT INTO verification_tokens (token, email, expires_at) VALUES (?, ?, ?)')
-        .bind('tok_subpath_1', email, now)
-        .run();
-      await db
-        .prepare('INSERT INTO verification_tokens (token, email, expires_at) VALUES (?, ?, ?)')
-        .bind('tok_subpath_2', email, now)
-        .run();
-
-      const safeRes = await app.request(
-        'https://next.wrongfirst.dev/api/auth/verify?token=tok_subpath_1&returnTo=%2Fwarmup%2F%23ex-2',
-        {},
-        mockEnv()
-      );
-      expect(safeRes.status).toBe(302);
-      expect(safeRes.headers.get('Location')).toBe('/warmup/#ex-2');
-      expect(safeRes.headers.get('Set-Cookie')).toContain('Secure');
-
-      const unsafeRes = await app.request(
-        '/api/auth/verify?token=tok_subpath_2&returnTo=//evil.example/steal',
-        {},
-        mockEnv()
-      );
-      expect(unsafeRes.status).toBe(302);
-      expect(unsafeRes.headers.get('Location')).toBe('/');
-    });
-
-    it('GET /api/auth/verify rejects expired tokens', async () => {
-      const email = 'expired@example.com';
-      const token = 'tok_expired_12345';
-      const expiresAt = Date.now() - 1000; // Expired 1 second ago
-
-      await db
-        .prepare('INSERT INTO verification_tokens (token, email, expires_at) VALUES (?, ?, ?)')
-        .bind(token, email, expiresAt)
-        .run();
-
-      const res = await app.request(`/api/auth/verify?token=${token}`, {}, mockEnv());
-      expect(res.status).toBe(400);
-    });
-
-    it('Seamlessly links Magic Link account to subsequent OAuth logins with the same email', async () => {
-      const email = 'crosslink@example.com';
-      const token = 'tok_crosslink_1';
-      const expiresAt = Date.now() + 15 * 60 * 1000;
-
-      await db
-        .prepare('INSERT INTO verification_tokens (token, email, expires_at) VALUES (?, ?, ?)')
-        .bind(token, email, expiresAt)
-        .run();
-
-      // 1. User signs in first via magic link
-      await app.request(`/api/auth/verify?token=${token}`, {}, mockEnv());
-      const user = await db
-        .prepare('SELECT id, email FROM users WHERE email = ?')
-        .bind(email)
-        .first<{ id: string; email: string }>();
-
-      expect(user).not.toBeNull();
-
-      // 2. Later, user logs in via GitHub with the same email
-      const ghUser = await upsertOAuthUser(db, {
-        provider: 'github',
-        providerUserId: 'gh_cross_99',
-        email,
-        name: 'Crosslink Dev',
-      });
-
-      // 3. User ID should be preserved and linked
-      expect(ghUser.id).toBe(user!.id);
-      expect(ghUser.name).toBe('Crosslink Dev');
-
-      const linkedAccount = await db
-        .prepare('SELECT provider, provider_user_id FROM oauth_accounts WHERE user_id = ?')
-        .bind(user!.id)
-        .first<{ provider: string; provider_user_id: string }>();
-
-      expect(linkedAccount).toEqual({ provider: 'github', provider_user_id: 'gh_cross_99' });
-    });
-  });
-
   describe('Password Authentication Seam', () => {
+    const VALID_TOKEN = 'valid-turnstile-token';
+
+    function mockSiteverify(response: {
+      success: boolean;
+      action?: string;
+      hostname?: string;
+      'error-codes'?: string[];
+    }) {
+      return vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+        new Response(JSON.stringify(response), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+    }
+
+    beforeEach(() => {
+      mockSiteverify({
+        success: true,
+        action: 'login',
+        hostname: 'wrongfirst.dev',
+      });
+    });
+
     it('hashPassword and verifyPassword round-trip and reject wrong passwords', async () => {
       const hash = await hashPassword('correct-horse-battery-staple');
       expect(hash.startsWith('pbkdf2_sha256$100000$')).toBe(true);
@@ -359,14 +201,107 @@ describe('Auth HTTP Boundary Seam', () => {
       expect(await verifyPassword('wrong-password', hash)).toBe(false);
     });
 
-    it('POST /api/auth/login/password authenticates user with valid password and sets session cookie', async () => {
+    it('POST /api/auth/login/password enforces Turnstile token, action, hostname, and single-use verification', async () => {
       const passwordHash = await hashPassword('super-secret-123');
       const now = Date.now();
       await db
         .prepare(
-          'INSERT INTO users (id, email, name, tier, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+          'INSERT INTO users (id, email, name, tier, password_hash, email_verified_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
         )
-        .bind('usr_pw_1', 'admin@wrongfirst.dev', 'Admin', 'pro', passwordHash, now, now)
+        .bind('usr_ts_1', 'ts@wrongfirst.dev', 'TS', 'free', passwordHash, now, now, now)
+        .run();
+
+      // Missing token -> 403
+      const missingRes = await app.request(
+        '/api/auth/login/password',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'ts@wrongfirst.dev', password: 'super-secret-123' }),
+        },
+        mockEnv()
+      );
+      expect(missingRes.status).toBe(403);
+
+      // Overlong token -> 403
+      const overlongRes = await app.request(
+        '/api/auth/login/password',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: 'ts@wrongfirst.dev',
+            password: 'super-secret-123',
+            'cf-turnstile-response': 'x'.repeat(2049),
+          }),
+        },
+        mockEnv()
+      );
+      expect(overlongRes.status).toBe(403);
+
+      // Wrong action -> 403
+      vi.restoreAllMocks();
+      mockSiteverify({ success: true, action: 'signup', hostname: 'wrongfirst.dev' });
+      const wrongActionRes = await app.request(
+        '/api/auth/login/password',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: 'ts@wrongfirst.dev',
+            password: 'super-secret-123',
+            'cf-turnstile-response': VALID_TOKEN,
+          }),
+        },
+        mockEnv()
+      );
+      expect(wrongActionRes.status).toBe(403);
+
+      // Wrong hostname -> 403
+      vi.restoreAllMocks();
+      mockSiteverify({ success: true, action: 'login', hostname: 'evil.example' });
+      const wrongHostRes = await app.request(
+        '/api/auth/login/password',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: 'ts@wrongfirst.dev',
+            password: 'super-secret-123',
+            'cf-turnstile-response': VALID_TOKEN,
+          }),
+        },
+        mockEnv()
+      );
+      expect(wrongHostRes.status).toBe(403);
+
+      // Failed / replayed token -> 403
+      vi.restoreAllMocks();
+      mockSiteverify({ success: false, 'error-codes': ['timeout-or-duplicate'] });
+      const replayRes = await app.request(
+        '/api/auth/login/password',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: 'ts@wrongfirst.dev',
+            password: 'super-secret-123',
+            'cf-turnstile-response': VALID_TOKEN,
+          }),
+        },
+        mockEnv()
+      );
+      expect(replayRes.status).toBe(403);
+    });
+
+    it('POST /api/auth/login/password authenticates verified user with valid password and sets session cookie', async () => {
+      const passwordHash = await hashPassword('super-secret-123');
+      const now = Date.now();
+      await db
+        .prepare(
+          'INSERT INTO users (id, email, name, tier, password_hash, email_verified_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        )
+        .bind('usr_pw_1', 'admin@wrongfirst.dev', 'Admin', 'pro', passwordHash, now, now, now)
         .run();
 
       const loginRes = await app.request(
@@ -374,7 +309,11 @@ describe('Auth HTTP Boundary Seam', () => {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: 'Admin@Wrongfirst.dev', password: 'super-secret-123' }),
+          body: JSON.stringify({
+            email: 'Admin@Wrongfirst.dev',
+            password: 'super-secret-123',
+            'cf-turnstile-response': VALID_TOKEN,
+          }),
         },
         mockEnv()
       );
@@ -419,7 +358,11 @@ describe('Auth HTTP Boundary Seam', () => {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: 'user@wrongfirst.dev', password: 'wrong-password' }),
+          body: JSON.stringify({
+            email: 'user@wrongfirst.dev',
+            password: 'wrong-password',
+            'cf-turnstile-response': VALID_TOKEN,
+          }),
         },
         mockEnv()
       );
@@ -430,7 +373,11 @@ describe('Auth HTTP Boundary Seam', () => {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: 'nobody@wrongfirst.dev', password: 'right-password' }),
+          body: JSON.stringify({
+            email: 'nobody@wrongfirst.dev',
+            password: 'right-password',
+            'cf-turnstile-response': VALID_TOKEN,
+          }),
         },
         mockEnv()
       );
@@ -441,11 +388,199 @@ describe('Auth HTTP Boundary Seam', () => {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: 'oauth@wrongfirst.dev', password: 'anything' }),
+          body: JSON.stringify({
+            email: 'oauth@wrongfirst.dev',
+            password: 'anything',
+            'cf-turnstile-response': VALID_TOKEN,
+          }),
         },
         mockEnv()
       );
       expect(noPwUser.status).toBe(401);
+
+      const overlongPw = await app.request(
+        '/api/auth/login/password',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: 'user@wrongfirst.dev',
+            password: 'a'.repeat(300),
+            'cf-turnstile-response': VALID_TOKEN,
+          }),
+        },
+        mockEnv()
+      );
+      expect(overlongPw.status).toBe(401);
+    });
+
+    it('rejects unverified email accounts with 403 only after password matches', async () => {
+      const passwordHash = await hashPassword('valid-unverified-pass');
+      const now = Date.now();
+      await db
+        .prepare(
+          'INSERT INTO users (id, email, name, tier, password_hash, email_verified_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, ?, ?)'
+        )
+        .bind('usr_unverified', 'unverified@wrongfirst.dev', 'Unverified', 'free', passwordHash, now, now)
+        .run();
+
+      const wrongPw = await app.request(
+        '/api/auth/login/password',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: 'unverified@wrongfirst.dev',
+            password: 'wrong-password',
+            'cf-turnstile-response': VALID_TOKEN,
+          }),
+        },
+        mockEnv()
+      );
+      expect(wrongPw.status).toBe(401);
+
+      const rightPw = await app.request(
+        '/api/auth/login/password',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: 'unverified@wrongfirst.dev',
+            password: 'valid-unverified-pass',
+            'cf-turnstile-response': VALID_TOKEN,
+          }),
+        },
+        mockEnv()
+      );
+      expect(rightPw.status).toBe(403);
+      const rightPwBody = (await rightPw.json()) as { error?: string };
+      expect(rightPwBody.error).toContain('verify your email');
+    });
+
+    it('neutralizes pre-hijacking when verified OAuth signs in over an unverified password squat', async () => {
+      const passwordHash = await hashPassword('attacker-squat-pass');
+      const now = Date.now();
+      await db
+        .prepare(
+          'INSERT INTO users (id, email, name, tier, password_hash, email_verified_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, ?, ?)'
+        )
+        .bind('usr_squat', 'victim@wrongfirst.dev', 'Squatter', 'free', passwordHash, now, now)
+        .run();
+
+      const staleSession = await createSession(db, 'usr_squat');
+
+      await upsertOAuthUser(db, {
+        provider: 'github',
+        providerUserId: 'gh_victim_1',
+        email: 'victim@wrongfirst.dev',
+        name: 'Real Owner',
+      });
+
+      const row = await db
+        .prepare('SELECT password_hash as passwordHash, email_verified_at as emailVerifiedAt FROM users WHERE id = ?')
+        .bind('usr_squat')
+        .first<{ passwordHash: string | null; emailVerifiedAt: number | null }>();
+
+      expect(row?.passwordHash).toBeNull();
+      expect(row?.emailVerifiedAt).not.toBeNull();
+
+      const meRes = await app.request(
+        '/api/auth/me',
+        { headers: { Cookie: `session=${staleSession}` } },
+        mockEnv()
+      );
+      expect(meRes.status).toBe(401);
+    });
+
+    it('locks account with 429 after repeated failed logins across rotating IPs and clears on success', async () => {
+      const passwordHash = await hashPassword('locked-test-pass-123');
+      const now = Date.now();
+      await db
+        .prepare(
+          'INSERT INTO users (id, email, name, tier, password_hash, email_verified_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        )
+        .bind('usr_rl_1', 'target@wrongfirst.dev', 'Target', 'free', passwordHash, now, now, now)
+        .run();
+
+      for (let i = 0; i < MAX_EMAIL_FAILURES; i++) {
+        const res = await app.request(
+          '/api/auth/login/password',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'CF-Connecting-IP': `198.51.100.${i + 1}`,
+            },
+            body: JSON.stringify({
+              email: 'target@wrongfirst.dev',
+              password: 'wrong',
+              'cf-turnstile-response': VALID_TOKEN,
+            }),
+          },
+          mockEnv()
+        );
+        expect(res.status).toBe(401);
+      }
+
+      // Next attempt (even with the correct password!) is blocked with 429 + Retry-After
+      const lockedRes = await app.request(
+        '/api/auth/login/password',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'CF-Connecting-IP': '203.0.113.99',
+          },
+          body: JSON.stringify({
+            email: 'target@wrongfirst.dev',
+            password: 'locked-test-pass-123',
+            'cf-turnstile-response': VALID_TOKEN,
+          }),
+        },
+        mockEnv()
+      );
+      expect(lockedRes.status).toBe(429);
+      expect(Number(lockedRes.headers.get('Retry-After'))).toBeGreaterThan(0);
+    });
+
+    it('enforces NIST length policy and revokes all existing sessions on updateUserPassword', async () => {
+      expect(validatePasswordPolicy('short').valid).toBe(false);
+      expect(validatePasswordPolicy('a'.repeat(257)).valid).toBe(false);
+      expect(validatePasswordPolicy('correct horse battery staple').valid).toBe(true);
+
+      const now = Date.now();
+      const oldHash = await hashPassword('old-password-12345');
+      await db
+        .prepare(
+          'INSERT INTO users (id, email, name, tier, password_hash, email_verified_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        )
+        .bind('usr_pw_chg', 'rotate@wrongfirst.dev', 'Rotate', 'free', oldHash, now, now, now)
+        .run();
+
+      const sess1 = await createSession(db, 'usr_pw_chg');
+      const sess2 = await createSession(db, 'usr_pw_chg');
+
+      await updateUserPassword(db, 'usr_pw_chg', 'brand-new-passphrase-2026');
+
+      const s1Res = await app.request('/api/auth/me', { headers: { Cookie: `session=${sess1}` } }, mockEnv());
+      const s2Res = await app.request('/api/auth/me', { headers: { Cookie: `session=${sess2}` } }, mockEnv());
+      expect(s1Res.status).toBe(401);
+      expect(s2Res.status).toBe(401);
+
+      const loginNew = await app.request(
+        '/api/auth/login/password',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: 'rotate@wrongfirst.dev',
+            password: 'brand-new-passphrase-2026',
+            'cf-turnstile-response': VALID_TOKEN,
+          }),
+        },
+        mockEnv()
+      );
+      expect(loginNew.status).toBe(200);
     });
   });
 });

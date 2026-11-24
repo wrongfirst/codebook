@@ -17,6 +17,9 @@
     "binding": "AI",
     "remote": true
   },
+  "vars": {
+    "TURNSTILE_HOSTNAMES": "localhost,127.0.0.1"
+  },
   "env": {
     "staging": {
       "account_id": "3519a01b37f2fd8a3837212fb89c1073",
@@ -40,7 +43,8 @@
         "binding": "AI"
       },
       "vars": {
-        "PADDLE_ENV": "sandbox"
+        "PADDLE_ENV": "sandbox",
+        "TURNSTILE_HOSTNAMES": "next.wrongfirst.dev"
       }
     },
     "production": {
@@ -65,7 +69,8 @@
         "binding": "AI"
       },
       "vars": {
-        "PADDLE_ENV": "production"
+        "PADDLE_ENV": "production",
+        "TURNSTILE_HOSTNAMES": "wrongfirst.dev"
       }
     }
   }

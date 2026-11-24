@@ -7,18 +7,21 @@
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
-    script-src 'self' https://cdn.jsdelivr.net https://cdn.paddle.com;
+    script-src 'self' https://cdn.jsdelivr.net https://cdn.paddle.com https://challenges.cloudflare.com;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdn.paddle.com;
     font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net;
     img-src 'self' data: https:;
     connect-src 'self' https: http:;
-    frame-src 'self' https://*.paddle.com;
+    frame-src 'self' https://*.paddle.com https://challenges.cloudflare.com;
     worker-src 'self' blob:;
     object-src 'none';
     base-uri 'self';
     form-action 'none';
   ">
   <title></title>
+
+  <!--//Turnstile -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 
   <!--//fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">

@@ -20,6 +20,8 @@ export interface Env {
   PADDLE_PRICE_ID?: string;
   PADDLE_ENV?: string;
   CF_AI_GATEWAY?: string;
+  TURNSTILE_SECRET_KEY?: string;
+  TURNSTILE_HOSTNAMES?: string;
 }
 
 const app = new Hono<{ Bindings: Env }>();
