@@ -101,7 +101,6 @@ function renderWidget(user: User | null, isLoading: boolean): void {
           title="${user.name || user.email}"
         >
           ${avatarHtml}
-          ${isPro ? '<span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-500 border border-amber-500/30">PRO</span>' : ''}
           <svg class="w-3 h-3 text-fg-muted" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M3 4.5l3 3 3-3"/>
           </svg>
