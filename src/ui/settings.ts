@@ -214,27 +214,19 @@ function renderManagedAISection(chatSettings: ChatSettings) {
     const isPro = user?.tier === 'pro';
 
     if (isPro) {
+        const useBYOK = !!chatSettings.useBYOK;
         container.innerHTML = `
-            <div class="p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 flex flex-col gap-2">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-500 border border-amber-500/30">PRO</span>
-                        <span class="text-xs font-semibold text-fg-primary">Managed Cloud AI Active</span>
-                    </div>
-                    <label class="flex items-center gap-1.5 cursor-pointer text-xs text-fg-muted select-none">
-                        <input type="checkbox" id="chat-byok-toggle" ${chatSettings.useBYOK ? 'checked' : ''} class="rounded border-border-default text-brand focus:ring-0" />
-                        <span>Use custom API key (BYOK)</span>
-                    </label>
-                </div>
-                <p class="text-[11px] text-fg-muted">
-                    Powered by Cloudflare Workers AI (Qwen 2.5 Coder 32B Instruct). No configuration or API keys required.
-                </p>
+            <div>
+                <button type="button" id="chat-byok-toggle-btn"
+                    class="text-[11px] text-fg-muted hover:text-fg-primary inline-flex items-center gap-1 transition-colors cursor-pointer select-none py-0.5">
+                    <span class="inline-flex items-center justify-center transition-transform duration-150 ${useBYOK ? 'rotate-90' : ''}">${ICONS.CHEVRON_RIGHT}</span>
+                    <span>Use custom API key</span>
+                </button>
             </div>
         `;
 
-        container.querySelector('#chat-byok-toggle')?.addEventListener('change', (e) => {
-            const checked = (e.target as HTMLInputElement).checked;
-            store.getState().setChatSettings({ useBYOK: checked });
+        container.querySelector('#chat-byok-toggle-btn')?.addEventListener('click', () => {
+            store.getState().setChatSettings({ useBYOK: !useBYOK });
         });
     } else {
         container.innerHTML = `

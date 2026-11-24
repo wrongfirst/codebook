@@ -2,11 +2,9 @@ import { useAuthStore, type User } from '../core/auth/authStore';
 import { openAuthModal } from './authModal';
 import { showPopup } from './popup';
 import { ICONS } from './icons';
-import { subscribeCloudSync, type CloudSyncStatus } from '../core/sync/cloudSync';
 
 let widgetContainer: HTMLElement | null = null;
 let dropdownOpen = false;
-let syncUnsub: (() => void) | null = null;
 
 export function initAuthWidget(): void {
   widgetContainer = document.getElementById('header-user-widget');
@@ -71,12 +69,6 @@ function renderWidget(user: User | null, isLoading: boolean): void {
   }
 
   // User is authenticated
-  if (syncUnsub) {
-    syncUnsub();
-    syncUnsub = null;
-  }
-
-  const isPro = user.tier === 'pro';
   const initial = (user.name || user.email || 'U')[0].toUpperCase();
   const avatarHtml = user.avatarUrl
     ? `<img src="${user.avatarUrl}" alt="${user.name || 'User'}" class="w-7 h-7 rounded-full object-cover ring-1 ring-border-default" />`
@@ -84,16 +76,6 @@ function renderWidget(user: User | null, isLoading: boolean): void {
 
   widgetContainer.innerHTML = `
     <div class="flex items-center gap-2">
-      ${
-        isPro
-          ? `
-        <div id="header-sync-indicator" class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium text-fg-muted bg-bg-app border border-border-default select-none" title="Continuous Cloud Sync">
-          <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-          <span>Synced</span>
-        </div>
-      `
-          : ''
-      }
       <div class="relative inline-block text-left">
         <button 
           id="user-profile-menu-btn" 
@@ -110,20 +92,6 @@ function renderWidget(user: User | null, isLoading: boolean): void {
       </div>
     </div>
   `;
-
-  if (isPro) {
-    const syncEl = widgetContainer.querySelector('#header-sync-indicator') as HTMLElement;
-    syncUnsub = subscribeCloudSync((state) => {
-      if (!syncEl) return;
-      if (state.status === 'syncing') {
-        syncEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span><span>Syncing...</span>`;
-      } else if (state.status === 'error') {
-        syncEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span><span>Sync error</span>`;
-      } else {
-        syncEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span><span>Synced</span>`;
-      }
-    });
-  }
 
   const menuBtn = widgetContainer.querySelector('#user-profile-menu-btn');
   menuBtn?.addEventListener('click', (e) => {
@@ -150,13 +118,13 @@ function renderDropdown(user: User | null): void {
 
   menu.innerHTML = `
     <div class="px-3 py-2 border-b border-border-default">
-      <div class="font-semibold text-fg-primary truncate">${user.name || 'Learner'}</div>
-      <div class="text-[11px] text-fg-muted truncate">${user.email}</div>
-      <div class="mt-1.5 inline-flex items-center gap-1">
-        <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${isPro ? 'bg-amber-500/20 text-amber-500 border border-amber-500/30' : 'bg-bg-app text-fg-muted border border-border-default'}">
-          ${isPro ? 'Pro Member' : 'Free Tier'}
+      <div class="flex items-center justify-between gap-2">
+        <div class="font-semibold text-fg-primary truncate">${user.name || 'Learner'}</div>
+        <span class="shrink-0 text-[11px] font-medium px-1.5 py-0.5 rounded ${isPro ? 'bg-bg-app text-fg-primary border border-border-default' : 'text-fg-muted'}">
+          ${isPro ? 'Pro' : 'Free'}
         </span>
       </div>
+      <div class="text-[11px] text-fg-muted truncate mt-0.5">${user.email}</div>
     </div>
 
     ${!isPro ? `
