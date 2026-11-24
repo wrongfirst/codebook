@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import app from '../index';
 import { createTestD1 } from '../test/d1';
 import { upsertOAuthUser } from '../auth/user';
+import { hashPassword, verifyPassword } from '../auth/password';
 import type { D1Database } from '@cloudflare/workers-types';
 
 describe('Auth HTTP Boundary Seam', () => {
@@ -347,6 +348,104 @@ describe('Auth HTTP Boundary Seam', () => {
         .first<{ provider: string; provider_user_id: string }>();
 
       expect(linkedAccount).toEqual({ provider: 'github', provider_user_id: 'gh_cross_99' });
+    });
+  });
+
+  describe('Password Authentication Seam', () => {
+    it('hashPassword and verifyPassword round-trip and reject wrong passwords', async () => {
+      const hash = await hashPassword('correct-horse-battery-staple');
+      expect(hash.startsWith('pbkdf2_sha256$100000$')).toBe(true);
+      expect(await verifyPassword('correct-horse-battery-staple', hash)).toBe(true);
+      expect(await verifyPassword('wrong-password', hash)).toBe(false);
+    });
+
+    it('POST /api/auth/login/password authenticates user with valid password and sets session cookie', async () => {
+      const passwordHash = await hashPassword('super-secret-123');
+      const now = Date.now();
+      await db
+        .prepare(
+          'INSERT INTO users (id, email, name, tier, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        )
+        .bind('usr_pw_1', 'admin@wrongfirst.dev', 'Admin', 'pro', passwordHash, now, now)
+        .run();
+
+      const loginRes = await app.request(
+        '/api/auth/login/password',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'Admin@Wrongfirst.dev', password: 'super-secret-123' }),
+        },
+        mockEnv()
+      );
+
+      expect(loginRes.status).toBe(200);
+      const body = (await loginRes.json()) as any;
+      expect(body.user.id).toBe('usr_pw_1');
+      expect(body.user.tier).toBe('pro');
+
+      const setCookie = loginRes.headers.get('Set-Cookie');
+      expect(setCookie).toContain('session=sess_');
+
+      const sessionCookie = setCookie!.split(';')[0];
+      const meRes = await app.request(
+        '/api/auth/me',
+        { headers: { Cookie: sessionCookie } },
+        mockEnv()
+      );
+      expect(meRes.status).toBe(200);
+      const meBody = (await meRes.json()) as any;
+      expect(meBody.user.email).toBe('admin@wrongfirst.dev');
+    });
+
+    it('POST /api/auth/login/password rejects wrong password, unknown email, or passwordless user', async () => {
+      const passwordHash = await hashPassword('right-password');
+      const now = Date.now();
+      await db
+        .prepare(
+          'INSERT INTO users (id, email, name, tier, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        )
+        .bind('usr_pw_2', 'user@wrongfirst.dev', 'User', 'free', passwordHash, now, now)
+        .run();
+      await db
+        .prepare(
+          'INSERT INTO users (id, email, name, tier, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+        )
+        .bind('usr_nopw', 'oauth@wrongfirst.dev', 'OAuth User', 'free', now, now)
+        .run();
+
+      const badPw = await app.request(
+        '/api/auth/login/password',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'user@wrongfirst.dev', password: 'wrong-password' }),
+        },
+        mockEnv()
+      );
+      expect(badPw.status).toBe(401);
+
+      const unknown = await app.request(
+        '/api/auth/login/password',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'nobody@wrongfirst.dev', password: 'right-password' }),
+        },
+        mockEnv()
+      );
+      expect(unknown.status).toBe(401);
+
+      const noPwUser = await app.request(
+        '/api/auth/login/password',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'oauth@wrongfirst.dev', password: 'anything' }),
+        },
+        mockEnv()
+      );
+      expect(noPwUser.status).toBe(401);
     });
   });
 });
