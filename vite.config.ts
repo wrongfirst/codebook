@@ -6,6 +6,7 @@ import { parse as parseYaml } from "yaml";
 import { resolve } from "node:path";
 import { createRequire } from "node:module";
 import tailwindcss from "@tailwindcss/vite";
+import { cloudflare } from "@cloudflare/vite-plugin";
 import {
   DEFAULT_SITE_CONFIG,
   resolvePageTitle,
@@ -233,17 +234,11 @@ function htmlMetaPlugin(): Plugin {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   base: "./",
   root: ".",
   server: {
     host: true,
-    proxy: {
-      "/api": {
-        target: "http://localhost:8787",
-        changeOrigin: true,
-      },
-    },
   },
   preview: {
     host: true,
@@ -258,5 +253,12 @@ export default defineConfig({
   define: {
     PYODIDE_VERSION: JSON.stringify(pyodideVersion),
   },
-  plugins: [tailwindcss(), rawTextPlugin(), yamlPlugin(), tomlPlugin(), htmlMetaPlugin()],
-});
+  plugins: [
+    ...(command === "serve" ? [cloudflare({ configPath: "./wrangler.api.jsonc" })] : []),
+    tailwindcss(),
+    rawTextPlugin(),
+    yamlPlugin(),
+    tomlPlugin(),
+    htmlMetaPlugin(),
+  ],
+}));

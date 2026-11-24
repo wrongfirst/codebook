@@ -7,7 +7,7 @@
     "check": "tsc --noEmit",
     "check:server": "tsc -p tsconfig.server.json --noEmit",
     "build": "npm run clean && npm run check && vite build",
-    "dev": "vite",
+    "dev": "node scripts/dev.ts",
     "dev:worker": "wrangler dev -c wrangler.api.jsonc --port 8787",
     "serve": "node server.mjs",
     "test": "vitest run",
@@ -50,6 +50,7 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.70.1",
     "@cloudflare/workers-types": "^5.20260930.1",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.3.3",
