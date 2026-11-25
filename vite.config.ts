@@ -247,7 +247,7 @@ function lookupLocalResendApiKey(): string {
   }
 }
 
-export default defineConfig(({ command }) => ({
+export default defineConfig(({ command, mode }) => ({
   base: "./",
   root: ".",
   server: {
@@ -267,7 +267,7 @@ export default defineConfig(({ command }) => ({
     PYODIDE_VERSION: JSON.stringify(pyodideVersion),
   },
   plugins: [
-    ...(command === "serve"
+    ...(command === "serve" && mode !== "test" && !process.env.VITEST
       ? [
           cloudflare({
             configPath: "./wrangler.api.jsonc",

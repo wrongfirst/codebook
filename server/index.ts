@@ -8,10 +8,6 @@ import chatRoutes from './routes/chat';
 export interface Env {
   DB?: D1Database;
   AI?: unknown;
-  GITHUB_CLIENT_ID?: string;
-  GITHUB_CLIENT_SECRET?: string;
-  GOOGLE_CLIENT_ID?: string;
-  GOOGLE_CLIENT_SECRET?: string;
   RESEND_API_KEY?: string;
   AUTH_FROM_EMAIL?: string;
   PADDLE_API_KEY?: string;

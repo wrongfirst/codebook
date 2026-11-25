@@ -36,7 +36,6 @@
     "@types/canvas-confetti": "^1.9.0",
     "@typescript/vfs": "^1.6.4",
     "@yowasp/clang": "^22.0.0-git20542-10",
-    "arctic": "^3.7.0",
     "canvas-confetti": "^1.9.4",
     "codemirror": "^6.0.2",
     "dompurify": "^3.4.13",
