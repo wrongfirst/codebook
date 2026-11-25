@@ -7,11 +7,11 @@ let upgradeModalEl: HTMLElement | null = null;
 let upgradeModal: ModalController | null = null;
 
 export function initProUpgradeModal(): void {
-  window.addEventListener('codebook:open-upgrade-modal', () => {
+  window.addEventListener('wrongfirst:open-upgrade-modal', () => {
     openProUpgradeModal();
   });
 
-  window.addEventListener('codebook:open-billing-portal', () => {
+  window.addEventListener('wrongfirst:open-billing-portal', () => {
     openCustomerBillingPortal();
   });
 }
@@ -44,7 +44,7 @@ function createProUpgradeModal(): void {
       <div class="flex items-start justify-between pb-3 border-b border-border-default">
         <div>
           <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-500 border border-amber-500/30 text-[11px] font-bold uppercase tracking-wider mb-2">
-            Codebook Pro
+            wrongfirst Pro
           </div>
           <h2 class="text-xl font-bold text-fg-primary">Supercharge your learning journey</h2>
           <p class="text-xs text-fg-muted mt-1">Unlock cloud sync, managed AI tutoring, and early access.</p>

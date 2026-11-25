@@ -115,7 +115,7 @@ function createAuthModal(): void {
     <div class="bg-bg-surface border border-border-default rounded-xl shadow-2xl p-6 w-full max-w-sm relative flex flex-col gap-4 text-fg-primary animate-in fade-in zoom-in-95 duration-150">
       <div class="flex items-center justify-between pb-2 border-b border-border-default">
         <div>
-          <h2 id="auth-modal-title" class="text-base font-bold text-fg-primary">Sign in to Codebook</h2>
+          <h2 id="auth-modal-title" class="text-base font-bold text-fg-primary">Sign in to wrongfirst</h2>
           <p class="text-xs text-fg-muted mt-0.5">Sync progress across devices & unlock Pro</p>
         </div>
         <button id="close-auth-modal-btn" class="text-fg-muted hover:text-fg-primary transition-colors p-1.5 rounded-md hover:bg-bg-app cursor-pointer" title="Close">
@@ -123,6 +123,17 @@ function createAuthModal(): void {
       </div>
 
       <form id="password-login-form" class="flex flex-col gap-2">
+        <div id="auth-name-field" class="hidden flex-col gap-1.5">
+          <label for="auth-name" class="text-xs text-fg-muted font-medium">Name</label>
+          <input 
+            type="text" 
+            id="auth-name" 
+            placeholder="Your name" 
+            autocomplete="name"
+            maxlength="80"
+            class="w-full px-3 py-2 text-xs bg-bg-app border border-border-default rounded-lg focus:outline-none focus:border-brand text-fg-primary"
+          />
+        </div>
         <label for="auth-email" class="text-xs text-fg-muted font-medium">Email address</label>
         <input 
           type="email" 
@@ -183,6 +194,8 @@ function createAuthModal(): void {
 
   const form = modalEl.querySelector('#password-login-form') as HTMLFormElement;
   const titleEl = modalEl.querySelector('#auth-modal-title') as HTMLElement;
+  const nameFieldEl = modalEl.querySelector('#auth-name-field') as HTMLElement;
+  const nameInput = modalEl.querySelector('#auth-name') as HTMLInputElement;
   const emailInput = modalEl.querySelector('#auth-email') as HTMLInputElement;
   const passwordInput = modalEl.querySelector('#auth-password') as HTMLInputElement;
   const passwordHintEl = modalEl.querySelector('#auth-password-hint') as HTMLElement;
@@ -201,8 +214,11 @@ function createAuthModal(): void {
   const applyMode = (mode: AuthMode) => {
     authMode = mode;
     const isSignup = mode === 'signup';
-    titleEl.textContent = isSignup ? 'Create your account' : 'Sign in to Codebook';
+    titleEl.textContent = isSignup ? 'Create your account' : 'Sign in to wrongfirst';
     submitBtn.textContent = isSignup ? 'Create account' : 'Sign in';
+    nameFieldEl.classList.toggle('hidden', !isSignup);
+    nameFieldEl.classList.toggle('flex', isSignup);
+    nameInput.required = isSignup;
     passwordInput.autocomplete = isSignup ? 'new-password' : 'current-password';
     passwordHintEl.classList.toggle('hidden', !isSignup);
     modeToggleBtn.textContent = isSignup
@@ -220,11 +236,16 @@ function createAuthModal(): void {
 
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const name = nameInput?.value.trim();
     const email = emailInput?.value.trim();
     const password = passwordInput?.value;
     if (!email || !password) return;
 
     const isSignup = authMode === 'signup';
+    if (isSignup && !name) {
+      setStatus('Please enter your name.', 'error');
+      return;
+    }
     if (isSignup && password.length < 12) {
       setStatus('Password must be at least 12 characters long.', 'error');
       return;
@@ -250,6 +271,7 @@ function createAuthModal(): void {
         body: JSON.stringify({
           email,
           password,
+          ...(isSignup ? { name } : {}),
           'cf-turnstile-response': cfTurnstileResponse,
         }),
       });
@@ -261,6 +283,7 @@ function createAuthModal(): void {
             body.message || 'Verification email sent! Please check your inbox.',
             'success'
           );
+          nameInput.value = '';
           passwordInput.value = '';
         } else {
           setStatus('Signed in! Reloading...', 'success');

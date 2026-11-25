@@ -112,7 +112,7 @@ async function sendVerificationEmail(
     return false;
   }
 
-  const from = env.AUTH_FROM_EMAIL?.trim() || 'WrongFirst <noreply@wrongfirst.dev>';
+  const from = env.AUTH_FROM_EMAIL?.trim() || 'wrongfirst <noreply@wrongfirst.dev>';
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -122,9 +122,9 @@ async function sendVerificationEmail(
     body: JSON.stringify({
       from,
       to: [email],
-      subject: 'Verify your email address',
+      subject: 'wrongfirst.dev | Verify your email address',
       html: `
-        <p>Welcome to Codebook!</p>
+        <p>Hey there! Welcome to wrongfirst!</p>
         <p>Click the link below to verify your email address and sign in:</p>
         <p><a href="${verifyUrl}">Verify email address</a></p>
         <p>This link expires in 24 hours. If you did not create an account, you can ignore this email.</p>
@@ -159,7 +159,11 @@ auth.post('/signup', async (c) => {
 
   const email = body.email?.trim().toLowerCase();
   const password = body.password;
-  const name = body.name?.trim() || null;
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+
+  if (!name || name.length > 80) {
+    return c.json({ error: 'Name is required (max 80 characters)' }, 400);
+  }
 
   if (!email || !BASIC_EMAIL_REGEX.test(email)) {
     return c.json({ error: 'A valid email address is required' }, 400);

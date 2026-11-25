@@ -91,7 +91,7 @@ function renderWidget(user: User | null, isLoading: boolean): void {
         >
           ${avatarHtml}
         </button>
-        <div id="user-dropdown-menu" class="hidden absolute right-0 mt-2 w-56 rounded-xl bg-bg-surface border border-border-default shadow-xl py-1.5 z-50 text-xs">
+        <div id="user-dropdown-menu" class="hidden absolute right-0 mt-2 w-56 rounded-lg bg-bg-surface ring-1 ring-border-default/60 shadow-xl py-1 z-50 text-xs">
         </div>
       </div>
     </div>
@@ -121,10 +121,10 @@ function renderDropdown(user: User | null): void {
   const isPro = user.tier === 'pro';
 
   menu.innerHTML = `
-    <div class="px-3 py-2 border-b border-border-default">
+    <div class="px-3 py-1.5 mb-0.5">
       <div class="flex items-center justify-between gap-2">
         <div class="font-semibold text-fg-primary truncate">${user.name || 'Learner'}</div>
-        <span class="shrink-0 text-[11px] font-medium px-1.5 py-0.5 rounded ${isPro ? 'bg-bg-app text-fg-primary border border-border-default' : 'text-fg-muted'}">
+        <span class="shrink-0 text-[11px] font-medium ${isPro ? 'px-1.5 py-0.5 rounded bg-bg-app text-fg-primary border border-border-default' : 'text-fg-muted'}">
           ${isPro ? 'Pro' : 'Free'}
         </span>
       </div>
@@ -132,30 +132,21 @@ function renderDropdown(user: User | null): void {
     </div>
 
     ${!isPro ? `
-      <div class="py-1">
-        <button id="dropdown-upgrade-btn" class="w-full text-left px-3 py-2 text-fg-primary hover:bg-brand/10 hover:text-brand font-medium flex items-center justify-between cursor-pointer">
-          <span>Upgrade to Pro</span>
-          <span class="text-[10px] bg-brand text-white font-bold px-1.5 py-0.5 rounded">NEW</span>
-        </button>
-      </div>
-      <div class="border-t border-border-default"></div>
+      <button id="dropdown-upgrade-btn" class="w-full text-left px-3 py-1.5 text-fg-primary hover:bg-bg-editor hover:text-brand font-medium flex items-center justify-between transition-colors cursor-pointer">
+        <span>Upgrade to Pro</span>
+      </button>
     ` : `
-      <div class="py-1">
-        <button id="dropdown-billing-btn" class="w-full text-left px-3 py-2 text-fg-muted hover:text-fg-primary hover:bg-bg-app font-medium flex items-center justify-between cursor-pointer">
-          <span>Manage Billing</span>
-        </button>
-      </div>
-      <div class="border-t border-border-default"></div>
+      <button id="dropdown-billing-btn" class="w-full text-left px-3 py-1.5 text-fg-muted hover:text-fg-primary hover:bg-bg-editor font-medium flex items-center justify-between transition-colors cursor-pointer">
+        <span>Manage Billing</span>
+      </button>
     `}
 
-    <div class="py-1">
-      <button id="dropdown-logout-btn" class="w-full text-left px-3 py-2 text-red-500 hover:bg-red-500/10 font-medium flex items-center gap-2 cursor-pointer">
-        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
-        </svg>
-        Sign Out
-      </button>
-    </div>
+    <button id="dropdown-logout-btn" class="w-full text-left px-3 py-1.5 text-red-500 hover:bg-red-500/10 font-medium flex items-center gap-2 transition-colors cursor-pointer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+      </svg>
+      Sign Out
+    </button>
   `;
 
   menu.querySelector('#dropdown-logout-btn')?.addEventListener('click', () => {
@@ -166,12 +157,12 @@ function renderDropdown(user: User | null): void {
     dropdownOpen = false;
     renderDropdown(user);
     // Dispatches a global event for Paddle / Pro upgrade modal (handled in Ticket 04)
-    window.dispatchEvent(new CustomEvent('codebook:open-upgrade-modal'));
+    window.dispatchEvent(new CustomEvent('wrongfirst:open-upgrade-modal'));
   });
 
   menu.querySelector('#dropdown-billing-btn')?.addEventListener('click', () => {
     dropdownOpen = false;
     renderDropdown(user);
-    window.dispatchEvent(new CustomEvent('codebook:open-billing-portal'));
+    window.dispatchEvent(new CustomEvent('wrongfirst:open-billing-portal'));
   });
 }

@@ -1,7 +1,7 @@
 // src/core/crypto.ts
 // Web Crypto API AES-GCM (256-bit) encryption for sensitive credentials in local storage
 const ENTROPY_KEY = '_cb_sec_entropy_v1';
-const SALT_STRING = 'codebook-ai-keystore-v1';
+const SALT_STRING = 'wrongfirst-keystore-v1';
 
 let cachedCryptoKeyPromise: Promise<CryptoKey | null> | null = null;
 

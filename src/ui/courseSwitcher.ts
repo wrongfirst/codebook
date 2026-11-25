@@ -33,7 +33,7 @@ interface BookProgress {
     isComplete: boolean;
 }
 
-const SESSION_CACHE_PREFIX = 'codebook_directory_cache:';
+const SESSION_CACHE_PREFIX = 'wrongfirst_directory_cache:';
 
 let visibleSections: DirectorySection[] = [];
 let isSwitcherActive = false;

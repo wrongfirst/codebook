@@ -405,7 +405,7 @@ export function initiateOAuthLogin(): void {
   if (typeof window === 'undefined') return;
 
   const csrf = crypto.randomUUID();
-  sessionStorage.setItem('codebook_gh_oauth_state', csrf);
+  sessionStorage.setItem('wrongfirst_gh_oauth_state', csrf);
 
   const statePayload = btoa(
     JSON.stringify({
@@ -446,8 +446,8 @@ export function handleOAuthCallback(): Effect.Effect<boolean, GistError> {
     }
 
     // CSRF validation
-    const savedState = sessionStorage.getItem('codebook_gh_oauth_state');
-    sessionStorage.removeItem('codebook_gh_oauth_state');
+    const savedState = sessionStorage.getItem('wrongfirst_gh_oauth_state');
+    sessionStorage.removeItem('wrongfirst_gh_oauth_state');
 
     if (savedState && incomingCsrf && incomingCsrf !== savedState) {
       console.error('[sync] OAuth state mismatch (possible CSRF attack).');
