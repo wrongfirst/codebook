@@ -8,3 +8,4 @@ npm-debug.log*
 site.toml
 .wrangler/
 .dev.vars*
+.env.local

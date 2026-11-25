@@ -23,7 +23,8 @@ declare global {
   }
 }
 
-const TURNSTILE_SITEKEY = '0x4AAAAAAGRJSaBc3A9zSFEc';
+const TURNSTILE_SITEKEY =
+  import.meta.env.VITE_TURNSTILE_SITEKEY || '0x4AAAAAAGRJSaBc3A9zSFEc';
 const TURNSTILE_ACTION = 'login';
 
 let modalEl: HTMLElement | null = null;

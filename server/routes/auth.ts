@@ -333,11 +333,15 @@ auth.post('/login/password', async (c) => {
     return c.json({ error: 'Verification failed. Please try again.' }, 403);
   }
 
+  const isTurnstileTestSecret =
+    turnstileSecret === '1x0000000000000000000000000000000AA';
+
   if (
     !siteverifyResult.success ||
-    siteverifyResult.action !== expectedAction ||
-    typeof siteverifyResult.hostname !== 'string' ||
-    !expectedHostnames.has(siteverifyResult.hostname)
+    (!isTurnstileTestSecret &&
+      (siteverifyResult.action !== expectedAction ||
+        typeof siteverifyResult.hostname !== 'string' ||
+        !expectedHostnames.has(siteverifyResult.hostname)))
   ) {
     return c.json({ error: 'Verification failed. Please try again.' }, 403);
   }
