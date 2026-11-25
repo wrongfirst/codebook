@@ -14,6 +14,7 @@ interface TurnstileApi {
     }
   ): string;
   reset(widgetId?: string): void;
+  remove?(widgetId?: string): void;
   getResponse(widgetId?: string): string | undefined;
 }
 
@@ -25,10 +26,12 @@ declare global {
 
 const TURNSTILE_SITEKEY =
   import.meta.env.VITE_TURNSTILE_SITEKEY || '0x4AAAAAAGRJSaBc3A9zSFEc';
-const TURNSTILE_ACTION = 'login';
+
+type AuthMode = 'login' | 'signup';
 
 let modalEl: HTMLElement | null = null;
 let authModal: ModalController | null = null;
+let authMode: AuthMode = 'login';
 let turnstileWidgetId: string | null = null;
 let turnstileToken = '';
 let turnstileRetryTimer: number | null = null;
@@ -40,6 +43,18 @@ function clearTurnstileRetryTimer(): void {
   }
 }
 
+function removeTurnstileWidget(): void {
+  clearTurnstileRetryTimer();
+  turnstileToken = '';
+  if (turnstileWidgetId !== null && window.turnstile?.remove) {
+    window.turnstile.remove(turnstileWidgetId);
+  } else if (modalEl) {
+    const container = modalEl.querySelector<HTMLElement>('#auth-turnstile-container');
+    if (container) container.innerHTML = '';
+  }
+  turnstileWidgetId = null;
+}
+
 function ensureTurnstileWidget(attemptsLeft = 50): void {
   if (!modalEl || turnstileWidgetId !== null) return;
   const container = modalEl.querySelector<HTMLElement>('#auth-turnstile-container');
@@ -49,7 +64,7 @@ function ensureTurnstileWidget(attemptsLeft = 50): void {
     clearTurnstileRetryTimer();
     turnstileWidgetId = window.turnstile.render(container, {
       sitekey: TURNSTILE_SITEKEY,
-      action: TURNSTILE_ACTION,
+      action: authMode,
       theme: 'auto',
       callback: (token: string) => {
         turnstileToken = token;
@@ -118,7 +133,7 @@ function createAuthModal(): void {
     <div class="bg-bg-surface border border-border-default rounded-xl shadow-2xl p-6 w-full max-w-sm relative flex flex-col gap-4 text-fg-primary animate-in fade-in zoom-in-95 duration-150">
       <div class="flex items-center justify-between pb-2 border-b border-border-default">
         <div>
-          <h2 class="text-base font-bold text-fg-primary">Sign in to Codebook</h2>
+          <h2 id="auth-modal-title" class="text-base font-bold text-fg-primary">Sign in to Codebook</h2>
           <p class="text-xs text-fg-muted mt-0.5">Sync progress across devices & unlock Pro</p>
         </div>
         <button id="close-auth-modal-btn" class="text-fg-muted hover:text-fg-primary transition-colors p-1.5 rounded-md hover:bg-bg-app cursor-pointer" title="Close">
@@ -169,6 +184,7 @@ function createAuthModal(): void {
             required 
             class="w-full px-3 py-2 text-xs bg-bg-app border border-border-default rounded-lg focus:outline-none focus:border-brand text-fg-primary"
           />
+          <p id="auth-password-hint" class="hidden text-[11px] text-fg-muted">At least 12 characters</p>
         </div>
         <div id="auth-turnstile-container" class="flex justify-center pt-1"></div>
         <button 
@@ -179,6 +195,15 @@ function createAuthModal(): void {
           Sign in
         </button>
         <div id="auth-status" class="hidden text-xs text-center py-1 font-medium"></div>
+        <div class="text-center pt-1">
+          <button
+            type="button"
+            id="auth-mode-toggle"
+            class="text-xs text-fg-muted hover:text-fg-primary underline underline-offset-2 cursor-pointer"
+          >
+            Don't have an account? Create one
+          </button>
+        </div>
       </form>
     </div>
   `;
@@ -199,10 +224,13 @@ function createAuthModal(): void {
   });
 
   const form = modalEl.querySelector('#password-login-form') as HTMLFormElement;
+  const titleEl = modalEl.querySelector('#auth-modal-title') as HTMLElement;
   const emailInput = modalEl.querySelector('#auth-email') as HTMLInputElement;
   const passwordInput = modalEl.querySelector('#auth-password') as HTMLInputElement;
+  const passwordHintEl = modalEl.querySelector('#auth-password-hint') as HTMLElement;
   const submitBtn = modalEl.querySelector('#auth-submit-btn') as HTMLButtonElement;
   const statusEl = modalEl.querySelector('#auth-status') as HTMLElement;
+  const modeToggleBtn = modalEl.querySelector('#auth-mode-toggle') as HTMLButtonElement;
 
   const setStatus = (text: string, tone: 'muted' | 'error' | 'success') => {
     statusEl.classList.remove('hidden', 'text-red-500', 'text-green-500', 'text-fg-muted');
@@ -212,11 +240,37 @@ function createAuthModal(): void {
     statusEl.textContent = text;
   };
 
+  const applyMode = (mode: AuthMode) => {
+    authMode = mode;
+    const isSignup = mode === 'signup';
+    titleEl.textContent = isSignup ? 'Create your account' : 'Sign in to Codebook';
+    submitBtn.textContent = isSignup ? 'Create account' : 'Sign in';
+    passwordInput.autocomplete = isSignup ? 'new-password' : 'current-password';
+    passwordHintEl.classList.toggle('hidden', !isSignup);
+    modeToggleBtn.textContent = isSignup
+      ? 'Already have an account? Sign in'
+      : "Don't have an account? Create one";
+    statusEl.classList.add('hidden');
+    statusEl.textContent = '';
+    removeTurnstileWidget();
+    ensureTurnstileWidget();
+  };
+
+  modeToggleBtn?.addEventListener('click', () => {
+    applyMode(authMode === 'login' ? 'signup' : 'login');
+  });
+
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = emailInput?.value.trim();
     const password = passwordInput?.value;
     if (!email || !password) return;
+
+    const isSignup = authMode === 'signup';
+    if (isSignup && password.length < 12) {
+      setStatus('Password must be at least 12 characters long.', 'error');
+      return;
+    }
 
     const cfTurnstileResponse =
       turnstileToken ||
@@ -228,10 +282,11 @@ function createAuthModal(): void {
 
     submitBtn.disabled = true;
     submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
-    setStatus('Signing in...', 'muted');
+    setStatus(isSignup ? 'Creating account...' : 'Signing in...', 'muted');
 
     try {
-      const res = await fetch('/api/auth/login/password', {
+      const endpoint = isSignup ? '/api/auth/signup' : '/api/auth/login/password';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -242,11 +297,24 @@ function createAuthModal(): void {
       });
 
       if (res.ok && isJsonResponse(res)) {
-        setStatus('Signed in! Reloading...', 'success');
-        window.location.reload();
+        if (isSignup) {
+          const body = (await res.json().catch(() => ({}))) as { message?: string };
+          setStatus(
+            body.message || 'Verification email sent! Please check your inbox.',
+            'success'
+          );
+          passwordInput.value = '';
+        } else {
+          setStatus('Signed in! Reloading...', 'success');
+          window.location.reload();
+        }
       } else {
         const body = isJsonResponse(res) ? await res.json().catch(() => ({})) : {};
-        setStatus((body as any).error || 'Invalid email or password.', 'error');
+        setStatus(
+          (body as any).error ||
+            (isSignup ? 'Could not create account.' : 'Invalid email or password.'),
+          'error'
+        );
       }
     } catch {
       setStatus('Network error. Please try again.', 'error');

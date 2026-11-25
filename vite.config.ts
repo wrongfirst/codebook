@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import type { Plugin } from "vite";
 import { readFileSync, copyFileSync, existsSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { parse } from "toml";
 import { parse as parseYaml } from "yaml";
 import { resolve } from "node:path";
@@ -234,6 +235,18 @@ function htmlMetaPlugin(): Plugin {
   };
 }
 
+function lookupLocalResendApiKey(): string {
+  try {
+    return execFileSync(
+      "secret-tool",
+      ["lookup", "service", "wrongfirst", "key", "resend_api_key"],
+      { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }
+    ).trim();
+  } catch {
+    return "";
+  }
+}
+
 export default defineConfig(({ command }) => ({
   base: "./",
   root: ".",
@@ -254,7 +267,18 @@ export default defineConfig(({ command }) => ({
     PYODIDE_VERSION: JSON.stringify(pyodideVersion),
   },
   plugins: [
-    ...(command === "serve" ? [cloudflare({ configPath: "./wrangler.api.jsonc" })] : []),
+    ...(command === "serve"
+      ? [
+          cloudflare({
+            configPath: "./wrangler.api.jsonc",
+            config() {
+              const resendKey = lookupLocalResendApiKey();
+              if (!resendKey) return;
+              return { vars: { RESEND_API_KEY: resendKey } };
+            },
+          }),
+        ]
+      : []),
     tailwindcss(),
     rawTextPlugin(),
     yamlPlugin(),
