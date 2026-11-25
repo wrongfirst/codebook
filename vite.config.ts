@@ -1,5 +1,4 @@
-import { defineConfig } from "vite";
-import type { Plugin } from "vite";
+import { defineConfig, type Plugin } from "vite-plus";
 import { readFileSync, copyFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { parse } from "toml";
@@ -31,7 +30,7 @@ function rawTextPlugin(): Plugin {
     name: "vite-raw-text",
     enforce: "pre",
     async resolveId(source, importer) {
-      if (source.endsWith(".md") && !source.includes('?') && importer) {
+      if (source.endsWith(".md") && !source.includes("?") && importer) {
         const resolved = await this.resolve(source, importer);
         if (resolved) {
           const virtualId = resolved.id + "\0__raw__";
@@ -157,7 +156,17 @@ function htmlMetaPlugin(): Plugin {
     transformIndexHtml(html) {
       try {
         const siteConfig = getSiteConfig();
-        const { title, subtitle, description, keywords, languages, og_image, logo_emoji, logo_image, home_page } = siteConfig;
+        const {
+          title,
+          subtitle,
+          description,
+          keywords,
+          languages,
+          og_image,
+          logo_emoji,
+          logo_image,
+          home_page,
+        } = siteConfig;
         const portalName = resolvePortalName(siteConfig);
         const trimmedHomePage = typeof home_page === "string" ? home_page.trim() : "";
         const projectUrl = resolveProjectUrl(siteConfig);
@@ -176,55 +185,85 @@ function htmlMetaPlugin(): Plugin {
                 "in-browser programming",
                 "web-based compiler",
                 ...(Array.isArray(languages) ? languages : []),
-              ].filter(Boolean)
-            )
+              ].filter(Boolean),
+            ),
           ).join(", ");
 
         let res = html;
-        res = res.replace(/(<span id="header-title"[^>]*>).*?(<\/span>)/s, `$1${escapeHtmlAttr(title || "")}$2`);
+        res = res.replace(
+          /(<span id="header-title"[^>]*>).*?(<\/span>)/s,
+          `$1${escapeHtmlAttr(title || "")}$2`,
+        );
         if (logo_emoji) {
-          res = res.replace(/(<span id="header-logo"[^>]*>).*?(<\/span>)/s, `$1${escapeHtmlAttr(logo_emoji)}$2`);
+          res = res.replace(
+            /(<span id="header-logo"[^>]*>).*?(<\/span>)/s,
+            `$1${escapeHtmlAttr(logo_emoji)}$2`,
+          );
         } else if (!logo_image) {
           res = res.replace(
             /(<span id="header-logo"[^>]*class="[^"]*)\bflex\b([^"]*")/s,
-            `$1hidden$2`
+            `$1hidden$2`,
           );
         }
         if (trimmedHomePage && portalName) {
-          res = res.replace(/(<a id="header-portal-link"[^>]*href=")[^"]*(")/s, `$1${escapeHtmlAttr(trimmedHomePage)}$2`);
-          res = res.replace(/(<span id="header-portal-name"[^>]*>).*?(<\/span>)/s, `$1${escapeHtmlAttr(portalName)}$2`);
+          res = res.replace(
+            /(<a id="header-portal-link"[^>]*href=")[^"]*(")/s,
+            `$1${escapeHtmlAttr(trimmedHomePage)}$2`,
+          );
+          res = res.replace(
+            /(<span id="header-portal-name"[^>]*>).*?(<\/span>)/s,
+            `$1${escapeHtmlAttr(portalName)}$2`,
+          );
         } else {
           res = res.replace(
             /(<a id="header-portal-link"[^>]*class="[^"]*)\binline-flex\b([^"]*")/s,
-            `$1hidden$2`
+            `$1hidden$2`,
           );
           res = res.replace(/(<a id="header-portal-link"[^>]*)\s+href="[^"]*"/s, `$1`);
           res = res.replace(/(<span id="header-breadcrumb-sep"[^>]*class=")/s, `$1hidden `);
         }
         res = res.replace(
           /(<a id="footer-repo-link"[^>]*href=")[^"]*(")/s,
-          (_, p1, p2) => `${p1}${escapeHtmlAttr(projectUrl)}${p2}`
+          (_, p1, p2) => `${p1}${escapeHtmlAttr(projectUrl)}${p2}`,
         );
         res = res.replace(
           /(<a id="footer-issues-link"[^>]*href=")[^"]*(")/s,
-          (_, p1, p2) => `${p1}${escapeHtmlAttr(`${projectUrl}/issues`)}${p2}`
+          (_, p1, p2) => `${p1}${escapeHtmlAttr(`${projectUrl}/issues`)}${p2}`,
         );
         res = res.replace(
           /(<span id="build-date"[^>]*>).*?(<\/span>)/s,
-          (_, p1, p2) => `${p1}Last updated on ${escapeHtmlAttr(buildDate)}${p2}`
+          (_, p1, p2) => `${p1}Last updated on ${escapeHtmlAttr(buildDate)}${p2}`,
         );
         res = res.replace(/<title>.*<\/title>/, `<title>${escapeHtmlAttr(pageTitle)}</title>`);
-        res = res.replace("</head>", `  <meta property="og:title" content="${escapeHtmlAttr(pageTitle)}">\n</head>`);
+        res = res.replace(
+          "</head>",
+          `  <meta property="og:title" content="${escapeHtmlAttr(pageTitle)}">\n</head>`,
+        );
         if (pageDescription) {
-          res = res.replace("</head>", `  <meta name="description" content="${escapeHtmlAttr(pageDescription)}">\n</head>`);
-          res = res.replace("</head>", `  <meta property="og:description" content="${escapeHtmlAttr(pageDescription)}">\n</head>`);
+          res = res.replace(
+            "</head>",
+            `  <meta name="description" content="${escapeHtmlAttr(pageDescription)}">\n</head>`,
+          );
+          res = res.replace(
+            "</head>",
+            `  <meta property="og:description" content="${escapeHtmlAttr(pageDescription)}">\n</head>`,
+          );
         }
         if (pageKeywords) {
-          res = res.replace("</head>", `  <meta name="keywords" content="${escapeHtmlAttr(pageKeywords)}">\n</head>`);
+          res = res.replace(
+            "</head>",
+            `  <meta name="keywords" content="${escapeHtmlAttr(pageKeywords)}">\n</head>`,
+          );
         }
         if (og_image) {
-          res = res.replace("</head>", `  <meta property="og:image" content="${escapeHtmlAttr(og_image)}">\n</head>`);
-          res = res.replace("</head>", `  <meta name="twitter:card" content="summary_large_image">\n</head>`);
+          res = res.replace(
+            "</head>",
+            `  <meta property="og:image" content="${escapeHtmlAttr(og_image)}">\n</head>`,
+          );
+          res = res.replace(
+            "</head>",
+            `  <meta name="twitter:card" content="summary_large_image">\n</head>`,
+          );
         }
         return res;
       } catch (e) {
@@ -240,7 +279,7 @@ function lookupLocalResendApiKey(): string {
     return execFileSync(
       "secret-tool",
       ["lookup", "service", "wrongfirst", "key", "resend_api_key"],
-      { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }
+      { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] },
     ).trim();
   } catch {
     return "";
@@ -248,6 +287,15 @@ function lookupLocalResendApiKey(): string {
 }
 
 export default defineConfig(({ command, mode }) => ({
+  staged: {
+    "*": "vp check --fix",
+  },
+  fmt: {},
+  lint: {
+    jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
+    rules: { "vite-plus/prefer-vite-plus-imports": "error" },
+    options: { typeAware: true, typeCheck: true },
+  },
   base: "./",
   root: ".",
   server: {

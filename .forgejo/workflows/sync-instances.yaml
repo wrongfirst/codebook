@@ -4,36 +4,36 @@ on:
   workflow_dispatch:
     inputs:
       target_repo:
-        description: 'Target repository to synchronize'
+        description: "Target repository to synchronize"
         type: choice
         required: true
-        default: 'all'
+        default: "all"
         options:
-          - 'all'
-          - 'wrongfirst/warmup'
-          - 'wrongfirst/dsa'
-          - 'wrongfirst/more-dsa'
-          - 'wrongfirst/most-dsa'
-          - 'wrongfirst/fft'
-          - 'wrongfirst/vim-better'
-          - 'wrongfirst/gorp'
-          - 'wrongfirst/dioscuri'
+          - "all"
+          - "wrongfirst/warmup"
+          - "wrongfirst/dsa"
+          - "wrongfirst/more-dsa"
+          - "wrongfirst/most-dsa"
+          - "wrongfirst/fft"
+          - "wrongfirst/vim-better"
+          - "wrongfirst/gorp"
+          - "wrongfirst/dioscuri"
       source_branch:
-        description: 'Upstream codebook branch to sync from'
+        description: "Upstream codebook branch to sync from"
         type: string
         required: false
-        default: 'main'
+        default: "main"
       target_branch:
-        description: 'Downstream instance branch to merge into'
+        description: "Downstream instance branch to merge into"
         type: string
         required: false
-        default: 'main'
+        default: "main"
       dry_run:
-        description: 'Simulate sync without pushing changes'
+        description: "Simulate sync without pushing changes"
         type: boolean
         default: false
       deploy:
-        description: 'Trigger deployment workflow on instance after sync'
+        description: "Trigger deployment workflow on instance after sync"
         type: boolean
         default: false
 
@@ -50,7 +50,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 'latest'
+          node-version: "latest"
 
       - name: Run Sync Pipeline
         env:
@@ -72,7 +72,7 @@ jobs:
           if [ "${DEPLOY}" = "true" ]; then
             DEPLOY_ARG="--deploy"
           fi
-          npm run sync:instances -- \
+          pnpm run sync:instances -- \
             --repo "${TARGET_REPO}" \
             --source-branch "${SOURCE_BRANCH:-main}" \
             --target-branch "${TARGET_BRANCH:-main}" \
