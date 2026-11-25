@@ -44,7 +44,9 @@ function renderWidget(user: User | null, isLoading: boolean): void {
 
   if (isLoading) {
     widgetContainer.innerHTML = `
-      <div class="w-8 h-8 rounded-full bg-border-default/40 animate-pulse"></div>
+      <div class="inline-flex items-center justify-center w-[var(--ctrl-lg)] h-[var(--ctrl-lg)] -mr-1">
+        <div class="w-6 h-6 rounded-full bg-border-default/40 animate-pulse"></div>
+      </div>
     `;
     return;
   }
@@ -53,12 +55,12 @@ function renderWidget(user: User | null, isLoading: boolean): void {
     widgetContainer.innerHTML = `
       <button 
         id="header-signin-btn" 
-        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-border-default hover:bg-bg-app hover:border-fg-muted/40 transition-all text-fg-primary cursor-pointer shadow-sm"
+        class="btn btn--md btn--secondary btn--icon ml-1"
       >
-        <svg class="w-3.5 h-3.5 text-fg-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg class="text-fg-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/>
         </svg>
-        Sign In
+        <span>Sign In</span>
       </button>
     `;
 
@@ -73,9 +75,9 @@ function renderWidget(user: User | null, isLoading: boolean): void {
   const lightAvatarSrc = `https://api.dicebear.com/9.x/thumbs/svg?seed=${seed}&backgroundColor=eff1f5&shapeColor=bcc0cc&eyesColor=4c4f69&mouthColor=4c4f69`;
   const darkAvatarSrc = `https://api.dicebear.com/9.x/thumbs/svg?seed=${seed}&backgroundColor=222231&shapeColor=45475a&eyesColor=cdd6f4&mouthColor=cdd6f4`;
   const avatarHtml = `
-    <picture class="block w-7 h-7">
+    <picture class="block w-6 h-6">
       <source media="(prefers-color-scheme: dark)" srcset="${darkAvatarSrc}" />
-      <img src="${lightAvatarSrc}" alt="${user.name || 'User'}" class="w-7 h-7 rounded-full object-cover ring-1 ring-border-default" />
+      <img src="${lightAvatarSrc}" alt="${user.name || 'User'}" class="w-6 h-6 rounded-full object-cover border border-border-default" />
     </picture>
   `;
 
@@ -84,7 +86,7 @@ function renderWidget(user: User | null, isLoading: boolean): void {
       <div class="relative inline-block text-left">
         <button 
           id="user-profile-menu-btn" 
-          class="flex items-center rounded-full hover:opacity-90 transition-opacity cursor-pointer select-none"
+          class="inline-flex items-center justify-center w-[var(--ctrl-lg)] h-[var(--ctrl-lg)] -mr-1 rounded hover:bg-bg-app transition-colors cursor-pointer select-none"
           title="${user.name || user.email}"
         >
           ${avatarHtml}
