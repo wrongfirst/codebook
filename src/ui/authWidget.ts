@@ -69,23 +69,25 @@ function renderWidget(user: User | null, isLoading: boolean): void {
   }
 
   // User is authenticated
-  const initial = (user.name || user.email || 'U')[0].toUpperCase();
-  const avatarHtml = user.avatarUrl
-    ? `<img src="${user.avatarUrl}" alt="${user.name || 'User'}" class="w-7 h-7 rounded-full object-cover ring-1 ring-border-default" />`
-    : `<div class="w-7 h-7 rounded-full bg-brand/20 text-brand text-xs font-bold flex items-center justify-center ring-1 ring-border-default">${initial}</div>`;
+  const seed = encodeURIComponent(user.email || user.id || user.name || 'user');
+  const lightAvatarSrc = `https://api.dicebear.com/9.x/thumbs/svg?seed=${seed}&backgroundColor=eff1f5&shapeColor=bcc0cc&eyesColor=4c4f69&mouthColor=4c4f69`;
+  const darkAvatarSrc = `https://api.dicebear.com/9.x/thumbs/svg?seed=${seed}&backgroundColor=222231&shapeColor=45475a&eyesColor=cdd6f4&mouthColor=cdd6f4`;
+  const avatarHtml = `
+    <picture class="block w-7 h-7">
+      <source media="(prefers-color-scheme: dark)" srcset="${darkAvatarSrc}" />
+      <img src="${lightAvatarSrc}" alt="${user.name || 'User'}" class="w-7 h-7 rounded-full object-cover ring-1 ring-border-default" />
+    </picture>
+  `;
 
   widgetContainer.innerHTML = `
     <div class="flex items-center gap-2">
       <div class="relative inline-block text-left">
         <button 
           id="user-profile-menu-btn" 
-          class="flex items-center gap-2 p-1 pl-1.5 pr-2 rounded-full hover:bg-bg-app border border-border-default transition-all cursor-pointer select-none"
+          class="flex items-center rounded-full hover:opacity-90 transition-opacity cursor-pointer select-none"
           title="${user.name || user.email}"
         >
           ${avatarHtml}
-          <svg class="w-3 h-3 text-fg-muted" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 4.5l3 3 3-3"/>
-          </svg>
         </button>
         <div id="user-dropdown-menu" class="hidden absolute right-0 mt-2 w-56 rounded-xl bg-bg-surface border border-border-default shadow-xl py-1.5 z-50 text-xs">
         </div>
